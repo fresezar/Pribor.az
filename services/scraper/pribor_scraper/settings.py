@@ -18,6 +18,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # PostgreSQL — ingest katmanı (db.py) buraya yazar
+    database_url: str = "postgres://pribor:pribor_dev@localhost:5432/pribor"
+
     # Ham katman hedefi: lokal disk (geliştirme) veya S3/R2 (prod)
     raw_storage: Literal["local", "s3"] = "local"
     raw_local_dir: Path = REPO_ROOT / "services" / "scraper" / "data" / "raw"

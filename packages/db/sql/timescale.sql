@@ -13,10 +13,10 @@ SELECT create_hypertable(
   migrate_data => TRUE
 );
 
--- 90 günden eski chunk'ları sıkıştır (ilan başına sıralı, zamana göre ters)
+-- 90 günden eski chunk'ları sıkıştır (kayıt başına sıralı, zamana göre ters)
 ALTER TABLE price_snapshots SET (
   timescaledb.compress,
-  timescaledb.compress_segmentby = 'listing_id',
+  timescaledb.compress_segmentby = 'ref_kind, ref_id',
   timescaledb.compress_orderby = 'observed_at DESC'
 );
 
@@ -29,8 +29,8 @@ SELECT add_compression_policy('price_snapshots', INTERVAL '90 days', if_not_exis
 -- CREATE MATERIALIZED VIEW IF NOT EXISTS price_daily_district
 -- WITH (timescaledb.continuous) AS
 -- SELECT time_bucket('1 day', ps.observed_at) AS bucket,
---        l.location_id,
+--        sl.normalized->>'district' AS district,
 --        percentile_cont(0.5) WITHIN GROUP (ORDER BY ps.price_azn) AS median_price
 -- FROM price_snapshots ps
--- JOIN listings l ON l.id = ps.listing_id
--- GROUP BY bucket, l.location_id;
+-- JOIN scraped_listings sl ON sl.id = ps.ref_id AND ps.ref_kind = 'scraped'
+-- GROUP BY bucket, district;

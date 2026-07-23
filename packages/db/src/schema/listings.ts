@@ -20,6 +20,7 @@ import {
   listingSource,
   listingStatus,
   mediaKind,
+  priceRefKind,
   propertyType,
   transmission,
   vertical,
@@ -123,15 +124,21 @@ export const listingVehicleAttrs = pgTable(
 
 /**
  * Fiyat geçmişi — TimescaleDB hypertable (dönüşüm: packages/db/sql/timescale.sql).
- * Hem kendi ilanlarımızın hem scraped ilanların fiyat gözlemleri buraya akar;
- * semt endeksleri ve "3 haftada 2 indirim" içgörüsü buradan üretilir.
+ * Hem kendi ilanlarımızın (ref_kind='listing') hem scraped kayıtların
+ * (ref_kind='scraped') fiyat gözlemleri buraya akar; semt endeksleri ve
+ * "3 haftada 2 indirim" içgörüsü buradan üretilir.
+ *
+ * ref_id bilinçli olarak FK DEĞİLDİR: hedef tablo ref_kind'a göre değişir
+ * (polimorfik) ve hypertable'lar FK bakımını pahalılaştırır. Bütünlük,
+ * tek yazıcı olan ingest katmanında (services/scraper/pribor_scraper/db.py)
+ * ve uygulama servislerinde korunur.
  */
 export const priceSnapshots = pgTable(
   "price_snapshots",
   {
-    listingId: uuid("listing_id")
-      .notNull()
-      .references(() => listings.id, { onDelete: "cascade" }),
+    refKind: priceRefKind("ref_kind").notNull().default("listing"),
+    /** listings.id (ref_kind='listing') veya scraped_listings.id (ref_kind='scraped') */
+    refId: uuid("ref_id").notNull(),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
     priceAzn: integer("price_azn").notNull(),
     /** 'user' | site kodu — gözlemin kaynağı */
@@ -139,7 +146,7 @@ export const priceSnapshots = pgTable(
   },
   (t) => [
     // Hypertable şartı: PK partition kolonu (observed_at) içermeli
-    primaryKey({ columns: [t.listingId, t.observedAt] }),
+    primaryKey({ columns: [t.refKind, t.refId, t.observedAt] }),
   ],
 );
 

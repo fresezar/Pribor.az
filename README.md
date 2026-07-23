@@ -62,7 +62,20 @@ python -m venv .venv; .venv\Scripts\activate
 pip install -e .
 pribor-scraper sources
 pribor-scraper scrape example-site --mode delta
-pribor-scraper normalize data/raw/example-site/<tarih>/<run>.jsonl
+pribor-scraper normalize data/raw/example-site/<tarih>/<run>.jsonl   # dosyaya (DB'siz)
+pribor-scraper ingest data/raw/example-site/<tarih>/<run>.jsonl      # PostgreSQL'e
+# full koşularda: --run-type full → görünmeyen kayıtlar delist edilir ("satıldı" sinyali)
+```
+
+### Model eğitimi (CatBoost quantile baseline)
+
+```powershell
+cd services/ml
+.venv\Scripts\activate
+python -m pribor_ml.train --synthetic --n 20000    # sentetik veriyle (DB'siz)
+python -m pribor_ml.train --no-synthetic           # scraped_listings'ten (pip install -e ".[db]")
+# Çıktı: artifacts/q10.cbm q50.cbm q90.cbm metadata.json
+# FastAPI açılışta artifact'i otomatik yükler; yoksa heuristik stub'a düşer.
 ```
 
 ## Uçtan uca duman testi
@@ -103,5 +116,8 @@ veriyi toplayın. Stratejik hedef, kaynaklarla resmi veri ortaklığıdır.
 - [ ] 2 gerçek kaynak için scraper + normalizasyon (sözlük kapsama raporuyla)
 - [ ] 50K+ temiz ilan `scraped_listings`'te, fiyat geçmişi `price_snapshots`'ta
 - [ ] Dedup kümeleme (telefon + MinHash + pHash) çalışır durumda
-- [ ] İlk CatBoost quantile modeli eğitildi, stub'ın yerini aldı (MAPE < %12)
+- [x] İlk CatBoost quantile modeli eğitildi, stub'ın yerini aldı
+      (sentetik veride MAPE %8.6 — gerçek veri hedefi < %12)
+- [x] Ingest hattı: raw JSONL → raw_dumps → scraped_listings upsert →
+      fiyat değişiminde price_snapshots (idempotent, delist tespitli)
 - [ ] `valuations` kalıcı yazımı + model_versions seed'i

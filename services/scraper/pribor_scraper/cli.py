@@ -8,11 +8,16 @@ Kullanım (services/scraper içinde, .venv aktifken):
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import typer
 
-from .pipeline import normalize_run_file
+# Windows konsolu cp1252 açılabilir — Türkçe/AZ karakterler için UTF-8'e zorla
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+from .pipeline import ingest_run_file, normalize_run_file
 from .sources import REGISTRY
 
 app = typer.Typer(help="Pribor veri toplama düzlemi", no_args_is_help=True)
@@ -41,6 +46,24 @@ def scrape(
     scraper = REGISTRY[source](mode=mode)  # type: ignore[arg-type]
     stats = scraper.run()
     typer.echo(f"Koşu bitti [{scraper.run_id}]: {dict(stats)}")
+
+
+@app.command()
+def ingest(
+    raw_file: Path = typer.Argument(help="Ham JSONL koşu dosyası"),
+    run_type: str = typer.Option(
+        "delta", "--run-type",
+        help="delta | full — full, koşuda görünmeyen kayıtları delist eder"),
+) -> None:
+    """Ham koşu dosyasını normalize edip PostgreSQL'e işler
+    (scrape_runs → raw_dumps → scraped_listings → price_snapshots)."""
+    if not raw_file.exists():
+        typer.echo(f"Dosya yok: {raw_file}")
+        raise typer.Exit(1)
+    if run_type not in ("delta", "full"):
+        typer.echo("run-type 'delta' veya 'full' olmalı")
+        raise typer.Exit(1)
+    ingest_run_file(raw_file, run_type=run_type)
 
 
 @app.command()

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { listingReAttrs, listings, listingVehicleAttrs, media, priceSnapshots } from "./listings";
+import { listingReAttrs, listings, listingVehicleAttrs, media } from "./listings";
 import { locations, metroStations } from "./locations";
 import { modelVersions, valuations } from "./valuations";
 import { rawDumps, scrapedListings, scrapeRuns } from "./scraping";
@@ -44,7 +44,8 @@ export const listingsRelations = relations(listings, ({ one, many }) => ({
     references: [listingVehicleAttrs.listingId],
   }),
   media: many(media),
-  priceSnapshots: many(priceSnapshots),
+  // price_snapshots polimorfik soft-ref kullanır (ref_kind + ref_id) —
+  // ilişki grafına dahil değildir; sorgular ref_kind filtresiyle elle yazılır
 }));
 
 export const listingReAttrsRelations = relations(listingReAttrs, ({ one }) => ({
@@ -60,10 +61,6 @@ export const listingVehicleAttrsRelations = relations(listingVehicleAttrs, ({ on
 
 export const mediaRelations = relations(media, ({ one }) => ({
   listing: one(listings, { fields: [media.listingId], references: [listings.id] }),
-}));
-
-export const priceSnapshotsRelations = relations(priceSnapshots, ({ one }) => ({
-  listing: one(listings, { fields: [priceSnapshots.listingId], references: [listings.id] }),
 }));
 
 export const locationsRelations = relations(locations, ({ one, many }) => ({

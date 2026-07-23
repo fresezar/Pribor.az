@@ -82,6 +82,9 @@ export const modelStatus = pgEnum("model_status", [
 
 export const scrapeRunType = pgEnum("scrape_run_type", ["delta", "full"]);
 
+/** price_snapshots.ref_id neyi gösteriyor: kendi ilanımız mı, scraped kayıt mı? */
+export const priceRefKind = pgEnum("price_ref_kind", ["listing", "scraped"]);
+
 export const scrapeRunStatus = pgEnum("scrape_run_status", [
   "running",
   "succeeded",

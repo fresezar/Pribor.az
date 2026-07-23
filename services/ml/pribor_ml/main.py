@@ -14,16 +14,34 @@ uçtan uca akışın (web → NestJS → ML) ilk günden test edilebilmesi için
 
 from __future__ import annotations
 
+import sys
 import uuid
 from datetime import datetime, timezone
 from typing import Literal, Union
 
+# Windows konsolu cp1252 açılabilir — Türkçe/AZ karakterler için UTF-8'e zorla
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="Pribor Valuation API", version="0.0.1")
+app = FastAPI(title="Pribor Valuation API", version="0.1.0")
 
 MODEL_VERSION = "re-baseline-heuristic-0.0.1"
+
+# Eğitilmiş CatBoost artifact'i varsa yükle (yoksa/catboost kurulu değilse stub)
+try:
+    from .model_runtime import RealEstateModel
+
+    RE_MODEL = RealEstateModel.load()
+except ImportError:
+    RE_MODEL = None
+if RE_MODEL is not None:
+    print(f"✔ CatBoost modeli yüklendi: {RE_MODEL.metadata.get('tag')}")
+else:
+    print("ℹ Model artifact yok — heuristik stub servis ediliyor "
+          "(eğitim: python -m pribor_ml.train --synthetic)")
 
 # Kaba taban değerler (₼/m², 2026 ortası) — yalnızca stub; gerçek değerler modelden gelecek
 DISTRICT_SQM_AZN: dict[str, int] = {
@@ -99,6 +117,35 @@ class ValuationResult(BaseModel):
 def _now_iso() -> str:
     # Zod z.string().datetime() varsayılanı yalnızca 'Z' soneki kabul eder
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _predict_real_estate_catboost(inp: RealEstateInput) -> ValuationResult:
+    """Eğitilmiş quantile modelleriyle tahmin + gerçek SHAP katkıları."""
+    assert RE_MODEL is not None
+    pred = RE_MODEL.predict({
+        "district": inp.district,
+        "property_type": inp.propertyType,
+        "building_type": inp.buildingType,
+        "area_m2": inp.areaM2,
+        "rooms": inp.rooms,
+        "floor": inp.floor,
+        "total_floors": inp.totalFloors,
+        "repair_state": inp.repairState,
+        "title_deed": inp.titleDeed,
+        "metro_dist_m": inp.metroDistM,
+    })
+    return ValuationResult(
+        valuationId=str(uuid.uuid4()),
+        vertical="real_estate",
+        p10Azn=pred.p10,
+        p50Azn=pred.p50,
+        p90Azn=pred.p90,
+        confidence=pred.confidence,
+        shapTop=[ShapContribution(**s) for s in pred.shap_top],
+        compListingIds=[],  # Faz 1: PostGIS kNN comps sorgusu buraya bağlanır
+        modelVersion=pred.model_tag,
+        createdAt=_now_iso(),
+    )
 
 
 def _estimate_real_estate(inp: RealEstateInput) -> ValuationResult:
@@ -183,11 +230,15 @@ def _estimate_vehicle(inp: VehicleInput) -> ValuationResult:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "model": MODEL_VERSION}
+    tag = RE_MODEL.metadata.get("tag", "unknown") if RE_MODEL else MODEL_VERSION
+    return {"status": "ok", "model": str(tag)}
 
 
 @app.post("/v1/valuations", response_model=ValuationResult)
 def create_valuation(dto: CreateValuationDto) -> ValuationResult:
     if dto.input.vertical == "real_estate":
+        if RE_MODEL is not None:
+            return _predict_real_estate_catboost(dto.input)
         return _estimate_real_estate(dto.input)
+    # Otomotiv: ilk CatBoost modeli gayrimenkul; araç tarafı şimdilik heuristik
     return _estimate_vehicle(dto.input)
