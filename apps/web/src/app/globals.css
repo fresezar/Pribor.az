@@ -1,0 +1,304 @@
+/* Pribor MVP tasarım sistemi — Hazar koyusu + alev vurgusu.
+   Bilinçli tek tema (koyu): ürün kimliği; açık tema Faz 2 backlog'unda. */
+
+:root {
+  --bg: #0a161d;
+  --bg-raise: #0e1e26;
+  --surface: #12242e;
+  --surface-2: #16303b;
+  --line: #1e3641;
+  --line-soft: #1a2f3a;
+  --ink: #e6eff2;
+  --muted: #8fa6ae;
+  --faint: #5f7882;
+  --flame: #e8603a;
+  --flame-soft: rgba(232, 96, 58, 0.12);
+  --teal: #2ba69e;
+  --teal-soft: rgba(43, 166, 158, 0.12);
+  --good: #27a56c;
+  --good-soft: rgba(39, 165, 108, 0.14);
+  --warn: #d9a13b;
+  --warn-soft: rgba(217, 161, 59, 0.14);
+  --radius: 12px;
+  --mono: "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 500px at 85% -10%, rgba(43, 166, 158, 0.08), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, rgba(232, 96, 58, 0.06), transparent 55%),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+::selection { background: var(--teal); color: #06161a; }
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 6px; }
+
+.shell { max-width: 1120px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ---------- üst bar ---------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0 14px;
+}
+.brand {
+  font-family: var(--mono);
+  font-weight: 700; font-size: 0.95rem; letter-spacing: 0.14em;
+}
+.brand b { color: var(--flame); }
+.topbar .beta {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em;
+  color: var(--teal); border: 1px solid var(--line);
+  padding: 4px 10px; border-radius: 999px;
+}
+
+/* ---------- hero ---------- */
+.hero { text-align: center; padding: 40px 0 30px; }
+.hero h1 {
+  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(1.9rem, 4.6vw, 3rem);
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.12;
+  margin: 0 0 10px; text-wrap: balance;
+}
+.hero h1 .flame { color: var(--flame); }
+.hero p { color: var(--muted); max-width: 52ch; margin: 0 auto; }
+
+/* ---------- ana kart ---------- */
+.panel {
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 26px;
+  max-width: 720px;
+  margin: 26px auto 0;
+  box-shadow: 0 24px 60px rgba(4, 12, 17, 0.5), 0 2px 8px rgba(4, 12, 17, 0.4);
+}
+
+/* dikey sekmeleri */
+.tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+.tabs button {
+  flex: 1; padding: 11px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; color: var(--muted); font-weight: 600; font-size: 0.92rem;
+  transition: all 0.18s ease;
+}
+.tabs button.active {
+  background: var(--teal-soft); border-color: var(--teal);
+  color: var(--ink);
+}
+.tabs button:hover:not(.active) { border-color: var(--faint); color: var(--ink); }
+
+/* form ızgarası */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid .full { grid-column: 1 / -1; }
+@media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field > label {
+  font-family: var(--mono); font-size: 0.66rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+}
+.field input, .field select {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 9px; padding: 11px 12px; font-size: 0.95rem;
+  transition: border-color 0.15s ease;
+  width: 100%;
+}
+.field input:hover, .field select:hover { border-color: var(--faint); }
+.field input:focus, .field select:focus { border-color: var(--teal); outline: none; }
+.field .hint { font-size: 0.72rem; color: var(--faint); }
+
+/* segment kontrolü (otaq, təmir) */
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  min-width: 44px; padding: 9px 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--muted); font-size: 0.88rem;
+  transition: all 0.15s ease;
+}
+.seg button.on {
+  background: var(--teal-soft); border-color: var(--teal); color: var(--ink);
+  font-weight: 600;
+}
+.seg button:hover:not(.on) { border-color: var(--faint); color: var(--ink); }
+
+/* toggle satırı */
+.toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 9px; padding: 10px 12px;
+}
+.toggle span { font-size: 0.9rem; }
+.toggle small { display: block; color: var(--faint); font-size: 0.72rem; }
+.switch {
+  position: relative; width: 42px; height: 24px; flex: 0 0 auto;
+  background: var(--line); border: none; border-radius: 999px;
+  transition: background 0.18s ease;
+}
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--muted); transition: all 0.18s ease;
+}
+.switch.on { background: var(--teal); }
+.switch.on::after { left: 21px; background: #06161a; }
+
+/* birincil CTA — alev vurgusu tek yerde harcanır */
+.cta {
+  width: 100%; margin-top: 22px; padding: 14px;
+  background: var(--flame); border: none; border-radius: 11px;
+  color: #160905; font-weight: 700; font-size: 1rem;
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+}
+.cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.cta:active { transform: translateY(0); }
+.cta:disabled { opacity: 0.55; cursor: wait; transform: none; }
+
+.err {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--flame-soft); border: 1px solid rgba(232, 96, 58, 0.4);
+  border-radius: 9px; font-size: 0.86rem; color: #f4b09a;
+}
+
+/* ---------- hesaplama sahnesi ---------- */
+.computing { text-align: center; padding: 34px 10px 26px; }
+.computing .pulse {
+  width: 54px; height: 54px; margin: 0 auto 18px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--teal);
+  animation: spin 0.9s linear infinite;
+}
+.computing .step {
+  font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+  animation: fadeUp 0.4s ease;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+/* ---------- sonuç kartı ---------- */
+.result { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.result .eyebrow {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.result .query { font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; }
+.result .query b { color: var(--ink); font-weight: 600; }
+
+.price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.price {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(2.2rem, 6vw, 3rem); font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1;
+}
+.price .cur { font-size: 0.55em; color: var(--teal); margin-left: 2px; }
+.conf {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+}
+
+/* güven aralığı bandı */
+.range { margin: 18px 0 6px; }
+.range .track {
+  position: relative; height: 8px; border-radius: 5px;
+  background: linear-gradient(90deg, var(--surface-2), var(--teal-soft), var(--surface-2));
+  border: 1px solid var(--line-soft);
+}
+.range .band {
+  position: absolute; top: -1px; bottom: -1px;
+  background: var(--teal-soft); border: 1px solid var(--teal);
+  border-radius: 5px;
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.range .dot {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--flame); border: 2px solid var(--bg-raise);
+}
+.range .labels {
+  display: flex; justify-content: space-between; margin-top: 7px;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* deal rozeti */
+.deal {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin: 14px 0 4px; padding: 7px 14px; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 600;
+}
+.deal.good { background: var(--good-soft); color: #5fd9a2; border: 1px solid rgba(39, 165, 108, 0.4); }
+.deal.bad { background: var(--warn-soft); color: #ecc069; border: 1px solid rgba(217, 161, 59, 0.4); }
+.deal.neutral { background: var(--teal-soft); color: var(--teal); border: 1px solid rgba(43, 166, 158, 0.35); }
+
+/* Qiymət DNT-si */
+.dna { margin-top: 22px; }
+.dna h3 {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500;
+  margin: 0 0 12px;
+}
+.dna .row {
+  display: grid; grid-template-columns: 130px 1fr 84px;
+  gap: 12px; align-items: center; margin: 8px 0;
+}
+.dna .lbl { font-size: 0.82rem; }
+.dna .track { height: 7px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.dna .fill {
+  height: 100%; width: 0; border-radius: 4px;
+  transition: width 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dna .fill.pos { background: var(--teal); }
+.dna .fill.neg { background: var(--flame); }
+.dna .val {
+  font-family: var(--mono); font-size: 0.75rem; text-align: right;
+  color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* dönüşüm bölgesi */
+.convert { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
+.convert .primary {
+  flex: 2; min-width: 220px; padding: 13px;
+  background: var(--flame); border: none; border-radius: 10px;
+  color: #160905; font-weight: 700; font-size: 0.95rem;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.convert .primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.convert .ghost {
+  flex: 1; min-width: 140px; padding: 13px;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: 10px; color: var(--muted); font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+.convert .ghost:hover { border-color: var(--faint); color: var(--ink); }
+.converted {
+  margin-top: 14px; padding: 13px 16px;
+  background: var(--good-soft); border: 1px solid rgba(39, 165, 108, 0.4);
+  border-radius: 10px; font-size: 0.88rem; color: #5fd9a2;
+  animation: fadeUp 0.4s ease;
+}
+.converted code { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+
+.model-tag {
+  margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line-soft);
+  font-family: var(--mono); font-size: 0.66rem; color: var(--faint);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+}
+
+footer.note {
+  text-align: center; color: var(--faint); font-size: 0.74rem;
+  margin-top: 36px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

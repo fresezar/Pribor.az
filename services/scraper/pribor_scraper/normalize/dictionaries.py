@@ -33,8 +33,8 @@ def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
 REPAIR_STATE_MAP: list[tuple[int, tuple[str, ...]]] = [
     (5, ("dizayner təmir", "dizayner temir", "əla təmir", "ela temir", "lüks təmir",
          "евроремонт", "дизайнерский ремонт", "люкс ремонт", "əla vəziyyət")),
-    (4, ("yaxşı təmir", "yaxsi temir", "хороший ремонт", "təmirli", "temirli",
-         "с ремонтом")),
+    (4, ("yaxşı təmir", "yaxsi temir", "хороший ремонт", "хорошим ремонтом",
+         "təmirli", "temirli", "с ремонтом")),
     (3, ("orta təmir", "orta temir", "normal təmir", "kosmetik təmir",
          "средний ремонт", "косметический ремонт")),
     (2, ("köhnə təmir", "kohne temir", "старый ремонт")),

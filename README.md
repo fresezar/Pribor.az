@@ -37,6 +37,13 @@ copy .env.example .env
 # 4. Altyapı (Docker Desktop açıkken)
 docker compose up -d
 
+# 4-alternatif. Docker YOKSA — taşınabilir Postgres (bu makinede kurulu durumda):
+#   .pgdev\pgsql altında PostgreSQL 16.4 + PostGIS 3.6 (gitignore'da, admin gerektirmez)
+#   Başlat:  .pgdev\pgsql\bin\pg_ctl.exe -D .pgdev\data -l .pgdev\pg.log start
+#   Durdur:  .pgdev\pgsql\bin\pg_ctl.exe -D .pgdev\data stop
+#   Not: TimescaleDB bu kurulumda yok → price_snapshots düz tablo olarak çalışır
+#   (işlevsel olarak aynı; hypertable optimizasyonu Docker/prod'da uygulanır).
+
 # 5. DB şeması
 pnpm db:generate     # Drizzle şemasından SQL migration üretir
 pnpm db:migrate      # Migration'ları uygular
@@ -65,6 +72,9 @@ pribor-scraper scrape example-site --mode delta
 pribor-scraper normalize data/raw/example-site/<tarih>/<run>.jsonl   # dosyaya (DB'siz)
 pribor-scraper ingest data/raw/example-site/<tarih>/<run>.jsonl      # PostgreSQL'e
 # full koşularda: --run-type full → görünmeyen kayıtlar delist edilir ("satıldı" sinyali)
+
+# MVP demo verisi: 150 sentetik Bakü ilanı, GERÇEK ingest hattından geçer
+pribor-scraper seed --n 150
 ```
 
 ### Model eğitimi (CatBoost quantile baseline)

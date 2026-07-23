@@ -1,6 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { sql } from "drizzle-orm";
-import { db } from "@pribor/db";
+import { db, sql } from "@pribor/db";
 
 @Controller("health")
 export class HealthController {

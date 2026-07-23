@@ -5,6 +5,7 @@ import {
   numeric,
   pgTable,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -29,7 +30,11 @@ export const modelVersions = pgTable(
     trainedAt: timestamp("trained_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("model_versions_vertical_status_idx").on(t.vertical, t.status)],
+  (t) => [
+    index("model_versions_vertical_status_idx").on(t.vertical, t.status),
+    // API, ML'den dönen tag'i idempotent kaydeder (onConflictDoNothing)
+    uniqueIndex("model_versions_tag_uq").on(t.tag),
+  ],
 );
 
 /**

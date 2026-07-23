@@ -67,6 +67,18 @@ def ingest(
 
 
 @app.command()
+def seed(
+    n: int = typer.Option(150, help="Üretilecek sentetik ilan sayısı"),
+    price_drift: float = typer.Option(0.25, help="2. koşuda fiyatı değişen kayıt oranı"),
+) -> None:
+    """Sentetik Bakü ilanlarını GERÇEK ingest hattından geçirerek DB'yi doldurur
+    (normalizasyon sözlükleri + upsert + fiyat geçmişi uçtan uca test edilir)."""
+    from .seed import run_seed
+
+    run_seed(n=n, price_drift_ratio=price_drift)
+
+
+@app.command()
 def normalize(
     raw_file: Path = typer.Argument(help="Ham JSONL koşu dosyası"),
     force: bool = typer.Option(False, "--force", help="Var olan normalize çıktıyı ez"),

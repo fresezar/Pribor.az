@@ -76,7 +76,12 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     # --- alan / oda / kat: önce yapılandırılmış alan, sonra serbest metin ---
     out.area_m2 = d.parse_area_m2(_prop(props, PROP_KEYS_AREA) or haystack)
     out.land_area_sot = d.parse_area_sot(haystack)
-    out.rooms = d.parse_rooms(_prop(props, PROP_KEYS_ROOMS) or haystack)
+    # props değeri çıplak sayı olabilir ("Otaq sayı": "2") — önce onu dene
+    rooms_raw = (_prop(props, PROP_KEYS_ROOMS) or "").strip()
+    if rooms_raw.isdigit():
+        out.rooms = int(rooms_raw)
+    else:
+        out.rooms = d.parse_rooms(rooms_raw or haystack) or d.parse_rooms(haystack)
     if floor := d.parse_floor(_prop(props, PROP_KEYS_FLOOR) or haystack):
         out.floor, out.total_floors = floor
 

@@ -1,6 +1,8 @@
-import { BadRequestException, Body, Controller, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Param, Post } from "@nestjs/common";
 import { CreateValuationDto } from "@pribor/contracts";
 import { ValuationsService } from "./valuations.service";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Controller("valuations")
 export class ValuationsController {
@@ -19,5 +21,12 @@ export class ValuationsController {
       });
     }
     return this.valuations.create(parsed.data);
+  }
+
+  /** "Bu qiymətlə elan yerləşdir" — değerlemeden taslak ilana köprü. */
+  @Post(":id/convert")
+  async convert(@Param("id") id: string) {
+    if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz değerleme kimliği");
+    return this.valuations.convertToListing(id);
   }
 }
