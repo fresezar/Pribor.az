@@ -1,0 +1,59 @@
+"""Pribor scraper CLI.
+
+Kullanım (services/scraper içinde, .venv aktifken):
+    pribor-scraper scrape example-site --mode delta
+    pribor-scraper normalize data/raw/example-site/2026-07-23/abc123.jsonl
+    pribor-scraper sources
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+
+from .pipeline import normalize_run_file
+from .sources import REGISTRY
+
+app = typer.Typer(help="Pribor veri toplama düzlemi", no_args_is_help=True)
+
+
+@app.command()
+def sources() -> None:
+    """Kayıtlı kaynak scraper'ları listeler."""
+    for name, cls in REGISTRY.items():
+        typer.echo(f"{name:20s} {cls.base_url}")
+
+
+@app.command()
+def scrape(
+    source: str = typer.Argument(help="Kaynak adı (bkz. `sources`)"),
+    mode: str = typer.Option("delta", help="delta: yeni ilanlar · full: tam tarama"),
+) -> None:
+    """Bir kaynağı tarar, ham JSONL'i immutable katmana yazar."""
+    if source not in REGISTRY:
+        typer.echo(f"Bilinmeyen kaynak: {source}. Mevcutlar: {', '.join(REGISTRY)}")
+        raise typer.Exit(1)
+    if mode not in ("delta", "full"):
+        typer.echo("mode 'delta' veya 'full' olmalı")
+        raise typer.Exit(1)
+
+    scraper = REGISTRY[source](mode=mode)  # type: ignore[arg-type]
+    stats = scraper.run()
+    typer.echo(f"Koşu bitti [{scraper.run_id}]: {dict(stats)}")
+
+
+@app.command()
+def normalize(
+    raw_file: Path = typer.Argument(help="Ham JSONL koşu dosyası"),
+    force: bool = typer.Option(False, "--force", help="Var olan normalize çıktıyı ez"),
+) -> None:
+    """Ham koşu dosyasını AZ/RU sözlüklerle normalize eder."""
+    if not raw_file.exists():
+        typer.echo(f"Dosya yok: {raw_file}")
+        raise typer.Exit(1)
+    normalize_run_file(raw_file, force=force)
+
+
+if __name__ == "__main__":
+    app()

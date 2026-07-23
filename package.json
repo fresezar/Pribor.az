@@ -1,0 +1,20 @@
+{
+  "name": "pribor",
+  "private": true,
+  "packageManager": "pnpm@10.6.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @pribor/db db:generate",
+    "db:migrate": "pnpm --filter @pribor/db db:migrate",
+    "db:studio": "pnpm --filter @pribor/db db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

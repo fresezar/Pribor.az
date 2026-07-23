@@ -1,0 +1,68 @@
+# Pribor — lokal geliştirme altyapısı
+# Kullanım: docker compose up -d
+services:
+  db:
+    # timescaledb-ha imajı PostGIS'i de içerir — tek imajda iki uzantı
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: pribor
+      POSTGRES_PASSWORD: pribor_dev
+      POSTGRES_DB: pribor
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/home/postgres/pgdata/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pribor -d pribor"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    environment:
+      MEILI_MASTER_KEY: pribor_dev_master_key
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
+  # Lokal R2 emülasyonu — prod'da Cloudflare R2 (S3 uyumlu API)
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: pribor
+      MINIO_ROOT_PASSWORD: pribor_dev_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # İlk açılışta pribor-raw bucket'ını oluşturur, sonra çıkar
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 pribor pribor_dev_secret;
+      mc mb --ignore-existing local/pribor-raw;
+      exit 0"
+
+volumes:
+  db_data:
+  redis_data:
+  meili_data:
+  minio_data:

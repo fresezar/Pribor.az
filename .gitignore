@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Scraper raw data (immutable dumps live in R2/MinIO, not in git)
+services/scraper/data/
+
+# ML artifacts
+services/ml/artifacts/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

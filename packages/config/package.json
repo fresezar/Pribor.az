@@ -1,0 +1,9 @@
+{
+  "name": "@pribor/config",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Paylaşılan tsconfig preset'leri — tüm workspace paketleri bunlardan extend eder",
+  "files": [
+    "tsconfig"
+  ]
+}
