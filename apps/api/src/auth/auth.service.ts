@@ -13,10 +13,21 @@ import {
 } from "@pribor/db";
 
 /** Bireysel kullanıcı ücretsiz aktif ilan limiti (free plan entitlement'ı). */
-const FREE_MAX_LISTINGS = 2;
+const FREE_MAX_LISTINGS = 5;
 const PRO_PLAN_CODE = "pro_unlimited";
 const FREE_PLAN_CODE = "free";
+/** Satılan/kaldırılan ilan limiti doldurmaz — yalnızca yayındakiler sayılır. */
 const ACTIVE_STATUSES = ["draft", "pending_review", "active"] as const;
+
+/**
+ * Yönetici numaraları — .env ADMIN_PHONES (virgülle ayrık, E.164).
+ * Rol istemciden GELMEZ; bu listedeki numarayla giriş yapan otomatik
+ * admin (AGENT_ADMIN) olur. Böylece istemci kendini yükseltemez.
+ */
+function adminPhones(): string[] {
+  const raw = process.env.ADMIN_PHONES ?? "+994555000001";
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 /**
  * Mock kimlik + yetki (entitlement) katmanı.
@@ -56,20 +67,28 @@ export class AuthService implements OnModuleInit {
             isActive: true,
           },
         ])
-        .onConflictDoNothing({ target: plans.code });
+        // Referans veri: entitlement/fiyat değişikliği her boot'ta senkronlanır
+        .onConflictDoUpdate({
+          target: plans.code,
+          set: {
+            entitlements: sql`excluded.entitlements`,
+            priceQepik: sql`excluded.price_qepik`,
+            isActive: sql`excluded.is_active`,
+          },
+        });
       this.logger.log("Planlar hazır (free, pro_unlimited)");
     } catch (err) {
       this.logger.error(`Plan seed hatası: ${String(err)}`);
     }
   }
 
-  async mockLogin(dto: {
-    phone: string;
-    name: string;
-    role: AppUserRole;
-  }): Promise<AuthUser> {
+  /**
+   * Herkes düz kullanıcı olarak girer; rol sunucuda belirlenir:
+   * numara ADMIN_PHONES listesindeyse 'admin', değilse 'individual'.
+   */
+  async mockLogin(dto: { phone: string; name: string }): Promise<AuthUser> {
     const phone = this.normalizePhone(dto.phone);
-    const dbRole = dto.role === "AGENT_ADMIN" ? "agent" : "individual";
+    const dbRole = adminPhones().includes(phone) ? "admin" : "individual";
 
     const [row] = await db
       .insert(users)
@@ -81,7 +100,26 @@ export class AuthService implements OnModuleInit {
       .returning({ id: users.id });
 
     if (!row) throw new Error("Kullanıcı upsert edilemedi");
+    if (dbRole === "admin") this.logger.log(`Admin girişi: ${phone}`);
     return this.buildAuthUser(row.id, dto.name, phone);
+  }
+
+  /** Yönetici mi — ilan silme/satıldı yetkisi bunu kullanır. */
+  async isAdmin(userId: string): Promise<boolean> {
+    const u = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { role: true },
+    });
+    return u?.role === "admin";
+  }
+
+  /** Kullanıcı var mı — auth gate'li uçlar için hafif doğrulama. */
+  async exists(userId: string): Promise<boolean> {
+    const u = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { id: true },
+    });
+    return Boolean(u);
   }
 
   /** Mock ödeme sonrası: pro aboneliği aç → sınırsız ilan. */

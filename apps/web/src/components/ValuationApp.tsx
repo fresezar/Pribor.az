@@ -88,7 +88,9 @@ export default function ValuationApp() {
   // İlan verme akışı
   const [authOpen, setAuthOpen] = useState(false);
   const [listingOpen, setListingOpen] = useState(false);
-  const [posted, setPosted] = useState<{ id: string; title: string } | null>(null);
+  const [posted, setPosted] = useState<
+    { id: string; title: string; refNo: string | null } | null
+  >(null);
   const pendingPost = useRef(false);
 
   // form state
@@ -358,7 +360,7 @@ function ResultCard(props: {
   result: ValuationResponse;
   querySummary: string;
   askingPrice: number | null;
-  posted: { id: string; title: string } | null;
+  posted: { id: string; title: string; refNo: string | null } | null;
   onPostListing: () => void;
   onReset: () => void;
 }) {
@@ -453,6 +455,7 @@ function ResultCard(props: {
         <>
           <div className="converted">
             ✓ Elanınız dərc edildi: <b>{posted.title}</b>
+            {posted.refNo && <> · <span className="card-ref">{posted.refNo}</span></>}
             <br /><small>“Mənim elanlarım” bölməsində görə bilərsiniz.</small>
           </div>
           <div className="convert">

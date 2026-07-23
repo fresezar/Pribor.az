@@ -15,14 +15,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AppUserRole, AuthUser } from "@pribor/contracts";
+import type { AuthUser } from "@pribor/contracts";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const STORAGE_KEY = "pribor.user";
 
 type AuthContextValue = {
   user: AuthUser | null;
-  login: (phone: string, name: string, role: AppUserRole) => Promise<AuthUser>;
+  /** Rol sunucuda belirlenir (admin numarası) — istemci rol göndermez. */
+  login: (phone: string, name: string) => Promise<AuthUser>;
   logout: () => void;
   upgrade: () => Promise<AuthUser>;
   refresh: () => Promise<void>;
@@ -54,11 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (phone: string, name: string, role: AppUserRole) => {
+    async (phone: string, name: string) => {
       const res = await fetch(`${API}/v1/auth/mock-login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, name, role }),
+        body: JSON.stringify({ phone, name }),
       });
       if (!res.ok) throw new Error("Giriş alınmadı");
       const u = (await res.json()) as AuthUser;

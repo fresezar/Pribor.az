@@ -1,7 +1,9 @@
 /* Pribor MVP tasarım sistemi — Hazar koyusu + alev vurgusu.
-   Bilinçli tek tema (koyu): ürün kimliği; açık tema Faz 2 backlog'unda. */
+   İki tema: koyu (varsayılan) ve açık. Tüm renkler değişken üzerinden;
+   [data-theme="light"] yalnızca değişkenleri devirir, bileşen CSS'i aynı kalır. */
 
-:root {
+:root,
+:root[data-theme="dark"] {
   --bg: #0a161d;
   --bg-raise: #0e1e26;
   --surface: #12242e;
@@ -12,15 +14,74 @@
   --muted: #8fa6ae;
   --faint: #5f7882;
   --flame: #e8603a;
+  --flame-ink: #160905;
   --flame-soft: rgba(232, 96, 58, 0.12);
+  --flame-line: rgba(232, 96, 58, 0.4);
+  --flame-text: #f4b09a;
   --teal: #2ba69e;
   --teal-soft: rgba(43, 166, 158, 0.12);
+  --teal-line: rgba(43, 166, 158, 0.35);
   --good: #27a56c;
   --good-soft: rgba(39, 165, 108, 0.14);
+  --good-line: rgba(39, 165, 108, 0.4);
+  --good-text: #5fd9a2;
   --warn: #d9a13b;
   --warn-soft: rgba(217, 161, 59, 0.14);
+  --warn-line: rgba(217, 161, 59, 0.4);
+  --warn-text: #ecc069;
+  --danger: #e05252;
+  --danger-soft: rgba(224, 82, 82, 0.14);
+  --danger-line: rgba(224, 82, 82, 0.42);
+  --shadow-lg: 0 24px 60px rgba(4, 12, 17, 0.5), 0 2px 8px rgba(4, 12, 17, 0.4);
+  --shadow-sm: 0 10px 28px rgba(4, 12, 17, 0.45);
+  --overlay: rgba(4, 10, 14, 0.72);
+  --glow-1: rgba(43, 166, 158, 0.08);
+  --glow-2: rgba(232, 96, 58, 0.06);
+  /* Emlak tipi renk kodları */
+  --type-apartment: #3d8bd4;
+  --type-house: #d9a13b;
+  --type-land: #27a56c;
   --radius: 12px;
   --mono: "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f7f9;
+  --bg-raise: #ffffff;
+  --surface: #f7fafb;
+  --surface-2: #eaf0f3;
+  --line: #d8e2e7;
+  --line-soft: #e6edf0;
+  --ink: #0e222c;
+  --muted: #5a7280;
+  --faint: #8ba0aa;
+  --flame: #d9531f;
+  --flame-ink: #ffffff;
+  --flame-soft: rgba(217, 83, 31, 0.1);
+  --flame-line: rgba(217, 83, 31, 0.32);
+  --flame-text: #b8420f;
+  --teal: #12857e;
+  --teal-soft: rgba(18, 133, 126, 0.1);
+  --teal-line: rgba(18, 133, 126, 0.3);
+  --good: #12874f;
+  --good-soft: rgba(18, 135, 79, 0.12);
+  --good-line: rgba(18, 135, 79, 0.34);
+  --good-text: #0d6b3e;
+  --warn: #a9741a;
+  --warn-soft: rgba(169, 116, 26, 0.12);
+  --warn-line: rgba(169, 116, 26, 0.34);
+  --warn-text: #8a5d10;
+  --danger: #c23434;
+  --danger-soft: rgba(194, 52, 52, 0.1);
+  --danger-line: rgba(194, 52, 52, 0.34);
+  --shadow-lg: 0 18px 44px rgba(14, 34, 44, 0.12), 0 2px 6px rgba(14, 34, 44, 0.06);
+  --shadow-sm: 0 10px 24px rgba(14, 34, 44, 0.1);
+  --overlay: rgba(20, 40, 50, 0.42);
+  --glow-1: rgba(18, 133, 126, 0.07);
+  --glow-2: rgba(217, 83, 31, 0.05);
+  --type-apartment: #2f6fae;
+  --type-house: #a9741a;
+  --type-land: #12874f;
 }
 
 * { box-sizing: border-box; }
@@ -28,9 +89,10 @@
 html, body {
   margin: 0;
   background:
-    radial-gradient(1100px 500px at 85% -10%, rgba(43, 166, 158, 0.08), transparent 60%),
-    radial-gradient(900px 480px at -10% 110%, rgba(232, 96, 58, 0.06), transparent 55%),
+    radial-gradient(1100px 500px at 85% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, var(--glow-2), transparent 55%),
     var(--bg);
+  transition: background-color 0.25s ease, color 0.25s ease;
   color: var(--ink);
   font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
   font-size: 16px;
@@ -38,7 +100,7 @@ html, body {
   min-height: 100vh;
 }
 
-::selection { background: var(--teal); color: #06161a; }
+::selection { background: var(--teal); color: var(--bg); }
 
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -81,7 +143,7 @@ button { cursor: pointer; }
   padding: 26px;
   max-width: 720px;
   margin: 26px auto 0;
-  box-shadow: 0 24px 60px rgba(4, 12, 17, 0.5), 0 2px 8px rgba(4, 12, 17, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 /* dikey sekmeleri */
@@ -151,13 +213,13 @@ button { cursor: pointer; }
   background: var(--muted); transition: all 0.18s ease;
 }
 .switch.on { background: var(--teal); }
-.switch.on::after { left: 21px; background: #06161a; }
+.switch.on::after { left: 21px; background: var(--bg); }
 
 /* birincil CTA — alev vurgusu tek yerde harcanır */
 .cta {
   width: 100%; margin-top: 22px; padding: 14px;
   background: var(--flame); border: none; border-radius: 11px;
-  color: #160905; font-weight: 700; font-size: 1rem;
+  color: var(--flame-ink); font-weight: 700; font-size: 1rem;
   transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
 }
 .cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
@@ -166,8 +228,8 @@ button { cursor: pointer; }
 
 .err {
   margin-top: 14px; padding: 12px 14px;
-  background: var(--flame-soft); border: 1px solid rgba(232, 96, 58, 0.4);
-  border-radius: 9px; font-size: 0.86rem; color: #f4b09a;
+  background: var(--flame-soft); border: 1px solid var(--flame-line);
+  border-radius: 9px; font-size: 0.86rem; color: var(--flame-text);
 }
 
 /* ---------- hesaplama sahnesi ---------- */
@@ -236,9 +298,9 @@ button { cursor: pointer; }
   margin: 14px 0 4px; padding: 7px 14px; border-radius: 999px;
   font-size: 0.82rem; font-weight: 600;
 }
-.deal.good { background: var(--good-soft); color: #5fd9a2; border: 1px solid rgba(39, 165, 108, 0.4); }
-.deal.bad { background: var(--warn-soft); color: #ecc069; border: 1px solid rgba(217, 161, 59, 0.4); }
-.deal.neutral { background: var(--teal-soft); color: var(--teal); border: 1px solid rgba(43, 166, 158, 0.35); }
+.deal.good { background: var(--good-soft); color: var(--good-text); border: 1px solid var(--good-line); }
+.deal.bad { background: var(--warn-soft); color: var(--warn-text); border: 1px solid var(--warn-line); }
+.deal.neutral { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal-line); }
 
 /* Qiymət DNT-si */
 .dna { margin-top: 22px; }
@@ -269,7 +331,7 @@ button { cursor: pointer; }
 .convert .primary {
   flex: 2; min-width: 220px; padding: 13px;
   background: var(--flame); border: none; border-radius: 10px;
-  color: #160905; font-weight: 700; font-size: 0.95rem;
+  color: var(--flame-ink); font-weight: 700; font-size: 0.95rem;
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 .convert .primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
@@ -282,8 +344,8 @@ button { cursor: pointer; }
 .convert .ghost:hover { border-color: var(--faint); color: var(--ink); }
 .converted {
   margin-top: 14px; padding: 13px 16px;
-  background: var(--good-soft); border: 1px solid rgba(39, 165, 108, 0.4);
-  border-radius: 10px; font-size: 0.88rem; color: #5fd9a2;
+  background: var(--good-soft); border: 1px solid var(--good-line);
+  border-radius: 10px; font-size: 0.88rem; color: var(--good-text);
   animation: fadeUp 0.4s ease;
 }
 .converted code { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
@@ -317,7 +379,7 @@ footer.note {
 .profile { position: relative; }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%;
-  background: var(--flame); border: none; color: #160905;
+  background: var(--flame); border: none; color: var(--flame-ink);
   font-weight: 700; font-size: 0.82rem; letter-spacing: 0.02em;
 }
 .avatar:hover { filter: brightness(1.08); }
@@ -339,7 +401,7 @@ footer.note {
   transition: background 0.12s ease;
 }
 .pm-item:hover { background: var(--surface); }
-.pm-item.danger { color: #f4b09a; }
+.pm-item.danger { color: var(--flame-text); }
 
 /* ---------- modal / auth ---------- */
 .modal-overlay {
@@ -417,8 +479,8 @@ footer.note {
   font-family: inherit; font-size: 0.64rem; font-weight: 600;
   padding: 2px 7px; border-radius: 999px;
 }
-.comp-badge.good, .listing-deal.good { background: var(--good-soft); color: #5fd9a2; }
-.comp-badge.bad, .listing-deal.bad { background: var(--warn-soft); color: #ecc069; }
+.comp-badge.good, .listing-deal.good { background: var(--good-soft); color: var(--good-text); }
+.comp-badge.bad, .listing-deal.bad { background: var(--warn-soft); color: var(--warn-text); }
 .comp-badge.neutral, .listing-deal.neutral { background: var(--teal-soft); color: var(--teal); }
 .comp-meta {
   display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
@@ -505,7 +567,7 @@ footer.note {
 .apk-btn:hover { border-color: var(--teal); transform: translateY(-1px); }
 .apk-ico {
   display: grid; place-items: center; width: 22px; height: 22px;
-  background: var(--good-soft); color: #5fd9a2; border-radius: 6px; font-size: 0.7rem;
+  background: var(--good-soft); color: var(--good-text); border-radius: 6px; font-size: 0.7rem;
 }
 .apk-txt { font-size: 0.6rem; line-height: 1.1; color: var(--muted); text-align: left; }
 .apk-txt b { color: var(--ink); font-size: 0.72rem; }
@@ -517,19 +579,8 @@ footer.note {
   letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; margin-left: 8px;
   vertical-align: middle;
 }
-.role-badge.agent { background: var(--good-soft); color: #5fd9a2; border: 1px solid rgba(39,165,108,0.4); }
-.role-badge.pro { background: var(--flame-soft); color: #f4b09a; border: 1px solid rgba(232,96,58,0.4); }
-
-.role-switch { display: flex; gap: 8px; }
-.role-switch button {
-  flex: 1; text-align: left; padding: 10px 12px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  color: var(--muted); font-size: 0.84rem; font-weight: 600;
-  transition: all 0.15s ease;
-}
-.role-switch button small { display: block; font-weight: 400; font-size: 0.68rem; color: var(--faint); margin-top: 2px; }
-.role-switch button.on { background: var(--teal-soft); border-color: var(--teal); color: var(--ink); }
-.role-switch button.on small { color: var(--muted); }
+.role-badge.agent { background: var(--good-soft); color: var(--good-text); border: 1px solid var(--good-line); }
+.role-badge.pro { background: var(--flame-soft); color: var(--flame-text); border: 1px solid var(--flame-line); }
 
 /* ---------- textarea ---------- */
 .field textarea {
@@ -550,7 +601,7 @@ footer.note {
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .photo-x {
   position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
-  background: rgba(4,12,17,0.75); border: none; color: #fff; border-radius: 6px; font-size: 0.66rem;
+  background: rgba(0,0,0,0.55); border: none; color: #fff; border-radius: 6px; font-size: 0.66rem;
 }
 .photo-add {
   width: 78px; height: 78px; border-radius: 9px;
@@ -564,7 +615,7 @@ footer.note {
 .up-badge {
   display: inline-block; font-family: var(--mono); font-size: 0.64rem; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
-  background: var(--warn-soft); color: #ecc069; border: 1px solid rgba(217,161,59,0.4);
+  background: var(--warn-soft); color: var(--warn-text); border: 1px solid var(--warn-line);
   padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
 }
 .plan-card {
@@ -596,11 +647,226 @@ footer.note {
   font-family: var(--mono); font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
   background: var(--teal-soft); color: var(--teal);
 }
-.my-status.active { background: var(--good-soft); color: #5fd9a2; }
+.my-status.active { background: var(--good-soft); color: var(--good-text); }
 .my-title { font-size: 0.88rem; margin-top: 5px; }
 .my-desc { font-size: 0.78rem; color: var(--muted); margin-top: 4px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .my-photos { font-size: 0.72rem; color: var(--faint); margin-top: 6px; }
+
+/* ---------- tema anahtarı ---------- */
+.theme-toggle {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--muted); font-size: 0.95rem; line-height: 1;
+  transition: all 0.15s ease;
+}
+.theme-toggle:hover { border-color: var(--teal); color: var(--ink); }
+
+/* ---------- APK onay modalı ---------- */
+.modal.apk-modal { max-width: 400px; text-align: center; }
+.apk-hero {
+  font-size: 2.6rem; margin-bottom: 10px;
+  filter: drop-shadow(0 6px 14px var(--good-soft));
+}
+.modal-note {
+  font-size: 0.8rem; color: var(--muted); margin: 14px 0 0;
+  background: var(--teal-soft); border: 1px solid var(--teal-line);
+  border-radius: 9px; padding: 9px 12px;
+}
+
+/* ---------- destek köşesi ---------- */
+.support-fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 60;
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 16px; border-radius: 999px;
+  background: var(--good); color: #fff; text-decoration: none;
+  font-size: 0.86rem; font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.support-fab:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.sf-ico { font-size: 1.05rem; }
+@media (max-width: 640px) { .sf-txt { display: none; } .support-fab { padding: 13px; } }
+
+.support-line {
+  display: flex; justify-content: center; align-items: center; gap: 7px;
+  flex-wrap: wrap; margin-bottom: 8px; font-size: 0.8rem; color: var(--muted);
+}
+.support-line a { color: var(--teal); text-decoration: none; font-weight: 600; }
+.support-line a:hover { text-decoration: underline; }
+.support-line .dot { color: var(--faint); }
+
+/* ---------- emlak tipi renk kodları ---------- */
+.type-apartment { --type: var(--type-apartment); }
+.type-house { --type: var(--type-house); }
+.type-land { --type: var(--type-land); }
+
+.listing { cursor: pointer; }
+.listing:hover { border-color: var(--type, var(--faint)); }
+.listing.type-apartment, .listing.type-house, .listing.type-land {
+  border-left: 3px solid var(--type);
+}
+.listing-thumb {
+  position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--type, var(--teal)) 14%, var(--surface));
+}
+.listing-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-type {
+  position: absolute; left: 6px; top: 6px;
+  font-size: 0.58rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--type, var(--teal)); color: #fff;
+}
+.thumb-sold, .sold-badge {
+  position: absolute; right: 6px; top: 6px;
+  font-family: var(--mono); font-size: 0.56rem; font-weight: 700;
+  letter-spacing: 0.08em; padding: 3px 8px; border-radius: 999px;
+  background: var(--danger); color: #fff;
+}
+.listing.is-sold { opacity: 0.72; }
+.listing.is-sold .listing-price { text-decoration: line-through; }
+
+.type-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; font-weight: 700; padding: 4px 11px; border-radius: 999px;
+  background: color-mix(in srgb, var(--type, var(--teal)) 16%, transparent);
+  color: var(--type, var(--teal));
+  border: 1px solid color-mix(in srgb, var(--type, var(--teal)) 40%, transparent);
+}
+
+.card-ref {
+  font-family: var(--mono); font-size: 0.64rem; color: var(--faint);
+  letter-spacing: 0.04em;
+}
+.listing-loc { display: flex; justify-content: space-between; gap: 8px; }
+
+/* ---------- bazar araması ---------- */
+.market-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.market-search input {
+  flex: 1; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 9px; padding: 10px 13px; font-size: 0.9rem; color: var(--ink);
+}
+.market-search input:focus { border-color: var(--teal); outline: none; }
+.market-search button {
+  padding: 10px 20px; border-radius: 9px; font-weight: 600; font-size: 0.88rem;
+  background: var(--teal-soft); border: 1px solid var(--teal); color: var(--ink);
+  transition: all 0.15s ease;
+}
+.market-search button:hover { background: var(--teal); color: var(--bg); }
+.search-msg {
+  margin: -4px 0 12px; font-size: 0.82rem; color: var(--warn-text);
+  background: var(--warn-soft); border: 1px solid var(--warn-line);
+  border-radius: 8px; padding: 8px 12px;
+}
+
+/* ---------- ilan detay modalı ---------- */
+.modal.listing-detail { max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.ld-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.ld-head .ref-no {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+}
+.ld-head .sold-badge { position: static; }
+.ld-gallery { margin-bottom: 16px; }
+.ld-main-photo {
+  width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.ld-main-photo img { width: 100%; height: 100%; object-fit: cover; }
+.ld-thumbs { display: flex; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+.ld-thumbs button {
+  width: 56px; height: 44px; border-radius: 7px; overflow: hidden; padding: 0;
+  border: 2px solid transparent; background: var(--surface-2);
+}
+.ld-thumbs button.on { border-color: var(--teal); }
+.ld-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+.ld-nophoto {
+  width: 100%; aspect-ratio: 16 / 7; border-radius: 12px;
+  display: grid; place-items: center; font-size: 3rem; margin-bottom: 16px;
+  background: color-mix(in srgb, var(--type, var(--teal)) 12%, var(--surface));
+  border: 1px solid var(--line);
+}
+.ld-price {
+  font-family: var(--mono); font-size: 1.9rem; font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.ld-title { font-size: 1.02rem; font-weight: 600; margin: 4px 0 16px; }
+.ld-specs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--line-soft); border: 1px solid var(--line);
+  border-radius: 11px; overflow: hidden;
+}
+.ld-spec {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 9px 13px; background: var(--surface); font-size: 0.84rem;
+}
+.ld-spec-k { color: var(--muted); }
+.ld-spec-v { font-weight: 600; text-align: right; }
+@media (max-width: 520px) { .ld-specs { grid-template-columns: 1fr; } }
+
+.ld-desc { margin-top: 18px; }
+.ld-desc h3 {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 8px;
+}
+.ld-desc p { margin: 0; font-size: 0.9rem; color: var(--ink); white-space: pre-wrap; }
+
+.ld-contact {
+  margin-top: 18px; padding: 14px 16px; border-radius: 11px;
+  background: var(--teal-soft); border: 1px solid var(--teal-line);
+}
+.ld-contact-label {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.ld-phone {
+  font-family: var(--mono); font-size: 1.05rem; font-weight: 700;
+  color: var(--teal); text-decoration: none;
+}
+.ld-phone.muted { color: var(--faint); font-weight: 400; font-size: 0.9rem; }
+.ld-contact-name { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+
+.ld-actions {
+  margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.ld-actions .ghost {
+  padding: 11px 16px; background: transparent; border: 1px solid var(--line);
+  border-radius: 10px; color: var(--muted); font-size: 0.88rem;
+  transition: all 0.15s ease;
+}
+.ld-actions .ghost:hover { border-color: var(--good); color: var(--good-text); }
+.danger-btn {
+  padding: 11px 16px; border-radius: 10px; font-size: 0.88rem; font-weight: 600;
+  background: var(--danger-soft); border: 1px solid var(--danger-line);
+  color: var(--danger); transition: all 0.15s ease;
+}
+.danger-btn:hover { background: var(--danger); color: #fff; }
+.confirm-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 0.86rem; color: var(--muted);
+}
+
+/* ---------- foto kapak seçimi ---------- */
+.photo-thumb.cover { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
+.photo-cover-btn {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.62); border: none; color: #fff;
+  font-size: 0.58rem; padding: 3px 0; font-weight: 600;
+}
+.photo-thumb.cover .photo-cover-btn { background: var(--teal); color: var(--bg); }
+
+/* mənim elanlarım — tıklanabilir + meta */
+.my-item { cursor: pointer; transition: border-color 0.15s ease; }
+.my-item:hover { border-color: var(--teal); }
+.my-item.is-sold { opacity: 0.7; }
+.my-thumb {
+  background: color-mix(in srgb, var(--type, var(--teal)) 14%, var(--surface-2));
+}
+.my-meta {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+  font-size: 0.72rem; color: var(--faint);
+}
+.my-status.sold { background: var(--danger-soft); color: var(--danger); }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

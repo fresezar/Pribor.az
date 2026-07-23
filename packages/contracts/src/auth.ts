@@ -30,12 +30,16 @@ export const AuthUser = z.object({
 });
 export type AuthUser = z.infer<typeof AuthUser>;
 
-/** Mock giriş — Faz 3'te gerçek OTP doğrulaması bu akışın yerini alır. */
+/**
+ * Mock giriş — Faz 3'te gerçek OTP doğrulaması bu akışın yerini alır.
+ *
+ * Rol İSTEMCİDEN ALINMAZ: herkes düz USER olarak kaydolur; yönetici yetkisi
+ * yalnızca sunucudaki ADMIN_PHONES listesindeki numarayla girildiğinde verilir.
+ * Böylece istemci kendini yükseltemez.
+ */
 export const MockLoginDto = z.object({
   phone: z.string().min(5).max(20),
   name: z.string().min(2).max(120),
-  /** Test için: kullanıcı hangi rolle girmek istiyor. */
-  role: AppUserRole.default("USER"),
 });
 export type MockLoginDto = z.infer<typeof MockLoginDto>;
 

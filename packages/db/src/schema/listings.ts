@@ -10,6 +10,7 @@ import {
   smallint,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -37,6 +38,11 @@ export const listings = pgTable(
   "listings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    /**
+     * İnsan-okur ilan numarası (UI'da "PRB-10042"). Identity kolonu —
+     * Postgres sırayı kendi yönetir; arama ve müşteri desteği bu numarayla.
+     */
+    refNo: integer("ref_no").generatedByDefaultAsIdentity({ startWith: 10000 }),
     vertical: vertical("vertical").notNull(),
     status: listingStatus("status").notNull().default("draft"),
     source: listingSource("source").notNull().default("user"),
@@ -57,6 +63,8 @@ export const listings = pgTable(
      * burada yalnızca CDN URL'leri tutulur — geçiş yolu media tablosu üzerinden.
      */
     photos: jsonb("photos").$type<string[]>().notNull().default([]),
+    /** Örtük şəkli — photos dizisindeki kapak fotoğrafının indeksi. */
+    coverPhotoIdx: smallint("cover_photo_idx").notNull().default(0),
     /** Değerleme köprüsü: ilan bir değerlemeden doğduysa buradan izlenir. */
     valuationId: uuid("valuation_id"),
     /** Şemaya girmemiş serbest alanlar için taşma sahası — kolonlaşma adayları burada birikir. */
@@ -72,6 +80,7 @@ export const listings = pgTable(
     index("listings_location_idx").on(t.locationId),
     index("listings_user_idx").on(t.userId),
     index("listings_published_idx").on(t.publishedAt),
+    uniqueIndex("listings_ref_no_uq").on(t.refNo),
     check("listings_price_positive", sql`${t.priceAzn} > 0`),
   ],
 );

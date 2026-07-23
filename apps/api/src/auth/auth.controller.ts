@@ -8,7 +8,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Mock giriş/kayıt — telefon + ad + test rolü. */
+  /** Mock giriş/kayıt — telefon + ad. Rol sunucuda belirlenir (ADMIN_PHONES). */
   @Post("mock-login")
   async mockLogin(@Body() body: unknown) {
     const parsed = MockLoginDto.safeParse(body);

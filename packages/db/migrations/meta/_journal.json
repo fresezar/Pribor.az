@@ -15,6 +15,13 @@
       "when": 1784840572042,
       "tag": "0001_wise_pet_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784844049475,
+      "tag": "0002_modern_vengeance",
+      "breakpoints": true
     }
   ]
 }

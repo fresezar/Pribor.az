@@ -8,7 +8,6 @@
  */
 
 import { useEffect, useState } from "react";
-import type { AppUserRole } from "@pribor/contracts";
 import { useAuth } from "./AuthContext";
 
 export default function AuthModal(props: {
@@ -20,7 +19,6 @@ export default function AuthModal(props: {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<AppUserRole>("USER");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +28,6 @@ export default function AuthModal(props: {
       setStep("phone");
       setName("");
       setPhone("");
-      setRole("USER");
       setOtp("");
       setError(null);
     }
@@ -58,7 +55,7 @@ export default function AuthModal(props: {
     setBusy(true);
     setError(null);
     try {
-      await login(normalizedPhone, name.trim(), role);
+      await login(normalizedPhone, name.trim());
       props.onClose();
       props.onLoggedIn?.();
     } catch {
@@ -96,22 +93,9 @@ export default function AuthModal(props: {
               </div>
             </div>
 
-            {/* Test rolü — akışı denemek için */}
-            <div className="field" style={{ marginTop: 14 }}>
-              <label>Test rejimi</label>
-              <div className="role-switch">
-                <button type="button" className={role === "USER" ? "on" : ""}
-                  onClick={() => setRole("USER")}>
-                  İstifadəçi kimi
-                  <small>Pulsuz · 2 aktiv elan</small>
-                </button>
-                <button type="button" className={role === "AGENT_ADMIN" ? "on" : ""}
-                  onClick={() => setRole("AGENT_ADMIN")}>
-                  Emlakçı / Admin
-                  <small>Rəsmi · sərhədsiz elan</small>
-                </button>
-              </div>
-            </div>
+            <p className="modal-note">
+              Pulsuz paketlə <b>5 aktiv elan</b> yerləşdirə bilərsiniz.
+            </p>
 
             {error && <div className="err">{error}</div>}
             <button className="cta" onClick={toOtp}>Kod göndər →</button>

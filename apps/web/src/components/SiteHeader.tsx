@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ApkDownloadModal from "./ApkDownloadModal";
 import AuthModal from "./AuthModal";
 import MyListings from "./MyListings";
+import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "./AuthContext";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string } | null> = {
@@ -11,12 +13,13 @@ const ROLE_BADGE: Record<string, { label: string; cls: string } | null> = {
   USER: null,
 };
 
-/** Üst çubuk: marka + Bazar linki + APK indir + Daxil ol / profil menüsü. */
+/** Üst çubuk: marka + Bazar + tema + APK + Daxil ol / profil menüsü. */
 export default function SiteHeader() {
   const { user, logout } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [myOpen, setMyOpen] = useState(false);
+  const [apkOpen, setApkOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -32,23 +35,15 @@ export default function SiteHeader() {
     : "";
   const badge = user ? ROLE_BADGE[user.role] : null;
 
-  const downloadApk = () => {
-    // Placeholder — gerçek imzalı APK Faz 3'te public/download altına konur
-    const a = document.createElement("a");
-    a.href = "/download/pribor-demo.apk";
-    a.download = "pribor-demo.apk";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
   return (
     <header className="topbar">
       <a href="/" className="brand" style={{ textDecoration: "none" }}>PRIBOR<b>.AZ</b></a>
 
       <div className="topbar-right">
         <a className="nav-link" href="#bazar">Bazar</a>
-        <button className="apk-btn" onClick={downloadApk} title="Android tətbiqini yüklə">
+        <ThemeToggle />
+        <button className="apk-btn" onClick={() => setApkOpen(true)}
+          title="Android tətbiqini yüklə">
           <span className="apk-ico">▲</span>
           <span className="apk-txt">Android<br /><b>.APK yüklə</b></span>
         </button>
@@ -74,8 +69,6 @@ export default function SiteHeader() {
                   onClick={() => { setMenuOpen(false); setMyOpen(true); }}>
                   Mənim elanlarım
                 </button>
-                <button role="menuitem" className="pm-item">Qiymətləndirmələrim</button>
-                <button role="menuitem" className="pm-item">Deal Radar</button>
                 <button role="menuitem" className="pm-item danger" onClick={logout}>Çıxış</button>
               </div>
             )}
@@ -85,6 +78,7 @@ export default function SiteHeader() {
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       <MyListings open={myOpen} onClose={() => setMyOpen(false)} />
+      <ApkDownloadModal open={apkOpen} onClose={() => setApkOpen(false)} />
     </header>
   );
 }

@@ -1,8 +1,16 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   CompListing,
   CreateListingDto,
+  formatRefNo,
   ListingCard,
+  ListingDetail,
   ListingQuery,
   ListingSort,
   LISTING_LIMIT_CODE,
@@ -15,6 +23,7 @@ import {
   eq,
   listingReAttrs,
   listings,
+  locations,
   sql,
 } from "@pribor/db";
 import { AuthService } from "../auth/auth.service";
@@ -48,16 +57,21 @@ export class ListingsService {
         return sql`area_m2 desc nulls last`;
       case "newest":
       default:
-        return sql`first_seen_at desc`;
+        return sql`sort_at desc`;
     }
   }
 
+  /**
+   * Bazar listesi — platformda verilen ilanlar (listings, PRB no'lu) ile
+   * piyasa verisi (scraped_listings) tek akışta birleştirilir. Fırsat skoru
+   * her iki kaynak için de scraped medyanına göre hesaplanır (piyasa çıpası).
+   */
   async list(q: ListingQuery): Promise<{ items: ListingCard[]; total: number }> {
-    // Filtre parçaları — hepsi parametreli (enjeksiyon yok)
-    const filters = [sql`vertical = 'real_estate'`, sql`price_azn is not null`];
-    if (q.district) filters.push(sql`normalized->>'district' = ${q.district}`);
-    if (q.propertyType) filters.push(sql`normalized->>'property_type' = ${q.propertyType}`);
-    if (q.rooms != null) filters.push(sql`(normalized->>'rooms')::int = ${q.rooms}`);
+    // Filtreler birleşik sonuç üzerinde, düz kolonlarda (parametreli)
+    const filters = [sql`true`];
+    if (q.district) filters.push(sql`district = ${q.district}`);
+    if (q.propertyType) filters.push(sql`property_type = ${q.propertyType}`);
+    if (q.rooms != null) filters.push(sql`rooms = ${q.rooms}`);
     const where = sql.join(filters, sql` and `);
 
     const rows = await db.execute(sql`
@@ -75,6 +89,9 @@ export class ListingsService {
       base as (
         select
           sl.id,
+          'scraped'::text                  as kind,
+          null::int                        as ref_no,
+          'active'::text                   as status,
           sl.normalized->>'raw_title'      as raw_title,
           sl.normalized->>'district'       as district,
           sl.normalized->>'settlement'     as settlement,
@@ -85,24 +102,55 @@ export class ListingsService {
           sl.normalized->>'building_type'  as building_type,
           (sl.normalized->>'title_deed')::boolean as title_deed,
           sl.normalized->>'metro_station'  as metro_station,
-          sl.price_azn,
-          sl.first_seen_at,
-          case when (sl.normalized->>'area_m2')::numeric > 0
-               then round(sl.price_azn::numeric / (sl.normalized->>'area_m2')::numeric)::int
-          end as price_per_m2,
-          med.median_ppm2
+          sl.price_azn                     as price_azn,
+          sl.first_seen_at                 as sort_at,
+          null::text                       as cover_photo
         from scraped_listings sl
+        where sl.vertical = 'real_estate' and sl.price_azn is not null
+        union all
+        select
+          l.id,
+          'user'::text,
+          l.ref_no,
+          l.status::text,
+          l.title,
+          loc.district,
+          loc.settlement,
+          ra.property_type::text,
+          ra.rooms::int,
+          ra.area_m2::numeric,
+          ra.repair_state::int,
+          ra.building_type::text,
+          ra.title_deed,
+          null::text,
+          l.price_azn,
+          l.created_at,
+          case when jsonb_array_length(l.photos) > 0
+               then l.photos->>(least(l.cover_photo_idx, jsonb_array_length(l.photos) - 1))
+          end
+        from listings l
+        left join listing_re_attrs ra on ra.listing_id = l.id
+        left join locations loc on loc.id = l.location_id
+        where l.vertical = 'real_estate' and l.source = 'user'
+          and l.status in ('active', 'sold')
+      ),
+      joined as (
+        select b.*,
+          med.median_ppm2,
+          case when b.area_m2 > 0
+               then round(b.price_azn::numeric / b.area_m2)::int
+          end as price_per_m2
+        from base b
         left join med
-          on med.district = sl.normalized->>'district'
-         and med.property_type = sl.normalized->>'property_type'
-        where ${where}
+          on med.district = b.district and med.property_type = b.property_type
       )
       select *,
         case when median_ppm2 > 0 and price_per_m2 is not null
              then round(((price_per_m2 - median_ppm2) / median_ppm2 * 100)::numeric, 1)
         end as deal_pct,
         count(*) over() as total_count
-      from base
+      from joined
+      where ${where}
       order by ${this.orderByClause(q.sort)}
       limit ${q.limit} offset ${q.offset}
     `);
@@ -116,8 +164,13 @@ export class ListingsService {
   private toCard(r: Record<string, unknown>): ListingCard {
     const num = (v: unknown) => (v == null ? null : Number(v));
     const propertyType = (r.property_type as string) ?? null;
+    const kind = ((r.kind as string) ?? "scraped") as "user" | "scraped";
     return ListingCard.parse({
       id: r.id,
+      kind,
+      refNo: formatRefNo(r.ref_no == null ? null : Number(r.ref_no)),
+      status: (r.status as string) ?? "active",
+      coverPhoto: (r.cover_photo as string) ?? null,
       title: (r.raw_title as string) || this.fallbackTitle(r),
       district: (r.district as string) ?? null,
       settlement: (r.settlement as string) ?? null,
@@ -131,8 +184,8 @@ export class ListingsService {
       priceAzn: Number(r.price_azn),
       pricePerM2: num(r.price_per_m2),
       dealPct: num(r.deal_pct),
-      sourceSite: "seed-baku",
-      firstSeenAt: new Date(r.first_seen_at as string).toISOString(),
+      sourceSite: kind === "user" ? "pribor" : "seed-baku",
+      firstSeenAt: new Date(r.sort_at as string).toISOString(),
     });
   }
 
@@ -244,7 +297,9 @@ export class ListingsService {
    * USER (ücretsiz) en fazla 2 aktif ilan; AGENT_ADMIN/PREMIUM sınırsız.
    * Limit aşımında 402 + LISTING_LIMIT_EXCEEDED → frontend upgrade modalı açar.
    */
-  async createUserListing(dto: CreateListingDto): Promise<{ id: string; title: string }> {
+  async createUserListing(
+    dto: CreateListingDto,
+  ): Promise<{ id: string; title: string; refNo: string | null }> {
     const { entitlements } = await this.auth.resolveEntitlements(dto.userId);
     if (!entitlements.unlimited) {
       const active = await this.auth.countActiveListings(dto.userId);
@@ -264,6 +319,9 @@ export class ListingsService {
     const title = this.buildListingTitle(dto);
     const areaText = dto.areaM2 != null ? String(dto.areaM2) : null;
     const landText = dto.landAreaSot != null ? String(dto.landAreaSot) : null;
+    const locationId = await this.ensureLocation(dto.district);
+    // Kapak indeksi foto sayısını aşmasın (istemci silme sonrası göndermiş olabilir)
+    const coverIdx = Math.min(dto.coverPhotoIdx, Math.max(0, dto.photos.length - 1));
 
     // Ana ilan + dikeye özgü öznitelikler (re_attrs) tek transaction'da
     const listingId = await db.transaction(async (tx) => {
@@ -274,17 +332,19 @@ export class ListingsService {
           status: "active",
           source: "user",
           userId: dto.userId,
+          locationId,
           title,
           description: dto.description ?? null,
           priceAzn: dto.priceAzn,
           contactName: dto.contactName ?? null,
           contactPhone: dto.contactPhone ?? null,
           photos: dto.photos,
+          coverPhotoIdx: coverIdx,
           valuationId: dto.valuationId ?? null,
           publishedAt: new Date(),
           extra: { created_via: dto.valuationId ? "valuation_flow" : "manual" },
         })
-        .returning({ id: listings.id });
+        .returning({ id: listings.id, refNo: listings.refNo });
       if (!row) throw new Error("İlan oluşturulamadı");
 
       await tx.insert(listingReAttrs).values({
@@ -304,10 +364,14 @@ export class ListingsService {
           sql`update valuations set converted_listing_id = ${row.id} where id = ${dto.valuationId}::uuid`,
         );
       }
-      return row.id;
+      return { id: row.id, refNo: row.refNo };
     });
 
-    return { id: listingId, title };
+    return {
+      id: listingId.id,
+      title,
+      refNo: formatRefNo(listingId.refNo),
+    };
   }
 
   /** "Mənim elanlarım" — kullanıcının kendi ilanları (foto + açıqlama ile). */
@@ -315,18 +379,22 @@ export class ListingsService {
     const rows = await db
       .select({
         id: listings.id,
+        refNo: listings.refNo,
         title: listings.title,
         status: listings.status,
         priceAzn: listings.priceAzn,
         description: listings.description,
         photos: listings.photos,
+        coverPhotoIdx: listings.coverPhotoIdx,
         createdAt: listings.createdAt,
+        district: locations.district,
         propertyType: listingReAttrs.propertyType,
         rooms: listingReAttrs.rooms,
         areaM2: listingReAttrs.areaM2,
       })
       .from(listings)
       .leftJoin(listingReAttrs, eq(listingReAttrs.listingId, listings.id))
+      .leftJoin(locations, eq(locations.id, listings.locationId))
       .where(and(eq(listings.userId, userId), eq(listings.source, "user")))
       .orderBy(desc(listings.createdAt))
       .limit(50);
@@ -334,18 +402,180 @@ export class ListingsService {
     return rows.map((r) =>
       UserListing.parse({
         id: r.id,
+        refNo: formatRefNo(r.refNo),
         title: r.title,
         status: r.status,
         propertyType: r.propertyType ?? null,
-        district: null,
+        district: r.district ?? null,
         rooms: r.rooms ?? null,
         areaM2: r.areaM2 == null ? null : Number(r.areaM2),
         priceAzn: r.priceAzn,
         description: r.description ?? null,
+        coverPhotoIdx: r.coverPhotoIdx ?? 0,
         photos: (r.photos as string[]) ?? [],
         createdAt: new Date(r.createdAt).toISOString(),
       }),
     );
+  }
+
+  // ------------------------------------------------------------------ detay
+
+  /**
+   * İlan detayı — kullanıcı ilanı veya scraped piyasa kaydı.
+   * Auth gate uygulama katmanında (controller) zorunlu kılınır: giriş yapmamış
+   * kullanıcı bu uca erişemez, dolayısıyla əlaqə nömrəsini de göremez.
+   */
+  async detail(id: string, viewerId: string): Promise<ListingDetail> {
+    const isAdmin = await this.auth.isAdmin(viewerId);
+
+    const userRows = await db.execute(sql`
+      select
+        l.id, l.ref_no, l.title, l.status::text as status, l.description,
+        l.photos, l.cover_photo_idx, l.contact_name, l.contact_phone,
+        l.price_azn, l.created_at, l.user_id,
+        loc.district, loc.settlement,
+        ra.property_type::text as property_type, ra.rooms::int as rooms,
+        ra.area_m2::numeric as area_m2, ra.land_area_sot::numeric as land_area_sot,
+        ra.building_type::text as building_type, ra.repair_state::int as repair_state,
+        ra.title_deed
+      from listings l
+      left join listing_re_attrs ra on ra.listing_id = l.id
+      left join locations loc on loc.id = l.location_id
+      where l.id = ${id}::uuid
+      limit 1
+    `);
+
+    const u = userRows.rows[0] as Record<string, unknown> | undefined;
+    if (u) {
+      const area = u.area_m2 == null ? null : Number(u.area_m2);
+      return ListingDetail.parse({
+        id: u.id,
+        kind: "user",
+        refNo: formatRefNo(u.ref_no == null ? null : Number(u.ref_no)),
+        title: u.title,
+        status: u.status,
+        propertyType: (u.property_type as string) ?? null,
+        district: (u.district as string) ?? null,
+        settlement: (u.settlement as string) ?? null,
+        rooms: u.rooms == null ? null : Number(u.rooms),
+        areaM2: area,
+        landAreaSot: u.land_area_sot == null ? null : Number(u.land_area_sot),
+        buildingType: (u.building_type as string) ?? null,
+        repairState: u.repair_state == null ? null : Number(u.repair_state),
+        titleDeed: u.title_deed == null ? null : Boolean(u.title_deed),
+        metroStation: null,
+        priceAzn: Number(u.price_azn),
+        pricePerM2: area && area > 0 ? Math.round(Number(u.price_azn) / area) : null,
+        description: (u.description as string) ?? null,
+        photos: (u.photos as string[]) ?? [],
+        coverPhotoIdx: Number(u.cover_photo_idx ?? 0),
+        contactName: (u.contact_name as string) ?? null,
+        contactPhone: (u.contact_phone as string) ?? null,
+        createdAt: new Date(u.created_at as string).toISOString(),
+        sourceSite: "pribor",
+        canManage: isAdmin || u.user_id === viewerId,
+      });
+    }
+
+    // Kullanıcı ilanı değilse piyasa (scraped) kaydına bak
+    const sRows = await db.execute(sql`
+      select id, normalized, price_azn, first_seen_at
+      from scraped_listings where id = ${id}::uuid limit 1
+    `);
+    const s = sRows.rows[0] as Record<string, unknown> | undefined;
+    if (!s) throw new NotFoundException("Elan tapılmadı");
+
+    const n = s.normalized as Record<string, unknown>;
+    const numOrNull = (v: unknown) => (v == null ? null : Number(v));
+    const area = numOrNull(n.area_m2);
+    return ListingDetail.parse({
+      id: s.id,
+      kind: "scraped",
+      refNo: null,
+      title: (n.raw_title as string) || this.fallbackTitle({
+        property_type: n.property_type, area_m2: n.area_m2, district: n.district,
+      }),
+      status: "active",
+      propertyType: (n.property_type as string) ?? null,
+      district: (n.district as string) ?? null,
+      settlement: (n.settlement as string) ?? null,
+      rooms: numOrNull(n.rooms),
+      areaM2: area,
+      landAreaSot: numOrNull(n.land_area_sot),
+      buildingType: (n.building_type as string) ?? null,
+      repairState: numOrNull(n.repair_state),
+      titleDeed: n.title_deed == null ? null : Boolean(n.title_deed),
+      metroStation: (n.metro_station as string) ?? null,
+      priceAzn: Number(s.price_azn),
+      pricePerM2: area && area > 0 ? Math.round(Number(s.price_azn) / area) : null,
+      description: (n.raw_title as string) ?? null,
+      photos: [],
+      coverPhotoIdx: 0,
+      contactName: null,
+      contactPhone: (n.contact_phone as string) ?? null,
+      createdAt: new Date(s.first_seen_at as string).toISOString(),
+      sourceSite: (n.source_site as string) ?? "seed-baku",
+      canManage: isAdmin,
+    });
+  }
+
+  /** PRB numarasıyla ilan bulma (header/bazar araması). */
+  async findByRefNo(refNo: number, viewerId: string): Promise<ListingDetail> {
+    const rows = await db
+      .select({ id: listings.id })
+      .from(listings)
+      .where(eq(listings.refNo, refNo))
+      .limit(1);
+    if (!rows[0]) throw new NotFoundException(`PRB-${refNo} nömrəli elan tapılmadı`);
+    return this.detail(rows[0].id, viewerId);
+  }
+
+  // ------------------------------------------------------- yönetim aksiyonları
+
+  /** Sahip veya admin mi — sil/satıldı için ortak yetki kontrolü. */
+  private async assertCanManage(listingId: string, userId: string): Promise<void> {
+    const row = await db.query.listings.findFirst({
+      where: eq(listings.id, listingId),
+      columns: { id: true, userId: true },
+    });
+    if (!row) throw new NotFoundException("Elan tapılmadı");
+    if (row.userId === userId) return;
+    if (await this.auth.isAdmin(userId)) return;
+    throw new ForbiddenException("Bu elan üzərində icazəniz yoxdur");
+  }
+
+  async deleteListing(listingId: string, userId: string): Promise<{ deleted: true }> {
+    await this.assertCanManage(listingId, userId);
+    await db.delete(listings).where(eq(listings.id, listingId));
+    return { deleted: true };
+  }
+
+  /** "Satıldı" işaretleme — ilan pasife çekilir, limit sayımından da düşer. */
+  async markSold(listingId: string, userId: string): Promise<{ id: string; status: string }> {
+    await this.assertCanManage(listingId, userId);
+    const [row] = await db
+      .update(listings)
+      .set({ status: "sold", updatedAt: new Date() })
+      .where(eq(listings.id, listingId))
+      .returning({ id: listings.id, status: listings.status });
+    if (!row) throw new NotFoundException("Elan tapılmadı");
+    return { id: row.id, status: row.status };
+  }
+
+  /** Bakı rayonu için locations satırını bulur/oluşturur (district'i kalıcı kılar). */
+  private async ensureLocation(district: string): Promise<string> {
+    const found = await db
+      .select({ id: locations.id })
+      .from(locations)
+      .where(and(eq(locations.city, "Bakı"), eq(locations.district, district)))
+      .limit(1);
+    if (found[0]) return found[0].id;
+    const [row] = await db
+      .insert(locations)
+      .values({ city: "Bakı", district })
+      .returning({ id: locations.id });
+    if (!row) throw new Error("Location oluşturulamadı");
+    return row.id;
   }
 
   private buildListingTitle(dto: CreateListingDto): string {

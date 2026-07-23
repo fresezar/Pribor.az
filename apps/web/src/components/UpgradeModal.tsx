@@ -43,7 +43,7 @@ export default function UpgradeModal(props: {
         <div className="up-badge">Limiti keçdiniz</div>
         <h2 className="modal-h">Sərhədsiz elan üçün paketi yüksəldin</h2>
         <p className="modal-sub">
-          Pulsuz paketdə maksimum 2 aktiv elan mümkündür. Sərhədsiz elan və
+          Pulsuz paketdə maksimum 5 aktiv elan mümkündür. Sərhədsiz elan və
           əlavə imkanlar üçün Pro abunəliyə keçin.
         </p>
 
