@@ -2,56 +2,42 @@
 
 /**
  * Mock giriş akışı (Daxil ol) — telefon-OTP öncelikli tasarımın UI taslağı.
- * Faz 3'te gerçek OTP (SMS gateway + NestJS AuthModule) buraya bağlanır;
- * şimdilik "123456" veya boş kod kabul edilir ve kullanıcı localStorage'a yazılır.
+ * Ad Soyad + telefon + test rolü (İstifadəçi / Emlakçı-Admin) alınır.
+ * Faz 3'te gerçek OTP (SMS gateway + NestJS OTP doğrulama) buraya bağlanır;
+ * şimdilik istənilən kod qəbul edilir və kullanıcı DB'ye upsert edilir.
  */
 
-import { useEffect, useRef, useState } from "react";
-
-export type PriborUser = { phone: string; name: string };
-
-const STORAGE_KEY = "pribor.user";
-
-export function loadUser(): PriborUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as PriborUser) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function saveUser(u: PriborUser | null) {
-  if (typeof window === "undefined") return;
-  if (u) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-  else window.localStorage.removeItem(STORAGE_KEY);
-}
+import { useEffect, useState } from "react";
+import type { AppUserRole } from "@pribor/contracts";
+import { useAuth } from "./AuthContext";
 
 export default function AuthModal(props: {
   open: boolean;
   onClose: () => void;
-  onLogin: (u: PriborUser) => void;
+  onLoggedIn?: () => void;
 }) {
+  const { login } = useAuth();
   const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<AppUserRole>("USER");
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (props.open) {
       setStep("phone");
+      setName("");
       setPhone("");
+      setRole("USER");
       setOtp("");
       setError(null);
     }
   }, [props.open]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onClose();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
     if (props.open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [props.open, props]);
@@ -60,30 +46,32 @@ export default function AuthModal(props: {
 
   const normalizedPhone = phone.replace(/[^\d]/g, "");
 
-  const sendOtp = () => {
-    if (normalizedPhone.length < 9) {
-      setError("Nömrəni tam daxil edin (məs. 050 123 45 67)");
-      return;
-    }
+  const toOtp = () => {
+    if (name.trim().length < 2) return setError("Ad və soyadınızı daxil edin");
+    if (normalizedPhone.length < 9) return setError("Nömrəni tam daxil edin (məs. 50 123 45 67)");
     setError(null);
     setStep("otp");
   };
 
-  const verify = () => {
-    // Mock: hər hansı 4-6 rəqəmli kod (və ya boş) qəbul edilir
-    if (otp.length > 0 && otp.length < 4) {
-      setError("Kod ən azı 4 rəqəm olmalıdır");
-      return;
+  const verify = async () => {
+    if (otp.length > 0 && otp.length < 4) return setError("Kod ən azı 4 rəqəm olmalıdır");
+    setBusy(true);
+    setError(null);
+    try {
+      await login(normalizedPhone, name.trim(), role);
+      props.onClose();
+      props.onLoggedIn?.();
+    } catch {
+      setError("Giriş alınmadı — server işləyirmi?");
+    } finally {
+      setBusy(false);
     }
-    const suffix = normalizedPhone.slice(-4);
-    props.onLogin({ phone: `+994${normalizedPhone}`, name: `İstifadəçi ${suffix}` });
-    props.onClose();
   };
 
   return (
     <div className="modal-overlay" onMouseDown={props.onClose}>
-      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true"
-        aria-label="Daxil ol" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label="Daxil ol"
+        onMouseDown={(e) => e.stopPropagation()}>
         <button className="modal-x" onClick={props.onClose} aria-label="Bağla">✕</button>
         <div className="modal-brand">PRIBOR<b>.AZ</b></div>
 
@@ -91,17 +79,42 @@ export default function AuthModal(props: {
           <>
             <h2 className="modal-h">Daxil ol və ya qeydiyyatdan keç</h2>
             <p className="modal-sub">Telefon nömrənizə birdəfəlik kod göndərəcəyik.</p>
+
             <div className="field">
+              <label htmlFor="nm">Ad və Soyad</label>
+              <input id="nm" placeholder="Elvin Məmmədov" autoFocus
+                value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+
+            <div className="field" style={{ marginTop: 14 }}>
               <label htmlFor="ph">Telefon nömrəsi</label>
               <div className="phone-input">
                 <span className="phone-cc">+994</span>
-                <input id="ph" inputMode="tel" placeholder="50 123 45 67" autoFocus
+                <input id="ph" inputMode="tel" placeholder="50 123 45 67"
                   value={phone} onChange={(e) => setPhone(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendOtp()} />
+                  onKeyDown={(e) => e.key === "Enter" && toOtp()} />
               </div>
             </div>
+
+            {/* Test rolü — akışı denemek için */}
+            <div className="field" style={{ marginTop: 14 }}>
+              <label>Test rejimi</label>
+              <div className="role-switch">
+                <button type="button" className={role === "USER" ? "on" : ""}
+                  onClick={() => setRole("USER")}>
+                  İstifadəçi kimi
+                  <small>Pulsuz · 2 aktiv elan</small>
+                </button>
+                <button type="button" className={role === "AGENT_ADMIN" ? "on" : ""}
+                  onClick={() => setRole("AGENT_ADMIN")}>
+                  Emlakçı / Admin
+                  <small>Rəsmi · sərhədsiz elan</small>
+                </button>
+              </div>
+            </div>
+
             {error && <div className="err">{error}</div>}
-            <button className="cta" onClick={sendOtp}>Kod göndər →</button>
+            <button className="cta" onClick={toOtp}>Kod göndər →</button>
           </>
         ) : (
           <>
@@ -114,11 +127,13 @@ export default function AuthModal(props: {
               <label htmlFor="otp">Təsdiq kodu</label>
               <input id="otp" inputMode="numeric" placeholder="123456" autoFocus maxLength={6}
                 value={otp} onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ""))}
-                onKeyDown={(e) => e.key === "Enter" && verify()} />
+                onKeyDown={(e) => e.key === "Enter" && void verify()} />
             </div>
             {error && <div className="err">{error}</div>}
-            <button className="cta" onClick={verify}>Təsdiqlə və daxil ol</button>
-            <button className="link-btn" onClick={() => setStep("phone")}>← Nömrəni dəyiş</button>
+            <button className="cta" onClick={() => void verify()} disabled={busy}>
+              {busy ? "Yoxlanılır…" : "Təsdiqlə və daxil ol"}
+            </button>
+            <button className="link-btn" onClick={() => setStep("phone")}>← Geri</button>
           </>
         )}
       </div>

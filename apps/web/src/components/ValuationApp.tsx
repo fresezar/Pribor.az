@@ -18,6 +18,9 @@ import type {
   ValuationResponse,
 } from "@pribor/contracts";
 import CompsCards from "./CompsCards";
+import AuthModal from "./AuthModal";
+import ListingForm, { type ListingPrefill } from "./ListingForm";
+import { useAuth } from "./AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -74,13 +77,19 @@ function useCountUp(target: number | null, durationMs = 1300): number {
 type Phase = "form" | "computing" | "result";
 
 export default function ValuationApp() {
+  const { user } = useAuth();
   const [propertyType, setPropertyType] = useState<RealEstatePropertyType>("apartment");
   const [phase, setPhase] = useState<Phase>("form");
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ValuationResponse | null>(null);
-  const [converted, setConverted] = useState<{ listingId: string; title: string } | null>(null);
   const [querySummary, setQuerySummary] = useState("");
+
+  // İlan verme akışı
+  const [authOpen, setAuthOpen] = useState(false);
+  const [listingOpen, setListingOpen] = useState(false);
+  const [posted, setPosted] = useState<{ id: string; title: string } | null>(null);
+  const pendingPost = useRef(false);
 
   // form state
   const [district, setDistrict] = useState("Nərimanov");
@@ -101,7 +110,7 @@ export default function ValuationApp() {
 
   const submit = useCallback(async () => {
     setError(null);
-    setConverted(null);
+    setPosted(null);
     setPhase("computing");
     setStepIdx(0);
     stepTimer.current = setInterval(
@@ -161,18 +170,34 @@ export default function ValuationApp() {
   }, [propertyType, isLand, isHouse, isApartment, district, areaM2, landAreaSot,
       rooms, buildingType, repairState, metroDistM, titleDeed]);
 
-  const convert = useCallback(async () => {
-    if (!result) return;
-    try {
-      const res = await fetch(`${API}/v1/valuations/${result.valuationId}/convert`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error(`Server xətası (${res.status})`);
-      setConverted((await res.json()) as { listingId: string; title: string });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Elan yaradıla bilmədi");
+  /** Değerleme sonuç alanlarından ilan formu ön-dolgusunu üretir. */
+  const buildPrefill = useCallback((): ListingPrefill | null => {
+    if (!result) return null;
+    return {
+      valuationId: result.valuationId,
+      propertyType,
+      district,
+      areaM2: isLand ? landAreaSot * 100 : areaM2,
+      landAreaSot: isLand || isHouse ? landAreaSot : undefined,
+      rooms: isLand ? undefined : rooms,
+      buildingType: isApartment ? buildingType : undefined,
+      repairState: isLand ? undefined : repairState,
+      titleDeed,
+      metroDistM,
+      priceAzn: result.p50Azn,
+    };
+  }, [result, propertyType, district, isLand, isHouse, isApartment, areaM2,
+      landAreaSot, rooms, buildingType, repairState, titleDeed, metroDistM]);
+
+  /** "Elan yerləşdir" — giriş yoksa AuthModal, sonra ön-dolu ilan formu. */
+  const postListing = useCallback(() => {
+    if (!user) {
+      pendingPost.current = true;
+      setAuthOpen(true);
+      return;
     }
-  }, [result]);
+    setListingOpen(true);
+  }, [user]);
 
   return (
     <div className="panel" id="qiymetlendir">
@@ -306,11 +331,25 @@ export default function ValuationApp() {
           result={result}
           querySummary={querySummary}
           askingPrice={askingPrice ? Number(askingPrice) : null}
-          converted={converted}
-          onConvert={() => void convert()}
-          onReset={() => { setPhase("form"); setResult(null); setConverted(null); }}
+          posted={posted}
+          onPostListing={postListing}
+          onReset={() => { setPhase("form"); setResult(null); setPosted(null); }}
         />
       )}
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => { setAuthOpen(false); pendingPost.current = false; }}
+        onLoggedIn={() => {
+          if (pendingPost.current) { pendingPost.current = false; setListingOpen(true); }
+        }}
+      />
+      <ListingForm
+        open={listingOpen}
+        prefill={listingOpen ? buildPrefill() : null}
+        onClose={() => setListingOpen(false)}
+        onCreated={(l) => { setListingOpen(false); setPosted(l); }}
+      />
     </div>
   );
 }
@@ -319,11 +358,11 @@ function ResultCard(props: {
   result: ValuationResponse;
   querySummary: string;
   askingPrice: number | null;
-  converted: { listingId: string; title: string } | null;
-  onConvert: () => void;
+  posted: { id: string; title: string } | null;
+  onPostListing: () => void;
   onReset: () => void;
 }) {
-  const { result, querySummary, askingPrice, converted } = props;
+  const { result, querySummary, askingPrice, posted } = props;
   const animated = useCountUp(result.p50Azn);
   const [reveal, setReveal] = useState(false);
   useEffect(() => {
@@ -403,18 +442,18 @@ function ResultCard(props: {
         <CompsCards comps={result.comps} />
       )}
 
-      {!converted ? (
+      {!posted ? (
         <div className="convert">
-          <button className="primary" onClick={props.onConvert}>
-            Bu qiymətlə elan yerləşdir →
+          <button className="primary" onClick={props.onPostListing}>
+            Elan yerləşdir →
           </button>
           <button className="ghost" onClick={props.onReset}>Yeni hesablama</button>
         </div>
       ) : (
         <>
           <div className="converted">
-            ✓ Elan layihəsi yaradıldı: <b>{converted.title}</b>
-            <br /><code>id: {converted.listingId}</code> — dərc axını Faz 2-də açılır
+            ✓ Elanınız dərc edildi: <b>{posted.title}</b>
+            <br /><small>“Mənim elanlarım” bölməsində görə bilərsiniz.</small>
           </div>
           <div className="convert">
             <button className="ghost" onClick={props.onReset}>Yeni hesablama</button>

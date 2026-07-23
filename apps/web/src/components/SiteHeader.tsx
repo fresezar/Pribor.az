@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import AuthModal, { loadUser, saveUser, type PriborUser } from "./AuthModal";
+import AuthModal from "./AuthModal";
+import MyListings from "./MyListings";
+import { useAuth } from "./AuthContext";
 
-/** Üst çubuk: marka + "Daxil ol" veya giriş yapılmışsa profil menüsü. */
+const ROLE_BADGE: Record<string, { label: string; cls: string } | null> = {
+  AGENT_ADMIN: { label: "Rəsmi Emlakçı", cls: "agent" },
+  PREMIUM_USER: { label: "Pro", cls: "pro" },
+  USER: null,
+};
+
+/** Üst çubuk: marka + Bazar linki + APK indir + Daxil ol / profil menüsü. */
 export default function SiteHeader() {
-  const [user, setUser] = useState<PriborUser | null>(null);
+  const { user, logout } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [myOpen, setMyOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => setUser(loadUser()), []);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -20,28 +27,32 @@ export default function SiteHeader() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const login = (u: PriborUser) => {
-    saveUser(u);
-    setUser(u);
-  };
-  const logout = () => {
-    saveUser(null);
-    setUser(null);
-    setMenuOpen(false);
-  };
-
   const initials = user
     ? user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
     : "";
+  const badge = user ? ROLE_BADGE[user.role] : null;
+
+  const downloadApk = () => {
+    // Placeholder — gerçek imzalı APK Faz 3'te public/download altına konur
+    const a = document.createElement("a");
+    a.href = "/download/pribor-demo.apk";
+    a.download = "pribor-demo.apk";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
   return (
     <header className="topbar">
-      <a href="/" className="brand" style={{ textDecoration: "none" }}>
-        PRIBOR<b>.AZ</b>
-      </a>
+      <a href="/" className="brand" style={{ textDecoration: "none" }}>PRIBOR<b>.AZ</b></a>
 
       <div className="topbar-right">
         <a className="nav-link" href="#bazar">Bazar</a>
+        <button className="apk-btn" onClick={downloadApk} title="Android tətbiqini yüklə">
+          <span className="apk-ico">▲</span>
+          <span className="apk-txt">Android<br /><b>.APK yüklə</b></span>
+        </button>
+
         {!user ? (
           <button className="login-btn" onClick={() => setAuthOpen(true)}>Daxil ol</button>
         ) : (
@@ -53,10 +64,16 @@ export default function SiteHeader() {
             {menuOpen && (
               <div className="profile-menu" role="menu">
                 <div className="pm-head">
-                  <div className="pm-name">{user.name}</div>
+                  <div className="pm-name">
+                    {user.name}
+                    {badge && <span className={`role-badge ${badge.cls}`}>{badge.label}</span>}
+                  </div>
                   <div className="pm-phone">{user.phone}</div>
                 </div>
-                <button role="menuitem" className="pm-item">Mənim elanlarım</button>
+                <button role="menuitem" className="pm-item"
+                  onClick={() => { setMenuOpen(false); setMyOpen(true); }}>
+                  Mənim elanlarım
+                </button>
                 <button role="menuitem" className="pm-item">Qiymətləndirmələrim</button>
                 <button role="menuitem" className="pm-item">Deal Radar</button>
                 <button role="menuitem" className="pm-item danger" onClick={logout}>Çıxış</button>
@@ -66,7 +83,8 @@ export default function SiteHeader() {
         )}
       </div>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onLogin={login} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <MyListings open={myOpen} onClose={() => setMyOpen(false)} />
     </header>
   );
 }

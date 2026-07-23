@@ -49,7 +49,14 @@ export const listings = pgTable(
     title: varchar("title", { length: 200 }).notNull(),
     description: text("description"),
     priceAzn: integer("price_azn").notNull(),
+    contactName: varchar("contact_name", { length: 120 }),
     contactPhone: varchar("contact_phone", { length: 20 }),
+    /**
+     * İlan fotoğrafları. MVP: data URI dizisi (istemci tarafında küçültülmüş
+     * JPEG). Prod: R2/MinIO'ya yüklenip media tablosuna storage_key yazılır,
+     * burada yalnızca CDN URL'leri tutulur — geçiş yolu media tablosu üzerinden.
+     */
+    photos: jsonb("photos").$type<string[]>().notNull().default([]),
     /** Değerleme köprüsü: ilan bir değerlemeden doğduysa buradan izlenir. */
     valuationId: uuid("valuation_id"),
     /** Şemaya girmemiş serbest alanlar için taşma sahası — kolonlaşma adayları burada birikir. */

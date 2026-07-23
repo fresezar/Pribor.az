@@ -1,6 +1,27 @@
-import { Injectable } from "@nestjs/common";
-import { CompListing, ListingCard, ListingQuery, ListingSort } from "@pribor/contracts";
-import { db, sql } from "@pribor/db";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import {
+  CompListing,
+  CreateListingDto,
+  ListingCard,
+  ListingQuery,
+  ListingSort,
+  LISTING_LIMIT_CODE,
+  UserListing,
+} from "@pribor/contracts";
+import {
+  and,
+  db,
+  desc,
+  eq,
+  listingReAttrs,
+  listings,
+  sql,
+} from "@pribor/db";
+import { AuthService } from "../auth/auth.service";
+
+const TYPE_LABEL: Record<string, string> = {
+  apartment: "Mənzil", house: "Həyət evi", land: "Torpaq",
+};
 
 /**
  * Piyasa (Elanlar) görünümü — scraped_listings üzerinden okur.
@@ -13,6 +34,8 @@ import { db, sql } from "@pribor/db";
  */
 @Injectable()
 export class ListingsService {
+  constructor(private readonly auth: AuthService) {}
+
   private orderByClause(sort: ListingSort) {
     switch (sort) {
       case "price_asc":
@@ -212,5 +235,127 @@ export class ListingsService {
     `);
     const v = (rows.rows[0] as Record<string, unknown> | undefined)?.median_ppm2;
     return v == null ? null : Math.round(Number(v));
+  }
+
+  // -------------------------------------------------------------- kullanıcı ilanı
+
+  /**
+   * Kullanıcı ilanı oluşturur — limit kontrolü tek kapı burada.
+   * USER (ücretsiz) en fazla 2 aktif ilan; AGENT_ADMIN/PREMIUM sınırsız.
+   * Limit aşımında 402 + LISTING_LIMIT_EXCEEDED → frontend upgrade modalı açar.
+   */
+  async createUserListing(dto: CreateListingDto): Promise<{ id: string; title: string }> {
+    const { entitlements } = await this.auth.resolveEntitlements(dto.userId);
+    if (!entitlements.unlimited) {
+      const active = await this.auth.countActiveListings(dto.userId);
+      if (active >= entitlements.maxActiveListings) {
+        throw new HttpException(
+          {
+            code: LISTING_LIMIT_CODE,
+            message: `Limiti keçdiniz — pulsuz paketdə maksimum ${entitlements.maxActiveListings} aktiv elan mümkündür.`,
+            maxActiveListings: entitlements.maxActiveListings,
+            activeListings: active,
+          },
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+    }
+
+    const title = this.buildListingTitle(dto);
+    const areaText = dto.areaM2 != null ? String(dto.areaM2) : null;
+    const landText = dto.landAreaSot != null ? String(dto.landAreaSot) : null;
+
+    // Ana ilan + dikeye özgü öznitelikler (re_attrs) tek transaction'da
+    const listingId = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(listings)
+        .values({
+          vertical: "real_estate",
+          status: "active",
+          source: "user",
+          userId: dto.userId,
+          title,
+          description: dto.description ?? null,
+          priceAzn: dto.priceAzn,
+          contactName: dto.contactName ?? null,
+          contactPhone: dto.contactPhone ?? null,
+          photos: dto.photos,
+          valuationId: dto.valuationId ?? null,
+          publishedAt: new Date(),
+          extra: { created_via: dto.valuationId ? "valuation_flow" : "manual" },
+        })
+        .returning({ id: listings.id });
+      if (!row) throw new Error("İlan oluşturulamadı");
+
+      await tx.insert(listingReAttrs).values({
+        listingId: row.id,
+        propertyType: dto.propertyType,
+        areaM2: areaText,
+        landAreaSot: landText,
+        rooms: dto.rooms ?? null,
+        buildingType: dto.buildingType ?? null,
+        repairState: dto.repairState ?? null,
+        titleDeed: dto.titleDeed ?? null,
+      });
+
+      // Değerlemeden geldiyse dönüşümü işaretle (Truva atı funnel metriği)
+      if (dto.valuationId) {
+        await tx.execute(
+          sql`update valuations set converted_listing_id = ${row.id} where id = ${dto.valuationId}::uuid`,
+        );
+      }
+      return row.id;
+    });
+
+    return { id: listingId, title };
+  }
+
+  /** "Mənim elanlarım" — kullanıcının kendi ilanları (foto + açıqlama ile). */
+  async myListings(userId: string): Promise<UserListing[]> {
+    const rows = await db
+      .select({
+        id: listings.id,
+        title: listings.title,
+        status: listings.status,
+        priceAzn: listings.priceAzn,
+        description: listings.description,
+        photos: listings.photos,
+        createdAt: listings.createdAt,
+        propertyType: listingReAttrs.propertyType,
+        rooms: listingReAttrs.rooms,
+        areaM2: listingReAttrs.areaM2,
+      })
+      .from(listings)
+      .leftJoin(listingReAttrs, eq(listingReAttrs.listingId, listings.id))
+      .where(and(eq(listings.userId, userId), eq(listings.source, "user")))
+      .orderBy(desc(listings.createdAt))
+      .limit(50);
+
+    return rows.map((r) =>
+      UserListing.parse({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        propertyType: r.propertyType ?? null,
+        district: null,
+        rooms: r.rooms ?? null,
+        areaM2: r.areaM2 == null ? null : Number(r.areaM2),
+        priceAzn: r.priceAzn,
+        description: r.description ?? null,
+        photos: (r.photos as string[]) ?? [],
+        createdAt: new Date(r.createdAt).toISOString(),
+      }),
+    );
+  }
+
+  private buildListingTitle(dto: CreateListingDto): string {
+    const type = TYPE_LABEL[dto.propertyType] ?? "Əmlak";
+    if (dto.propertyType === "land") {
+      return `${type} · ${dto.landAreaSot ?? "?"} sot · ${dto.district}`;
+    }
+    const parts = [dto.rooms ? `${dto.rooms} otaqlı ${type.toLowerCase()}` : type];
+    if (dto.areaM2) parts.push(`${dto.areaM2} m²`);
+    parts.push(dto.district);
+    return parts.join(" · ");
   }
 }

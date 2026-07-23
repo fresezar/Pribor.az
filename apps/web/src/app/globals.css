@@ -495,6 +495,113 @@ footer.note {
 }
 .listing-loc { font-size: 0.78rem; color: var(--faint); margin-top: 10px; }
 
+/* ---------- APK indirme butonu ---------- */
+.apk-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 6px 12px; color: var(--ink);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.apk-btn:hover { border-color: var(--teal); transform: translateY(-1px); }
+.apk-ico {
+  display: grid; place-items: center; width: 22px; height: 22px;
+  background: var(--good-soft); color: #5fd9a2; border-radius: 6px; font-size: 0.7rem;
+}
+.apk-txt { font-size: 0.6rem; line-height: 1.1; color: var(--muted); text-align: left; }
+.apk-txt b { color: var(--ink); font-size: 0.72rem; }
+@media (max-width: 640px) { .apk-txt { display: none; } }
+
+/* ---------- rol rozeti + rol switch ---------- */
+.role-badge {
+  font-family: var(--mono); font-size: 0.56rem; font-weight: 700;
+  letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; margin-left: 8px;
+  vertical-align: middle;
+}
+.role-badge.agent { background: var(--good-soft); color: #5fd9a2; border: 1px solid rgba(39,165,108,0.4); }
+.role-badge.pro { background: var(--flame-soft); color: #f4b09a; border: 1px solid rgba(232,96,58,0.4); }
+
+.role-switch { display: flex; gap: 8px; }
+.role-switch button {
+  flex: 1; text-align: left; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--muted); font-size: 0.84rem; font-weight: 600;
+  transition: all 0.15s ease;
+}
+.role-switch button small { display: block; font-weight: 400; font-size: 0.68rem; color: var(--faint); margin-top: 2px; }
+.role-switch button.on { background: var(--teal-soft); border-color: var(--teal); color: var(--ink); }
+.role-switch button.on small { color: var(--muted); }
+
+/* ---------- textarea ---------- */
+.field textarea {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 9px; padding: 11px 12px; font-size: 0.95rem; color: var(--ink);
+  resize: vertical; font-family: inherit; width: 100%;
+}
+.field textarea:focus { border-color: var(--teal); outline: none; }
+
+/* ---------- ilan formu ---------- */
+.modal.listing-form, .modal.my-listings { max-width: 520px; max-height: 88vh; overflow-y: auto; }
+.lf-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 20px; }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.photo-thumb {
+  position: relative; width: 78px; height: 78px; border-radius: 9px; overflow: hidden;
+  border: 1px solid var(--line);
+}
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-x {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+  background: rgba(4,12,17,0.75); border: none; color: #fff; border-radius: 6px; font-size: 0.66rem;
+}
+.photo-add {
+  width: 78px; height: 78px; border-radius: 9px;
+  background: var(--surface); border: 1px dashed var(--faint); color: var(--muted);
+  font-size: 0.78rem;
+}
+.photo-add:hover { border-color: var(--teal); color: var(--ink); }
+
+/* ---------- abonelik modalı ---------- */
+.modal.upgrade { max-width: 420px; }
+.up-badge {
+  display: inline-block; font-family: var(--mono); font-size: 0.64rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--warn-soft); color: #ecc069; border: 1px solid rgba(217,161,59,0.4);
+  padding: 4px 10px; border-radius: 999px; margin-bottom: 14px;
+}
+.plan-card {
+  background: var(--surface); border: 1px solid var(--teal); border-radius: 13px;
+  padding: 18px; margin: 6px 0 4px;
+}
+.plan-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.plan-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 8px; }
+.plan-feat { font-size: 0.84rem; color: var(--muted); margin: 3px 0; }
+.plan-price { display: flex; align-items: baseline; gap: 2px; flex: 0 0 auto; }
+.pp-num { font-family: var(--mono); font-weight: 700; font-size: 2.2rem; letter-spacing: -0.02em; }
+.pp-cur { font-family: var(--mono); color: var(--teal); font-size: 1rem; }
+.pp-cur small { color: var(--faint); font-size: 0.7rem; }
+
+/* ---------- mənim elanlarım ---------- */
+.my-list { display: flex; flex-direction: column; gap: 10px; }
+.my-item { display: flex; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; padding: 10px; }
+.my-thumb {
+  width: 68px; height: 68px; flex: 0 0 auto; border-radius: 9px; overflow: hidden;
+  background: var(--surface-2); display: grid; place-items: center; font-size: 1.6rem;
+}
+.my-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.my-body { min-width: 0; flex: 1; }
+.my-price {
+  font-family: var(--mono); font-weight: 700; font-size: 1rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.my-status {
+  font-family: var(--mono); font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: var(--teal-soft); color: var(--teal);
+}
+.my-status.active { background: var(--good-soft); color: #5fd9a2; }
+.my-title { font-size: 0.88rem; margin-top: 5px; }
+.my-desc { font-size: 0.78rem; color: var(--muted); margin-top: 4px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.my-photos { font-size: 0.72rem; color: var(--faint); margin-top: 6px; }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
