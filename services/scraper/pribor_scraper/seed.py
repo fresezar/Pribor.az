@@ -38,6 +38,7 @@ _REPAIR_PHRASES = {
     5: ["əla təmirli", "dizayner təmiri ilə", "евроремонт"],
     4: ["yaxşı təmirli", "təmirli", "с хорошим ремонтом"],
     3: ["orta təmirli", "kosmetik təmirli"],
+    2: ["köhnə təmirli", "старый ремонт"],
     1: ["təmirsiz", "təmir tələb edir"],
 }
 _KUPCA_PHRASES = {
@@ -48,15 +49,6 @@ _BUILDING_PHRASES = {
     "yeni_tikili": ["yeni tikili", "новостройка"],
     "kohne_tikili": ["köhnə tikili", "старый фонд"],
 }
-_CARS = [
-    ("Toyota", ["Prius", "Camry", "Corolla"]),
-    ("Hyundai", ["Elantra", "Sonata", "Tucson"]),
-    ("Kia", ["Optima", "Sorento", "Rio"]),
-    ("Mercedes", ["E 220", "C 200", "GLC 250"]),
-    ("BMW", ["320", "520", "X5"]),
-    ("LADA", ["Vesta", "Granta"]),
-    ("Changan", ["CS35", "Eado"]),
-]
 _PHONES = ["(050) {a}-{b}-{c}", "(055) {a}-{b}-{c}", "(070) {a}-{b}-{c}", "(051) {a}-{b}-{c}"]
 
 
@@ -66,15 +58,34 @@ def _phone(rng: random.Random) -> str:
         a=f"{rng.randint(100, 999)}", b=f"{rng.randint(10, 99)}", c=f"{rng.randint(10, 99)}")
 
 
-def _make_re_listing(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
+def _mk_raw(idx: int, fetched_at: datetime, title: str, price: int, desc: str,
+            props: dict[str, str], district: str, rng: random.Random) -> RawListing:
+    return RawListing(
+        source_site=SOURCE_SITE,
+        source_ext_id=f"re-{idx:05d}",
+        url=f"https://seed.invalid/elan/re-{idx:05d}",
+        fetched_at=fetched_at,
+        vertical_hint="real_estate",
+        payload={
+            "title": title,
+            "price_text": f"{price:,} AZN".replace(",", " "),
+            "description": desc,
+            "props": props,
+            "breadcrumbs": ["Bakı", district],
+            "photo_urls": [],
+            "phone_text": _phone(rng),
+        },
+    )
+
+
+def _make_apartment(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
     district = rng.choice(list(_DISTRICT_SQM))
     rooms = rng.choices([1, 2, 3, 4], weights=[15, 40, 32, 13])[0]
-    area = int(rooms * 32 + rng.gauss(8, 12))
-    area = max(28, min(area, 320))
+    area = max(28, min(int(rooms * 32 + rng.gauss(8, 12)), 320))
     repair = rng.choices([5, 4, 3, 1], weights=[22, 35, 30, 13])[0]
     building = rng.choices(["yeni_tikili", "kohne_tikili"], weights=[60, 40])[0]
     kupca = rng.random() < 0.85
-    floor, total = rng.randint(1, 16), 0
+    floor = rng.randint(1, 16)
     total = max(floor, rng.randint(5, 20))
     metro = _METRO_BY_DISTRICT.get(district)
 
@@ -85,85 +96,71 @@ def _make_re_listing(rng: random.Random, idx: int, fetched_at: datetime) -> tupl
     price *= rng.lognormvariate(0, 0.09)
     price = int(round(price, -3))
 
-    repair_txt = rng.choice(_REPAIR_PHRASES[repair])
-    kupca_txt = rng.choice(_KUPCA_PHRASES[kupca])
-    building_txt = rng.choice(_BUILDING_PHRASES[building])
     metro_txt = f" m. {metro} yaxınlığında," if metro and rng.random() < 0.7 else ""
-
-    title = f"{rooms} otaqlı mənzil, {area} m², {district} r."
-    description = (
-        f"{district} rayonunda,{metro_txt} {building_txt}, {repair_txt} "
-        f"{rooms} otaqlı mənzil satılır. Sahə {area} m², mərtəbə {floor}/{total}. "
-        f"{kupca_txt.capitalize()}. İpoteka mümkündür."
-        if kupca and rng.random() < 0.4
-        else f"{district} rayonunda,{metro_txt} {building_txt}, {repair_txt} "
-             f"{rooms} otaqlı mənzil. Sahə {area} m², mərtəbə {floor}/{total}. {kupca_txt.capitalize()}."
+    desc = (
+        f"{district} rayonunda,{metro_txt} {rng.choice(_BUILDING_PHRASES[building])}, "
+        f"{rng.choice(_REPAIR_PHRASES[repair])} {rooms} otaqlı mənzil. "
+        f"Sahə {area} m², mərtəbə {floor}/{total}. {rng.choice(_KUPCA_PHRASES[kupca]).capitalize()}."
     )
+    props = {"Kateqoriya": "Mənzil", "Sahə": f"{area} m²",
+             "Otaq sayı": str(rooms), "Mərtəbə": f"{floor}/{total}"}
+    return _mk_raw(idx, fetched_at, f"{rooms} otaqlı mənzil, {area} m², {district} r.",
+                   price, desc, props, district, rng), price
 
-    raw = RawListing(
-        source_site=SOURCE_SITE,
-        source_ext_id=f"re-{idx:05d}",
-        url=f"https://seed.invalid/elan/re-{idx:05d}",
-        fetched_at=fetched_at,
-        vertical_hint="real_estate",
-        payload={
-            "title": title,
-            "price_text": f"{price:,} AZN".replace(",", " "),
-            "description": description,
-            "props": {
-                "Kateqoriya": "Mənzil",
-                "Sahə": f"{area} m²",
-                "Otaq sayı": str(rooms),
-                "Mərtəbə": f"{floor}/{total}",
-            },
-            "breadcrumbs": ["Bakı", district],
-            "photo_urls": [],
-            "phone_text": _phone(rng),
-        },
+
+def _make_house(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
+    district = rng.choice(list(_DISTRICT_SQM))
+    rooms = rng.choices([3, 4, 5, 6], weights=[25, 32, 28, 15])[0]
+    build_area = max(80, min(int(rooms * 45 + rng.gauss(20, 40)), 800))
+    land_sot = round(max(1.5, rng.lognormvariate(1.6, 0.5)), 1)
+    repair = rng.choices([5, 4, 3, 2], weights=[15, 30, 35, 20])[0]
+    kupca = rng.random() < 0.80
+
+    price = _DISTRICT_SQM[district] * 0.85 * build_area
+    price += _DISTRICT_SQM[district] * 0.28 * (land_sot * 100)
+    price *= 1 + (repair - 3) * 0.05
+    price *= 1.0 if kupca else 0.85
+    price *= rng.lognormvariate(0, 0.12)
+    price = int(round(price, -3))
+
+    desc = (
+        f"{district} rayonunda {rng.choice(_REPAIR_PHRASES[repair])} {rooms} otaqlı "
+        f"həyət evi. Tikili sahəsi {build_area} m², torpaq sahəsi {land_sot} sot. "
+        f"{rng.choice(_KUPCA_PHRASES[kupca]).capitalize()}."
     )
-    return raw, price
+    props = {"Kateqoriya": "Həyət evi / villa", "Sahə": f"{build_area} m²",
+             "Torpaq sahəsi": f"{land_sot} sot", "Otaq sayı": str(rooms)}
+    return _mk_raw(idx, fetched_at, f"Həyət evi, {build_area} m², {land_sot} sot, {district}",
+                   price, desc, props, district, rng), price
 
 
-def _make_vehicle_listing(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
-    make, models = rng.choice(_CARS)
-    model = rng.choice(models)
-    year = rng.randint(2008, 2024)
-    km = int(max(5, (2026 - year) * rng.gauss(16, 5)) * 1000)
-    accident_free = rng.random() < 0.6
-    customs = rng.random() < 0.85
+def _make_land(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
+    district = rng.choice(list(_DISTRICT_SQM))
+    land_sot = round(max(1.0, rng.lognormvariate(2.0, 0.6)), 1)
+    kupca = rng.random() < 0.75
 
-    base = {"Toyota": 38000, "Hyundai": 30000, "Kia": 29000, "Mercedes": 60000,
-            "BMW": 55000, "LADA": 16000, "Changan": 22000}[make]
-    price = base * (0.9 ** (2026 - year))
-    price *= 1.06 if accident_free else 0.94
-    price *= 1.0 if customs else 0.8
-    price *= rng.lognormvariate(0, 0.08)
-    price = max(3000, int(round(price, -2)))
+    price = _DISTRICT_SQM[district] * 0.28 * (land_sot * 100)
+    price *= 1.0 if kupca else 0.80
+    price *= rng.lognormvariate(0, 0.15)
+    price = int(round(price, -3))
 
-    acc_txt = "vuruğu yoxdur, rənglənməyib" if accident_free else "rənglənib"
-    customs_txt = "gömrükdən keçib" if customs else "gömrüksüz"
-    km_txt = f"{km // 1000} min km" if rng.random() < 0.5 else f"{km:,} km".replace(",", " ")
-
-    raw = RawListing(
-        source_site=SOURCE_SITE,
-        source_ext_id=f"veh-{idx:05d}",
-        url=f"https://seed.invalid/elan/veh-{idx:05d}",
-        fetched_at=fetched_at,
-        vertical_hint="vehicle",
-        payload={
-            "title": f"{make} {model} {year}",
-            "price_text": f"{price:,} AZN".replace(",", " "),
-            "description": (
-                f"{make} {model}, {year} il, yürüş {km_txt}, benzin, avtomat. "
-                f"Vəziyyəti əla, {acc_txt}, {customs_txt}."
-            ),
-            "props": {"Buraxılış ili": str(year), "Yürüş": km_txt},
-            "breadcrumbs": ["Bakı", "Avtomobillər", make],
-            "photo_urls": [],
-            "phone_text": _phone(rng),
-        },
+    desc = (
+        f"{district} rayonunda {land_sot} sot torpaq sahəsi satılır. "
+        f"{rng.choice(_KUPCA_PHRASES[kupca]).capitalize()}. Tikinti üçün əlverişlidir."
     )
-    return raw, price
+    props = {"Kateqoriya": "Torpaq", "Torpaq sahəsi": f"{land_sot} sot"}
+    return _mk_raw(idx, fetched_at, f"Torpaq sahəsi, {land_sot} sot, {district}",
+                   price, desc, props, district, rng), price
+
+
+def _make_re_listing(rng: random.Random, idx: int, fetched_at: datetime) -> tuple[RawListing, int]:
+    """Emlak tipini dağılıma göre seçer (eğitim dağılımıyla uyumlu)."""
+    kind = rng.choices(["apartment", "house", "land"], weights=[74, 18, 8])[0]
+    if kind == "apartment":
+        return _make_apartment(rng, idx, fetched_at)
+    if kind == "house":
+        return _make_house(rng, idx, fetched_at)
+    return _make_land(rng, idx, fetched_at)
 
 
 def run_seed(n: int = 150, seed: int = 42, price_drift_ratio: float = 0.25) -> None:
@@ -176,10 +173,8 @@ def run_seed(n: int = 150, seed: int = 42, price_drift_ratio: float = 0.25) -> N
     items: list[tuple[RawListing, int]] = []
     t0 = now - timedelta(days=1)
     for i in range(n):
-        if rng.random() < 0.7:
-            raw, price = _make_re_listing(rng, i, t0)
-        else:
-            raw, price = _make_vehicle_listing(rng, i, t0)
+        # MVP odağı: yalnızca gayrimenkul (apartment / house / land)
+        raw, price = _make_re_listing(rng, i, t0)
         sink1.write(raw)
         items.append((raw, price))
     sink1.close()

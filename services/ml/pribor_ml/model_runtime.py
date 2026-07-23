@@ -17,6 +17,8 @@ from catboost import CatBoostRegressor, Pool
 
 from .features import CAT_FEATURES, LABELS_AZ, build_frame
 
+_CAT_UNKNOWN = "unknown"
+
 ARTIFACTS_DIR = Path(__file__).resolve().parents[1] / "artifacts"
 
 
@@ -76,6 +78,14 @@ class RealEstateModel:
         shap_row = self._q50.get_feature_importance(data=pool, type="ShapValues")[0]
         contributions = shap_row[:-1]
         feature_names = list(frame.columns)
+        # Kullanıcının GİRMEDİĞİ feature'ları (NaN sayısal / 'unknown' kategorik)
+        # DNT'den ele: mənzil için "Torpaq sahəsi" gibi ilgisiz satırlar çıkmasın.
+        row = frame.iloc[0]
+        provided = {
+            name for name in feature_names
+            if not (isinstance(row[name], float) and np.isnan(row[name]))
+            and str(row[name]) != _CAT_UNKNOWN
+        }
         order = np.argsort(-np.abs(contributions))
         shap_top = [
             {
@@ -83,9 +93,10 @@ class RealEstateModel:
                 "label": LABELS_AZ.get(feature_names[i], feature_names[i]),
                 "contributionAzn": round(float(contributions[i])),
             }
-            for i in order[:8]
-            if abs(contributions[i]) >= 1.0  # ~0 katkılar gürültüdür, listeyi kirletmesin
-        ]
+            for i in order[:10]
+            if feature_names[i] in provided
+            and abs(contributions[i]) >= 1.0  # ~0 katkılar gürültüdür, listeyi kirletmesin
+        ][:8]
 
         return Prediction(
             p10=p10, p50=p50, p90=p90,

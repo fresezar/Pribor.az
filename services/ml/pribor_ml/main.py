@@ -66,6 +66,7 @@ class RealEstateInput(BaseModel):
     propertyType: str
     district: str
     areaM2: float = Field(gt=0)
+    landAreaSot: float | None = None
     rooms: int | None = None
     floor: int | None = None
     totalFloors: int | None = None
@@ -127,6 +128,7 @@ def _predict_real_estate_catboost(inp: RealEstateInput) -> ValuationResult:
         "property_type": inp.propertyType,
         "building_type": inp.buildingType,
         "area_m2": inp.areaM2,
+        "land_area_sot": inp.landAreaSot,
         "rooms": inp.rooms,
         "floor": inp.floor,
         "total_floors": inp.totalFloors,
@@ -152,7 +154,34 @@ def _estimate_real_estate(inp: RealEstateInput) -> ValuationResult:
     base_sqm = DISTRICT_SQM_AZN.get(inp.district, 1500)
     shap: list[ShapContribution] = []
 
-    price = base_sqm * inp.areaM2
+    # Torpaq (arsa): ham arazi ₼/m², otaq/təmir/bina yok — yalnızca sahə/konum/kupça
+    if inp.propertyType == "land":
+        price = base_sqm * 0.28 * inp.areaM2
+        if inp.metroDistM is not None and inp.metroDistM < 1500:
+            delta = 0.08 * price
+            price += delta
+            shap.append(ShapContribution(
+                feature="metro_dist_m", label="Metro yaxınlığı", contributionAzn=round(delta)))
+        if inp.titleDeed is False:
+            delta = -0.20 * price
+            price += delta
+            shap.append(ShapContribution(
+                feature="title_deed", label="Kupça yoxdur", contributionAzn=round(delta)))
+        p50 = int(round(price, -2))
+        return ValuationResult(
+            valuationId=str(uuid.uuid4()), vertical="real_estate",
+            p10Azn=int(p50 * 0.88), p50Azn=p50, p90Azn=int(p50 * 1.14),
+            confidence=0.4, shapTop=sorted(shap, key=lambda s: -abs(s.contributionAzn))[:8],
+            compListingIds=[], modelVersion=MODEL_VERSION, createdAt=_now_iso())
+
+    # apartment | house: tikili sahəsi üzerinden (ev ₼/m² biraz düşük)
+    sqm = base_sqm * (0.85 if inp.propertyType == "house" else 1.0)
+    price = sqm * inp.areaM2
+    if inp.propertyType == "house" and inp.landAreaSot:
+        land_delta = base_sqm * 0.28 * (inp.landAreaSot * 100)
+        price += land_delta
+        shap.append(ShapContribution(
+            feature="land_area_sot", label="Torpaq sahəsi", contributionAzn=round(land_delta)))
 
     if inp.repairState is not None:
         # 3 (orta) nötr kabul; her basamak ±%6

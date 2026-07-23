@@ -1,24 +1,26 @@
+import SiteHeader from "@/components/SiteHeader";
 import ValuationApp from "@/components/ValuationApp";
+import MarketView from "@/components/MarketView";
 
 export default function HomePage() {
   return (
     <div className="shell">
-      <header className="topbar">
-        <span className="brand">PRIBOR<b>.AZ</b></span>
-        <span className="beta">MVP · BETA</span>
-      </header>
+      <SiteHeader />
 
       <section className="hero">
         <h1>
           Bazar dəyərini <span className="flame">10 saniyədə</span> öyrən
         </h1>
         <p>
-          Mənzil və ya avtomobilinizin xüsusiyyətlərini daxil edin — süni intellekt
-          Bakı bazarının real məlumatları əsasında ədalətli qiymət aralığını hesablasın.
+          Mənzil, həyət evi və ya torpağınızın xüsusiyyətlərini daxil edin — süni
+          intellekt Bakı bazarının real məlumatları əsasında ədalətli qiymət
+          aralığını hesablasın.
         </p>
       </section>
 
       <ValuationApp />
+
+      <MarketView />
 
       <footer className="note">
         Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil ·

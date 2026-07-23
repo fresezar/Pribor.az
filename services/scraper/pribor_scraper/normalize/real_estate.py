@@ -76,6 +76,10 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     # --- alan / oda / kat: önce yapılandırılmış alan, sonra serbest metin ---
     out.area_m2 = d.parse_area_m2(_prop(props, PROP_KEYS_AREA) or haystack)
     out.land_area_sot = d.parse_area_sot(haystack)
+    # Torpaq (arsa) ilanlarında m² sahə yazılmaz, yalnızca sot verilir. Model ve
+    # comps/deal hesabı m² üzerinden çalıştığı için sot'tan türetiyoruz (1 sot = 100 m²).
+    if out.area_m2 is None and out.property_type == "land" and out.land_area_sot:
+        out.area_m2 = out.land_area_sot * 100
     # props değeri çıplak sayı olabilir ("Otaq sayı": "2") — önce onu dene
     rooms_raw = (_prop(props, PROP_KEYS_ROOMS) or "").strip()
     if rooms_raw.isdigit():

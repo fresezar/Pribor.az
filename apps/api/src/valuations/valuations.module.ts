@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ListingsModule } from "../listings/listings.module";
 import { ValuationsController } from "./valuations.controller";
 import { ValuationsService } from "./valuations.service";
 
@@ -10,6 +11,7 @@ import { ValuationsService } from "./valuations.service";
  * Faz 0'da (3) TODO'dur; model_versions seed'i ile birlikte açılır.
  */
 @Module({
+  imports: [ListingsModule],
   controllers: [ValuationsController],
   providers: [ValuationsService],
 })

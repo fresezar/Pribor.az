@@ -9,6 +9,10 @@ import {
   ValuationChannel,
 } from "./enums";
 
+/** Gayrimenkul dikeyinde MVP'de değerlenen emlak tipleri (UI'da gösterilenler). */
+export const RealEstatePropertyType = z.enum(["apartment", "house", "land"]);
+export type RealEstatePropertyType = z.infer<typeof RealEstatePropertyType>;
+
 /** Gayrimenkul değerleme girdisi — sihirbaz akışının topladığı alanlar. */
 export const RealEstateValuationInput = z.object({
   vertical: z.literal("real_estate"),
@@ -17,7 +21,15 @@ export const RealEstateValuationInput = z.object({
   /** Opsiyonel hassas konum — verilirse metro mesafesi sunucuda hesaplanır. */
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
-  areaM2: z.number().positive().max(10_000),
+  /**
+   * Değerlenen ana sahə (m²):
+   *  - apartment: mənzil sahəsi
+   *  - house (həyət evi): tikili (bina) sahəsi
+   *  - land (torpaq): sahə m² cinsinden (istemci sot×100 ile türetir)
+   */
+  areaM2: z.number().positive().max(100_000),
+  /** Torpaq sahəsi (sot) — house ve land için; apartment'ta boş. 1 sot = 100 m². */
+  landAreaSot: z.number().positive().max(10_000).optional(),
   rooms: z.number().int().min(1).max(20).optional(),
   floor: z.number().int().min(-2).max(60).optional(),
   totalFloors: z.number().int().min(1).max(60).optional(),
@@ -84,3 +96,36 @@ export const CreateValuationDto = z.object({
   channel: ValuationChannel.default("web"),
 });
 export type CreateValuationDto = z.infer<typeof CreateValuationDto>;
+
+/**
+ * Emsal ilan (comp) — sonuç ekranındaki "kanıt" kartı. NestJS,
+ * scraped_listings'ten öznitelik yakınlığıyla getirir; deltaPct, ilanın
+ * m² fiyatının kullanıcının değerleme m² fiyatına göre farkıdır
+ * (negatif = emsal daha ucuz).
+ */
+export const CompListing = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  district: z.string().nullable(),
+  propertyType: z.string().nullable(),
+  rooms: z.number().int().nullable(),
+  areaM2: z.number().nullable(),
+  priceAzn: z.number().int(),
+  pricePerM2: z.number().int().nullable(),
+  /** m² bazında emsal vs değerleme farkı (%). null = m² hesaplanamadı. */
+  deltaPct: z.number().nullable(),
+  sourceSite: z.string(),
+});
+export type CompListing = z.infer<typeof CompListing>;
+
+/**
+ * İstemcinin gördüğü zenginleştirilmiş yanıt: ML sonucu + DB'den comps +
+ * piyasa bağlamı. ValuationResult ML sözleşmesidir; bu, NestJS'in üzerine
+ * kattığı katmandır (ML DB'ye dokunmaz).
+ */
+export const ValuationResponse = ValuationResult.extend({
+  comps: z.array(CompListing).max(8).default([]),
+  /** Semt medyan m² fiyatı (scraped_listings'ten) — "bazar" kıyas çıpası. */
+  marketMedianPricePerM2: z.number().int().nullable().default(null),
+});
+export type ValuationResponse = z.infer<typeof ValuationResponse>;

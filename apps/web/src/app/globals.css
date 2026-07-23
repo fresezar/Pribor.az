@@ -299,6 +299,202 @@ footer.note {
   margin-top: 36px;
 }
 
+/* ---------- üst bar sağ taraf: nav + login/profil ---------- */
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.nav-link {
+  color: var(--muted); text-decoration: none; font-size: 0.9rem;
+  transition: color 0.15s ease;
+}
+.nav-link:hover { color: var(--ink); }
+.login-btn {
+  background: var(--teal-soft); border: 1px solid var(--teal);
+  color: var(--ink); font-weight: 600; font-size: 0.88rem;
+  padding: 8px 16px; border-radius: 9px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.login-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+.profile { position: relative; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--flame); border: none; color: #160905;
+  font-weight: 700; font-size: 0.82rem; letter-spacing: 0.02em;
+}
+.avatar:hover { filter: brightness(1.08); }
+.profile-menu {
+  position: absolute; right: 0; top: 46px; z-index: 60;
+  min-width: 210px;
+  background: var(--bg-raise); border: 1px solid var(--line);
+  border-radius: 12px; padding: 6px;
+  box-shadow: 0 18px 44px rgba(4, 12, 17, 0.55);
+  animation: fadeUp 0.15s ease;
+}
+.pm-head { padding: 10px 12px 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.pm-name { font-weight: 600; font-size: 0.9rem; }
+.pm-phone { font-family: var(--mono); font-size: 0.74rem; color: var(--faint); margin-top: 2px; }
+.pm-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; color: var(--ink);
+  padding: 9px 12px; border-radius: 8px; font-size: 0.88rem;
+  transition: background 0.12s ease;
+}
+.pm-item:hover { background: var(--surface); }
+.pm-item.danger { color: #f4b09a; }
+
+/* ---------- modal / auth ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(4, 12, 17, 0.68); backdrop-filter: blur(3px);
+  display: grid; place-items: center; padding: 20px;
+  animation: fadeUp 0.2s ease;
+}
+.modal {
+  position: relative; width: 100%; max-width: 400px;
+  background: var(--bg-raise); border: 1px solid var(--line);
+  border-radius: 18px; padding: 28px 26px 26px;
+  box-shadow: 0 30px 70px rgba(4, 12, 17, 0.6);
+}
+.modal-x {
+  position: absolute; top: 16px; right: 16px;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--muted); font-size: 0.8rem;
+}
+.modal-x:hover { color: var(--ink); }
+.modal-brand {
+  font-family: var(--mono); font-weight: 700; letter-spacing: 0.14em;
+  font-size: 0.82rem; margin-bottom: 18px;
+}
+.modal-brand b { color: var(--flame); }
+.modal-h { font-size: 1.25rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+.modal-sub { color: var(--muted); font-size: 0.88rem; margin: 0 0 18px; }
+.phone-input { display: flex; align-items: stretch; }
+.phone-cc {
+  display: flex; align-items: center; padding: 0 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-right: none; border-radius: 9px 0 0 9px;
+  font-family: var(--mono); font-size: 0.9rem; color: var(--muted);
+}
+.phone-input input { border-radius: 0 9px 9px 0; }
+.modal .cta { margin-top: 20px; }
+.link-btn {
+  display: block; width: 100%; margin-top: 12px;
+  background: transparent; border: none; color: var(--muted); font-size: 0.85rem;
+}
+.link-btn:hover { color: var(--ink); }
+
+/* ---------- bazar çıpası (sonuç ekranı) ---------- */
+.market-anchor {
+  margin-top: 12px; font-size: 0.84rem; color: var(--muted);
+}
+.market-anchor b { color: var(--ink); font-family: var(--mono); }
+
+/* ---------- emsal ilanlar (comps) ---------- */
+.comps { margin-top: 26px; }
+.comps h3 {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 12px;
+}
+.comps-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+@media (max-width: 560px) { .comps-grid { grid-template-columns: 1fr; } }
+.comp {
+  display: flex; gap: 12px; padding: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 11px;
+}
+.comp-thumb {
+  width: 46px; height: 46px; flex: 0 0 auto; border-radius: 9px;
+  background: var(--surface-2); display: grid; place-items: center; font-size: 1.3rem;
+}
+.comp-body { min-width: 0; flex: 1; }
+.comp-price {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-weight: 700; font-size: 0.98rem; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.comp-badge {
+  font-family: inherit; font-size: 0.64rem; font-weight: 600;
+  padding: 2px 7px; border-radius: 999px;
+}
+.comp-badge.good, .listing-deal.good { background: var(--good-soft); color: #5fd9a2; }
+.comp-badge.bad, .listing-deal.bad { background: var(--warn-soft); color: #ecc069; }
+.comp-badge.neutral, .listing-deal.neutral { background: var(--teal-soft); color: var(--teal); }
+.comp-meta {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+}
+.comp-loc { font-size: 0.78rem; color: var(--faint); margin-top: 4px; }
+
+/* ---------- bazar / elanlar görünümü ---------- */
+.market { margin-top: 60px; }
+.market-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; margin-bottom: 18px;
+}
+.market-title { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+.market-sub { color: var(--muted); font-size: 0.88rem; margin: 4px 0 0; }
+.view-toggle { display: flex; gap: 4px; flex: 0 0 auto; }
+.view-toggle button {
+  width: 38px; height: 38px; border-radius: 9px;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--muted); font-size: 1rem;
+}
+.view-toggle button.on { background: var(--teal-soft); border-color: var(--teal); color: var(--ink); }
+
+.market-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.market-filters select {
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink);
+  border-radius: 9px; padding: 10px 12px; font-size: 0.88rem; min-width: 150px;
+  flex: 1;
+}
+.market-filters select:hover { border-color: var(--faint); }
+.market-filters select:focus { border-color: var(--teal); outline: none; }
+.market-empty {
+  text-align: center; color: var(--muted); padding: 48px 0;
+  background: var(--bg-raise); border: 1px solid var(--line); border-radius: 14px;
+}
+
+.listing-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;
+}
+.listing-list { display: flex; flex-direction: column; gap: 10px; }
+
+.listing {
+  background: var(--bg-raise); border: 1px solid var(--line); border-radius: 13px;
+  overflow: hidden; transition: transform 0.16s ease, border-color 0.16s ease;
+}
+.listing:hover { transform: translateY(-2px); border-color: var(--faint); }
+.listing.grid { display: flex; flex-direction: column; }
+.listing.grid .listing-thumb { height: 120px; width: 100%; font-size: 2.4rem; }
+.listing.list { display: flex; flex-direction: row; }
+.listing.list .listing-thumb { width: 96px; flex: 0 0 auto; font-size: 1.8rem; }
+.listing-thumb {
+  background: linear-gradient(135deg, var(--surface-2), var(--surface));
+  display: grid; place-items: center;
+}
+.listing-body { padding: 14px 16px; flex: 1; min-width: 0; }
+.listing-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.listing-price {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-weight: 700; font-size: 1.1rem;
+}
+.listing-deal {
+  font-family: var(--mono); font-size: 0.62rem; font-weight: 600;
+  padding: 3px 8px; border-radius: 999px;
+}
+.listing-ppm2 {
+  font-family: var(--mono); font-size: 0.74rem; color: var(--muted); margin-top: 3px;
+}
+.listing-title { font-size: 0.9rem; margin-top: 8px; line-height: 1.35; }
+.listing-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.chip-sm {
+  font-size: 0.7rem; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 3px 8px; border-radius: 6px;
+}
+.listing-loc { font-size: 0.78rem; color: var(--faint); margin-top: 10px; }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

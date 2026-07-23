@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { HealthModule } from "./health/health.module";
+import { ListingsModule } from "./listings/listings.module";
 import { ValuationsModule } from "./valuations/valuations.module";
 
 /**
@@ -14,6 +15,7 @@ import { ValuationsModule } from "./valuations/valuations.module";
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ["../../.env", ".env"] }),
     HealthModule,
+    ListingsModule,
     ValuationsModule,
   ],
 })

@@ -1,18 +1,23 @@
 "use client";
 
 /**
- * MVP değerleme deneyimi — blueprint'teki duygusal eğri:
- *   form (sohbet hissi) → nabız anı (~1.2s sahnelenmiş hesap) → sonuç sahnesi
- *   (odometre count-up → güven aralığı bandı → Qiymət DNT-si → dönüşüm CTA)
- * Faz 2'de sihirbaz akışına (ekran başına tek soru) evrilir; MVP tek panel.
+ * MVP değerleme deneyimi — yalnızca gayrimenkul (otomotiv geçici olarak gizli).
+ * Duygusal eğri: form → nabız anı (~1.2s) → sonuç sahnesi (odometre, güven
+ * aralığı, Qiymət DNT-si, emsal ilanlar, dönüşüm CTA).
+ *
+ * Emlak tipine göre form dinamikleşir:
+ *   - Mənzil: otaq, sahə, bina tipi, mərtəbə, təmir, metro, kupça
+ *   - Həyət evi: otaq, tikili sahəsi, torpaq (sot), təmir, metro, kupça
+ *   - Torpaq: yalnızca torpaq sahəsi (sot), metro, kupça
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  RealEstatePropertyType,
   RealEstateValuationInput,
-  ValuationRequest,
-  ValuationResult,
+  ValuationResponse,
 } from "@pribor/contracts";
+import CompsCards from "./CompsCards";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -21,12 +26,20 @@ const DISTRICTS = [
   "Binəqədi", "Sabunçu", "Suraxanı", "Xəzər", "Qaradağ", "Abşeron",
 ];
 const REPAIR_LABELS = ["Qara tikili", "Təmirsiz", "Köhnə", "Orta", "Yaxşı", "Əla"];
+
+/** Metro varsayılanı bilinçli olarak "Uzaq" — yakınlık pozitif çarpan olarak eklenir. */
 const METRO_OPTIONS = [
-  { label: "5 dəq piyada (≤500 m)", value: 400 },
-  { label: "10-15 dəq (≈1 km)", value: 1000 },
-  { label: "Uzaq (2 km+)", value: 2500 },
-  { label: "Bilmirəm", value: undefined },
+  { label: "Yaxın · ≤800 m", value: 500 },
+  { label: "Orta · ~1.5 km", value: 1500 },
+  { label: "Uzaq · 3 km+", value: 3000 },
 ] as const;
+const METRO_DEFAULT = 3000;
+
+const PROPERTY_TABS: { key: RealEstatePropertyType; label: string; icon: string }[] = [
+  { key: "apartment", label: "Mənzil", icon: "🏢" },
+  { key: "house", label: "Həyət evi", icon: "🏡" },
+  { key: "land", label: "Torpaq", icon: "🌳" },
+];
 
 const COMPUTE_STEPS = [
   "Bazar məlumatları yüklənir…",
@@ -34,10 +47,8 @@ const COMPUTE_STEPS = [
   "Model qiymət aralığını hesablayır…",
 ];
 
-const fmt = (n: number) =>
-  Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
-/** Odometre: easeOutExpo ile hedefe sayan rakam. */
 function useCountUp(target: number | null, durationMs = 1300): number {
   const [value, setValue] = useState(0);
   useEffect(() => {
@@ -61,38 +72,32 @@ function useCountUp(target: number | null, durationMs = 1300): number {
 }
 
 type Phase = "form" | "computing" | "result";
-type Vertical = "real_estate" | "vehicle";
 
 export default function ValuationApp() {
-  const [vertical, setVertical] = useState<Vertical>("real_estate");
+  const [propertyType, setPropertyType] = useState<RealEstatePropertyType>("apartment");
   const [phase, setPhase] = useState<Phase>("form");
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ValuationResult | null>(null);
+  const [result, setResult] = useState<ValuationResponse | null>(null);
   const [converted, setConverted] = useState<{ listingId: string; title: string } | null>(null);
   const [querySummary, setQuerySummary] = useState("");
 
-  // --- form state: gayrimenkul ---
+  // form state
   const [district, setDistrict] = useState("Nərimanov");
   const [areaM2, setAreaM2] = useState(65);
+  const [landAreaSot, setLandAreaSot] = useState(4);
   const [rooms, setRooms] = useState(2);
   const [buildingType, setBuildingType] = useState("yeni_tikili");
   const [repairState, setRepairState] = useState(4);
-  const [metroDistM, setMetroDistM] = useState<number | undefined>(400);
+  const [metroDistM, setMetroDistM] = useState<number>(METRO_DEFAULT);
   const [titleDeed, setTitleDeed] = useState(true);
-
-  // --- form state: otomotiv ---
-  const [make, setMake] = useState("Toyota");
-  const [model, setModel] = useState("Prius");
-  const [year, setYear] = useState(2019);
-  const [mileageKm, setMileageKm] = useState(150_000);
-  const [accidentFree, setAccidentFree] = useState(true);
-  const [customsCleared, setCustomsCleared] = useState(true);
-
-  // --- opsiyonel: piyasa kıyası için ilan fiyatı ---
   const [askingPrice, setAskingPrice] = useState<string>("");
 
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isLand = propertyType === "land";
+  const isHouse = propertyType === "house";
+  const isApartment = propertyType === "apartment";
 
   const submit = useCallback(async () => {
     setError(null);
@@ -104,21 +109,31 @@ export default function ValuationApp() {
       420,
     );
 
-    const input: ValuationRequest =
-      vertical === "real_estate"
-        ? {
-            vertical, propertyType: "apartment",
-            district: district as RealEstateValuationInput["district"],
-            areaM2, rooms,
-            buildingType: buildingType as RealEstateValuationInput["buildingType"],
-            repairState, titleDeed, metroDistM,
-          }
-        : { vertical, make, model, year, mileageKm, accidentFree, customsCleared };
+    // Torpaq: ana sahə m² = sot × 100 (model m² üzerinden çalışır)
+    const effectiveArea = isLand ? landAreaSot * 100 : areaM2;
+    const input: RealEstateValuationInput = {
+      vertical: "real_estate",
+      propertyType,
+      district: district as RealEstateValuationInput["district"],
+      areaM2: effectiveArea,
+      metroDistM,
+      titleDeed,
+      ...(isApartment && {
+        rooms,
+        buildingType: buildingType as RealEstateValuationInput["buildingType"],
+        repairState,
+      }),
+      ...(isHouse && { rooms, repairState, landAreaSot }),
+      ...(isLand && { landAreaSot }),
+    };
 
+    const typeLabel = PROPERTY_TABS.find((t) => t.key === propertyType)!.label;
     setQuerySummary(
-      vertical === "real_estate"
-        ? `${rooms} otaqlı mənzil · ${areaM2} m² · ${district} · ${REPAIR_LABELS[repairState]} təmir`
-        : `${make} ${model} · ${year} · ${fmt(mileageKm)} km`,
+      isLand
+        ? `${typeLabel} · ${landAreaSot} sot · ${district}`
+        : isHouse
+          ? `${typeLabel} · ${areaM2} m² tikili · ${landAreaSot} sot · ${district}`
+          : `${rooms} otaqlı ${typeLabel.toLowerCase()} · ${areaM2} m² · ${district} · ${REPAIR_LABELS[repairState]} təmir`,
     );
 
     const started = performance.now();
@@ -132,8 +147,7 @@ export default function ValuationApp() {
         const body = await res.json().catch(() => null);
         throw new Error(body?.message ?? `Server xətası (${res.status})`);
       }
-      const data = (await res.json()) as ValuationResult;
-      // Nabız anı en az 1.2 sn sürsün — beklenti ödülü büyütür
+      const data = (await res.json()) as ValuationResponse;
       const elapsed = performance.now() - started;
       await new Promise((r) => setTimeout(r, Math.max(0, 1200 - elapsed)));
       setResult(data);
@@ -144,8 +158,8 @@ export default function ValuationApp() {
     } finally {
       if (stepTimer.current) clearInterval(stepTimer.current);
     }
-  }, [vertical, district, areaM2, rooms, buildingType, repairState, metroDistM,
-      titleDeed, make, model, year, mileageKm, accidentFree, customsCleared]);
+  }, [propertyType, isLand, isHouse, isApartment, district, areaM2, landAreaSot,
+      rooms, buildingType, repairState, metroDistM, titleDeed]);
 
   const convert = useCallback(async () => {
     if (!result) return;
@@ -161,40 +175,67 @@ export default function ValuationApp() {
   }, [result]);
 
   return (
-    <div className="panel">
+    <div className="panel" id="qiymetlendir">
       {phase === "form" && (
         <>
-          <div className="tabs" role="tablist">
-            <button role="tab" aria-selected={vertical === "real_estate"}
-              className={vertical === "real_estate" ? "active" : ""}
-              onClick={() => setVertical("real_estate")}>🏠 Mənzil</button>
-            <button role="tab" aria-selected={vertical === "vehicle"}
-              className={vertical === "vehicle" ? "active" : ""}
-              onClick={() => setVertical("vehicle")}>🚗 Avtomobil</button>
+          <div className="tabs" role="tablist" aria-label="Əmlak növü">
+            {PROPERTY_TABS.map((t) => (
+              <button key={t.key} role="tab" aria-selected={propertyType === t.key}
+                className={propertyType === t.key ? "active" : ""}
+                onClick={() => setPropertyType(t.key)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
 
-          {vertical === "real_estate" ? (
-            <div className="grid">
+          <div className="grid">
+            <div className="field">
+              <label htmlFor="district">Rayon</label>
+              <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)}>
+                {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+
+            {/* Sahə alanı tipe göre değişir */}
+            {isLand ? (
               <div className="field">
-                <label htmlFor="district">Rayon</label>
-                <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)}>
-                  {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <label htmlFor="landsot">Torpaq sahəsi (sot)</label>
+                <input id="landsot" type="number" min={1} max={1000} step={0.5}
+                  value={landAreaSot} onChange={(e) => setLandAreaSot(Number(e.target.value))} />
+                <span className="hint">1 sot = 100 m²</span>
               </div>
+            ) : (
               <div className="field">
-                <label htmlFor="area">Sahə (m²)</label>
-                <input id="area" type="number" min={20} max={1000} value={areaM2}
+                <label htmlFor="area">{isHouse ? "Tikili sahəsi (m²)" : "Sahə (m²)"}</label>
+                <input id="area" type="number" min={20} max={2000} value={areaM2}
                   onChange={(e) => setAreaM2(Number(e.target.value))} />
               </div>
+            )}
+
+            {/* Həyət evi: ayrıca torpaq sahəsi */}
+            {isHouse && (
+              <div className="field">
+                <label htmlFor="hlandsot">Torpaq sahəsi (sot)</label>
+                <input id="hlandsot" type="number" min={1} max={200} step={0.5}
+                  value={landAreaSot} onChange={(e) => setLandAreaSot(Number(e.target.value))} />
+              </div>
+            )}
+
+            {/* Otaq — yalnızca mənzil ve həyət evi */}
+            {!isLand && (
               <div className="field full">
                 <label>Otaq sayı</label>
                 <div className="seg">
-                  {[1, 2, 3, 4, 5].map((n) => (
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
                     <button key={n} className={rooms === n ? "on" : ""}
                       onClick={() => setRooms(n)}>{n}</button>
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Bina tipi — yalnızca mənzil */}
+            {isApartment && (
               <div className="field">
                 <label htmlFor="btype">Bina tipi</label>
                 <select id="btype" value={buildingType} onChange={(e) => setBuildingType(e.target.value)}>
@@ -203,15 +244,21 @@ export default function ValuationApp() {
                   <option value="stalinka">Stalinka</option>
                 </select>
               </div>
-              <div className="field">
-                <label htmlFor="metro">Metroya məsafə</label>
-                <select id="metro" value={String(metroDistM)}
-                  onChange={(e) => setMetroDistM(e.target.value === "undefined" ? undefined : Number(e.target.value))}>
-                  {METRO_OPTIONS.map((o) => (
-                    <option key={o.label} value={String(o.value)}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+            )}
+
+            {/* Metro — tüm tipler */}
+            <div className="field">
+              <label htmlFor="metro">Metroya məsafə</label>
+              <select id="metro" value={String(metroDistM)}
+                onChange={(e) => setMetroDistM(Number(e.target.value))}>
+                {METRO_OPTIONS.map((o) => (
+                  <option key={o.label} value={String(o.value)}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Təmir — mənzil ve həyət evi */}
+            {!isLand && (
               <div className="field full">
                 <label>Təmir vəziyyəti</label>
                 <div className="seg">
@@ -221,52 +268,19 @@ export default function ValuationApp() {
                   ))}
                 </div>
               </div>
-              <div className="field full">
-                <button type="button" className="toggle" onClick={() => setTitleDeed(!titleDeed)}
-                  aria-pressed={titleDeed}>
-                  <span>Kupça (çıxarış) var
-                    <small>Sənədsiz mənzillər bazarda ciddi endirimlə satılır</small>
-                  </span>
-                  <span className={`switch ${titleDeed ? "on" : ""}`} aria-hidden />
-                </button>
-              </div>
+            )}
+
+            {/* Kupça — tüm tipler */}
+            <div className="field full">
+              <button type="button" className="toggle" onClick={() => setTitleDeed(!titleDeed)}
+                aria-pressed={titleDeed}>
+                <span>Kupça (çıxarış) var
+                  <small>Sənədsiz əmlak bazarda ciddi endirimlə satılır</small>
+                </span>
+                <span className={`switch ${titleDeed ? "on" : ""}`} aria-hidden />
+              </button>
             </div>
-          ) : (
-            <div className="grid">
-              <div className="field">
-                <label htmlFor="make">Marka</label>
-                <input id="make" value={make} onChange={(e) => setMake(e.target.value)} />
-              </div>
-              <div className="field">
-                <label htmlFor="model">Model</label>
-                <input id="model" value={model} onChange={(e) => setModel(e.target.value)} />
-              </div>
-              <div className="field">
-                <label htmlFor="year">Buraxılış ili</label>
-                <input id="year" type="number" min={1980} max={2026} value={year}
-                  onChange={(e) => setYear(Number(e.target.value))} />
-              </div>
-              <div className="field">
-                <label htmlFor="km">Yürüş (km)</label>
-                <input id="km" type="number" min={0} step={1000} value={mileageKm}
-                  onChange={(e) => setMileageKm(Number(e.target.value))} />
-              </div>
-              <div className="field full">
-                <button type="button" className="toggle" onClick={() => setAccidentFree(!accidentFree)}
-                  aria-pressed={accidentFree}>
-                  <span>Vuruğu yoxdur<small>Qəzasız, rənglənməyib</small></span>
-                  <span className={`switch ${accidentFree ? "on" : ""}`} aria-hidden />
-                </button>
-              </div>
-              <div className="field full">
-                <button type="button" className="toggle" onClick={() => setCustomsCleared(!customsCleared)}
-                  aria-pressed={customsCleared}>
-                  <span>Gömrükdən keçib<small>Rüsumlar tam ödənilib</small></span>
-                  <span className={`switch ${customsCleared ? "on" : ""}`} aria-hidden />
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
 
           <div className="field" style={{ marginTop: 16 }}>
             <label htmlFor="asking">Elanda gördüyünüz qiymət (₼, istəyə bağlı)</label>
@@ -275,9 +289,7 @@ export default function ValuationApp() {
             <span className="hint">Doldursanız, elanın bazara görə sərfəli olub-olmadığını göstəririk.</span>
           </div>
 
-          <button className="cta" onClick={() => void submit()}>
-            Qiyməti hesabla →
-          </button>
+          <button className="cta" onClick={() => void submit()}>Qiyməti hesabla →</button>
           {error && <div className="err" role="alert">{error}</div>}
         </>
       )}
@@ -304,7 +316,7 @@ export default function ValuationApp() {
 }
 
 function ResultCard(props: {
-  result: ValuationResult;
+  result: ValuationResponse;
   querySummary: string;
   askingPrice: number | null;
   converted: { listingId: string; title: string } | null;
@@ -319,13 +331,11 @@ function ResultCard(props: {
     return () => clearTimeout(t);
   }, []);
 
-  // Aralık bandı konumları: p10..p90 penceresini %12 kenar payıyla ölçekle
   const span = Math.max(result.p90Azn - result.p10Azn, 1);
   const lo = result.p10Azn - span * 0.18;
   const hi = result.p90Azn + span * 0.18;
   const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100))}%`;
 
-  // Piyasa kıyası — kullanıcı ilan fiyatı girdiyse
   let deal: { cls: string; text: string } | null = null;
   if (askingPrice && askingPrice > 0) {
     const delta = ((askingPrice - result.p50Azn) / result.p50Azn) * 100;
@@ -362,6 +372,12 @@ function ResultCard(props: {
 
       {deal && <div className={`deal ${deal.cls}`}>{deal.text}</div>}
 
+      {result.marketMedianPricePerM2 != null && (
+        <div className="market-anchor">
+          Bu rayonda orta bazar qiyməti: <b>{fmt(result.marketMedianPricePerM2)} ₼/m²</b>
+        </div>
+      )}
+
       {result.shapTop.length > 0 && (
         <div className="dna">
           <h3>Qiymət DNT-si — nə üçün bu qiymət?</h3>
@@ -369,13 +385,11 @@ function ResultCard(props: {
             <div className="row" key={s.feature}>
               <span className="lbl">{s.label}</span>
               <div className="track">
-                <div
-                  className={`fill ${s.contributionAzn >= 0 ? "pos" : "neg"}`}
+                <div className={`fill ${s.contributionAzn >= 0 ? "pos" : "neg"}`}
                   style={{
                     width: reveal ? `${(Math.abs(s.contributionAzn) / maxAbs) * 100}%` : 0,
                     transitionDelay: `${0.55 + i * 0.12}s`,
-                  }}
-                />
+                  }} />
               </div>
               <span className="val">
                 {s.contributionAzn >= 0 ? "+" : "−"}{fmt(Math.abs(s.contributionAzn))} ₼
@@ -383,6 +397,10 @@ function ResultCard(props: {
             </div>
           ))}
         </div>
+      )}
+
+      {result.comps.length > 0 && (
+        <CompsCards comps={result.comps} />
       )}
 
       {!converted ? (

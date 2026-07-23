@@ -5,8 +5,9 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { CreateValuationDto, ValuationResult } from "@pribor/contracts";
+import { CreateValuationDto, ValuationResponse, ValuationResult } from "@pribor/contracts";
 import { db, eq, listings, modelVersions, valuations } from "@pribor/db";
+import { ListingsService } from "../listings/listings.service";
 
 @Injectable()
 export class ValuationsService {
@@ -14,9 +15,12 @@ export class ValuationsService {
   /** tag → model_versions.id — her istekte SELECT atmamak için süreç içi cache */
   private readonly modelVersionCache = new Map<string, string>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly listingsService: ListingsService,
+  ) {}
 
-  async create(dto: CreateValuationDto): Promise<ValuationResult> {
+  async create(dto: CreateValuationDto): Promise<ValuationResponse> {
     const mlUrl = this.config.get<string>("ML_SERVICE_URL") ?? "http://localhost:8100";
 
     let res: Response;
@@ -48,7 +52,29 @@ export class ValuationsService {
       this.logger.error(`Değerleme kalıcı yazılamadı: ${String(err)}`);
     }
 
-    return result;
+    // DB'den zenginleştir: emsal ilanlar + semt medyanı. Bu da best-effort'tur.
+    let comps: ValuationResponse["comps"] = [];
+    let marketMedianPricePerM2: number | null = null;
+    if (dto.input.vertical === "real_estate") {
+      try {
+        const inp = dto.input;
+        const subjectPricePerM2 = inp.areaM2 > 0 ? Math.round(result.p50Azn / inp.areaM2) : null;
+        [comps, marketMedianPricePerM2] = await Promise.all([
+          this.listingsService.comps({
+            district: inp.district,
+            propertyType: inp.propertyType,
+            areaM2: inp.areaM2,
+            rooms: inp.rooms ?? null,
+            subjectPricePerM2,
+          }),
+          this.listingsService.medianPricePerM2(inp.district, inp.propertyType),
+        ]);
+      } catch (err) {
+        this.logger.warn(`Comps zenginleştirme atlandı: ${String(err)}`);
+      }
+    }
+
+    return ValuationResponse.parse({ ...result, comps, marketMedianPricePerM2 });
   }
 
   private async persist(dto: CreateValuationDto, result: ValuationResult): Promise<void> {

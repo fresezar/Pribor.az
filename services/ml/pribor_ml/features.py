@@ -13,12 +13,15 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-# Model girdi sırası — ASLA yeniden sıralama; yeni feature sona eklenir
+# Model girdi sırası — ASLA yeniden sıralama; yeni feature sona eklenir.
+# Not: feature seti değişince model YENİDEN eğitilmeli (kayıtlı .cbm feature
+# sayısına bağlıdır) — bkz. train.py.
 FEATURE_ORDER: list[str] = [
     "district",        # kategorik
-    "property_type",   # kategorik
-    "building_type",   # kategorik
-    "area_m2",         # sayısal
+    "property_type",   # kategorik: apartment | house | land
+    "building_type",   # kategorik (apartment'a özgü)
+    "area_m2",         # sayısal — ana sahə (mənzil/tikili; land'de sahə)
+    "land_area_sot",   # sayısal — torpaq sahəsi (house/land), apartment'ta NaN
     "rooms",           # sayısal
     "floor",           # sayısal
     "total_floors",    # sayısal
@@ -35,6 +38,7 @@ LABELS_AZ: dict[str, str] = {
     "property_type": "Əmlak növü",
     "building_type": "Bina tipi",
     "area_m2": "Sahə",
+    "land_area_sot": "Torpaq sahəsi",
     "rooms": "Otaq sayı",
     "floor": "Mərtəbə",
     "total_floors": "Binanın mərtəbə sayı",
@@ -70,6 +74,7 @@ def build_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
             "property_type": str(r.get("property_type") or _CAT_UNKNOWN),
             "building_type": str(r.get("building_type") or _CAT_UNKNOWN),
             "area_m2": _to_float(r.get("area_m2")),
+            "land_area_sot": _to_float(r.get("land_area_sot")),
             "rooms": _to_float(r.get("rooms")),
             "floor": _to_float(r.get("floor")),
             "total_floors": _to_float(r.get("total_floors")),

@@ -46,50 +46,110 @@ _DISTRICT_SQM = {
     "Xətai": 2000, "Nizami": 1850, "Binəqədi": 1600, "Sabunçu": 1300,
     "Suraxanı": 1200, "Xəzər": 1250, "Qaradağ": 1000, "Abşeron": 1100,
 }
+# Torpaq (arsa) ₼/m² tabanı — apartment ₼/m²'nin küçük bir oranı (ham arazi)
+_LAND_SQM_FACTOR = 0.28
+
+
+def _make_apartment(rng, d, base):
+    rooms = int(rng.choice([1, 2, 3, 4, 5], p=[0.15, 0.38, 0.30, 0.13, 0.04]))
+    area = float(np.clip(rooms * 32 + rng.normal(8, 14), 25, 400).round(0))
+    building = str(rng.choice(["yeni_tikili", "kohne_tikili", "stalinka"],
+                              p=[0.55, 0.38, 0.07]))
+    repair = int(rng.choice([0, 1, 2, 3, 4, 5], p=[0.03, 0.07, 0.12, 0.28, 0.30, 0.20]))
+    total_floors = int(rng.integers(4, 25))
+    floor = int(min(rng.integers(1, 25), total_floors))
+    metro = float(np.clip(rng.lognormal(6.6, 0.8), 60, 8000).round(0))
+    title_deed = bool(rng.random() < 0.85)
+
+    price = base * area
+    price *= 1 + (repair - 3) * 0.06
+    price *= 1.05 if building == "yeni_tikili" else (1.08 if building == "stalinka" else 0.97)
+    price *= 1.07 if metro < 800 else (0.96 if metro > 3000 else 1.0)
+    price *= 1.0 if title_deed else 0.88
+    price *= 0.965 if (floor == 1 or floor == total_floors) else 1.0
+    price *= rng.lognormal(0, 0.10)
+
+    rec = {
+        "district": d, "property_type": "apartment", "building_type": building,
+        "area_m2": area, "rooms": rooms, "floor": floor, "total_floors": total_floors,
+        "repair_state": repair, "title_deed": title_deed, "metro_dist_m": metro,
+    }
+    return rec, price
+
+
+def _make_house(rng, d, base):
+    # Həyət evi: tikili sahəsi büyük, torpaq (sot) belirleyici; bina tipi yok
+    rooms = int(rng.choice([3, 4, 5, 6, 7], p=[0.18, 0.30, 0.28, 0.16, 0.08]))
+    build_area = float(np.clip(rooms * 45 + rng.normal(20, 40), 80, 900).round(0))
+    land_sot = float(np.clip(rng.lognormal(1.6, 0.5), 1.5, 40).round(1))  # ~5 sot medyan
+    repair = int(rng.choice([1, 2, 3, 4, 5], p=[0.12, 0.18, 0.30, 0.28, 0.12]))
+    metro = float(np.clip(rng.lognormal(7.4, 0.7), 200, 12000).round(0))  # evler daha uzak
+    title_deed = bool(rng.random() < 0.80)
+
+    # Fiyat: hem tikili hem torpaq katkısı; ev ₼/m² apartment'tan biraz düşük
+    price = base * 0.85 * build_area + base * _LAND_SQM_FACTOR * (land_sot * 100)
+    price *= 1 + (repair - 3) * 0.05
+    price *= 1.06 if metro < 1000 else 1.0
+    price *= 1.0 if title_deed else 0.85            # evlerde sənədsizlik daha sert
+    price *= rng.lognormal(0, 0.13)
+
+    rec = {
+        "district": d, "property_type": "house", "building_type": None,
+        "area_m2": build_area, "land_area_sot": land_sot, "rooms": rooms,
+        "repair_state": repair, "title_deed": title_deed, "metro_dist_m": metro,
+    }
+    return rec, price
+
+
+def _make_land(rng, d, base):
+    # Torpaq: yalnızca sahə + kupça + konum; bina/otaq/təmir yok
+    land_sot = float(np.clip(rng.lognormal(2.0, 0.7), 1.0, 100).round(1))  # ~7 sot medyan
+    area_m2 = land_sot * 100
+    metro = float(np.clip(rng.lognormal(7.8, 0.8), 300, 20000).round(0))
+    title_deed = bool(rng.random() < 0.75)
+
+    price = base * _LAND_SQM_FACTOR * area_m2
+    price *= 1.08 if metro < 1500 else (0.94 if metro > 6000 else 1.0)
+    price *= 1.0 if title_deed else 0.80            # arsada kupça kritik
+    price *= rng.lognormal(0, 0.16)                 # arsa fiyatı en gürültülü
+
+    rec = {
+        "district": d, "property_type": "land", "building_type": None,
+        "area_m2": area_m2, "land_area_sot": land_sot,
+        "title_deed": title_deed, "metro_dist_m": metro,
+    }
+    return rec, price
 
 
 def make_synthetic(n: int, seed: int = 42) -> pd.DataFrame:
     """Bakü pazarının bilinen etki yönlerini taşıyan sentetik eğitim seti.
 
-    Amaç gerçekçi fiyat üretmek değil; boru hattını (eğitim → artifact →
-    servis → SHAP) uçtan uca doğrulamak ve gerçek veri gelene kadar makul
-    davranış sergilemektir.
+    Üç emlak tipi: apartment (~%74), house/həyət evi (~%18), land/torpaq (~%8).
+    Amaç gerçekçi fiyat üretmek değil; boru hattını (eğitim → artifact → servis
+    → SHAP) uçtan uca doğrulamak ve tipe göre doğru feature davranışını
+    (land'de otaq/təmir yok, torpaq sahəsi belirleyici) modele öğretmektir.
     """
     rng = np.random.default_rng(seed)
     districts = list(_DISTRICT_SQM)
-    d = rng.choice(districts, size=n, p=_dirichlet_weights(len(districts), rng))
-    rooms = rng.choice([1, 2, 3, 4, 5], size=n, p=[0.15, 0.38, 0.30, 0.13, 0.04])
-    area = np.clip(rooms * 32 + rng.normal(8, 14, n), 25, 400).round(0)
-    building = rng.choice(["yeni_tikili", "kohne_tikili", "stalinka"], size=n,
-                          p=[0.55, 0.38, 0.07])
-    repair = rng.choice([0, 1, 2, 3, 4, 5], size=n,
-                        p=[0.03, 0.07, 0.12, 0.28, 0.30, 0.20])
-    total_floors = rng.integers(4, 25, n)
-    floor = np.minimum(rng.integers(1, 25, n), total_floors)
-    metro = np.clip(rng.lognormal(6.6, 0.8, n), 60, 8000).round(0)  # ~740 m medyan
-    title_deed = rng.random(n) < 0.85
+    weights = _dirichlet_weights(len(districts), rng)
 
-    base = np.array([_DISTRICT_SQM[x] for x in d], dtype=float)
-    price = base * area
-    price *= 1 + (repair - 3) * 0.06                    # təmir basamağı ±%6
-    price *= np.where(building == "yeni_tikili", 1.05,
-             np.where(building == "stalinka", 1.08, 0.97))
-    price *= np.where(metro < 800, 1.07, np.where(metro > 3000, 0.96, 1.0))
-    price *= np.where(title_deed, 1.0, 0.88)            # kupçasız iskonto ~%12
-    price *= np.where((floor == 1) | (floor == total_floors), 0.965, 1.0)
-    price *= rng.lognormal(0, 0.10, n)                  # piyasa gürültüsü
+    records: list[dict] = []
+    prices: list[float] = []
+    for _ in range(n):
+        d = str(rng.choice(districts, p=weights))
+        base = float(_DISTRICT_SQM[d])
+        kind = rng.choice(["apartment", "house", "land"], p=[0.74, 0.18, 0.08])
+        if kind == "apartment":
+            rec, price = _make_apartment(rng, d, base)
+        elif kind == "house":
+            rec, price = _make_house(rng, d, base)
+        else:
+            rec, price = _make_land(rng, d, base)
+        records.append(rec)
+        prices.append(price)
 
-    df = build_frame([
-        {
-            "district": d[i], "property_type": "apartment",
-            "building_type": building[i], "area_m2": area[i],
-            "rooms": rooms[i], "floor": floor[i], "total_floors": total_floors[i],
-            "repair_state": repair[i], "title_deed": bool(title_deed[i]),
-            "metro_dist_m": metro[i],
-        }
-        for i in range(n)
-    ])
-    df["price_azn"] = np.round(price, -2)
+    df = build_frame(records)
+    df["price_azn"] = np.round(np.array(prices), -2)
     return df
 
 
