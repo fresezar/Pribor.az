@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CreateListingDto } from "@pribor/contracts";
+import type { CreateListingDto, ListingDetail, UpdateListingDto } from "@pribor/contracts";
 import { useAuth } from "./AuthContext";
 import UpgradeModal from "./UpgradeModal";
 import { fileToResizedDataUri } from "./imageResize";
@@ -48,11 +48,14 @@ export type ListingPrefill = {
 export default function ListingForm(props: {
   open: boolean;
   prefill: ListingPrefill | null;
+  /** Doluysa form DÜZENLEME modundadır: alanlar bu ilandan gelir, submit PATCH atar. */
+  editing?: ListingDetail | null;
   onClose: () => void;
   onCreated: (listing: { id: string; title: string; refNo: string | null }) => void;
 }) {
   const { user } = useAuth();
-  const { prefill } = props;
+  const { prefill, editing } = props;
+  const isEdit = editing != null;
 
   // Düzenlenebilir form durumu — prefill yalnızca başlangıç değeridir
   const [propertyType, setPropertyType] = useState<"apartment" | "house" | "land">("apartment");
@@ -78,9 +81,27 @@ export default function ListingForm(props: {
   const isHouse = propertyType === "house";
   const isApartment = propertyType === "apartment";
 
-  // Form her açılışta değerleme verisiyle tazelenir
+  // Form her açılışta kaynağıyla tazelenir: edit → mevcut ilan, create → değerleme
   useEffect(() => {
-    if (!props.open || !prefill) return;
+    if (!props.open) return;
+    if (editing) {
+      setPropertyType((editing.propertyType as typeof propertyType) ?? "apartment");
+      setDistrict(editing.district ?? DISTRICTS[0]!);
+      setAreaM2(editing.areaM2 ?? 0);
+      setLandAreaSot(editing.landAreaSot ?? 0);
+      setRooms(editing.rooms ?? 2);
+      setBuildingType(editing.buildingType ?? "yeni_tikili");
+      setRepairState(editing.repairState ?? 3);
+      setTitleDeed(editing.titleDeed ?? true);
+      setPrice(editing.priceAzn);
+      setDescription(editing.description ?? "");
+      setPhotos(editing.photos);
+      setCoverIdx(editing.coverPhotoIdx ?? 0);
+      setContactPhone(editing.contactPhone ?? user?.phone ?? "");
+      setError(null);
+      return;
+    }
+    if (!prefill) return;
     setPropertyType(prefill.propertyType);
     setDistrict(prefill.district);
     setAreaM2(prefill.areaM2 ?? 0);
@@ -95,7 +116,7 @@ export default function ListingForm(props: {
     setCoverIdx(0);
     setError(null);
     setContactPhone(user?.phone ?? "");
-  }, [props.open, prefill, user?.phone]);
+  }, [props.open, prefill, editing, user?.phone]);
 
   const addPhotos = useCallback(async (files: FileList | null) => {
     if (!files) return;
@@ -129,9 +150,8 @@ export default function ListingForm(props: {
     setBusy(true);
     setError(null);
 
-    const dto: CreateListingDto = {
+    const fields = {
       userId: user.id,
-      valuationId: prefill?.valuationId,
       propertyType,
       district: district as CreateListingDto["district"],
       areaM2: isLand ? landAreaSot * 100 : areaM2,
@@ -142,7 +162,6 @@ export default function ListingForm(props: {
         : undefined,
       repairState: isLand ? undefined : repairState,
       titleDeed,
-      metroDistM: prefill?.metroDistM,
       priceAzn: price,
       description: description.trim() || undefined,
       photos,
@@ -152,11 +171,26 @@ export default function ListingForm(props: {
     };
 
     try {
-      const res = await fetch(`${API}/v1/listings`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(dto),
-      });
+      let res: Response;
+      if (isEdit && editing) {
+        const dto: UpdateListingDto = fields;
+        res = await fetch(`${API}/v1/listings/${editing.id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(dto),
+        });
+      } else {
+        const dto: CreateListingDto = {
+          ...fields,
+          valuationId: prefill?.valuationId,
+          metroDistM: prefill?.metroDistM,
+        };
+        res = await fetch(`${API}/v1/listings`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(dto),
+        });
+      }
       if (res.status === 402) {
         setShowUpgrade(true);
         return;
@@ -167,13 +201,13 @@ export default function ListingForm(props: {
       }
       props.onCreated(await res.json());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Elan yaradıla bilmədi");
+      setError(err instanceof Error ? err.message : "Elan yadda saxlanıla bilmədi");
     } finally {
       setBusy(false);
     }
-  }, [user, prefill, propertyType, district, areaM2, landAreaSot, rooms, buildingType,
-      repairState, titleDeed, price, description, contactPhone, photos, coverIdx,
-      isLand, isHouse, isApartment, props]);
+  }, [user, prefill, editing, isEdit, propertyType, district, areaM2, landAreaSot,
+      rooms, buildingType, repairState, titleDeed, price, description, contactPhone,
+      photos, coverIdx, isLand, isHouse, isApartment, props]);
 
   if (!props.open) return null;
 
@@ -182,9 +216,11 @@ export default function ListingForm(props: {
       <div className="modal listing-form" role="dialog" aria-modal="true" aria-label="Elan yerləşdir"
         onMouseDown={(e) => e.stopPropagation()}>
         <button className="modal-x" onClick={props.onClose} aria-label="Bağla">✕</button>
-        <h2 className="modal-h">Elan yerləşdir</h2>
+        <h2 className="modal-h">{isEdit ? "Elanı redaktə et" : "Elan yerləşdir"}</h2>
         <p className="modal-sub">
-          Dəyərləndirmə məlumatları dolduruldu — hamısını dəyişə bilərsiniz.
+          {isEdit
+            ? <>Dəyişikliklər dərhal dərc olunur.{editing?.refNo && <> · <span className="card-ref">{editing.refNo}</span></>}</>
+            : "Dəyərləndirmə məlumatları dolduruldu — hamısını dəyişə bilərsiniz."}
         </p>
 
         <div className="grid">
@@ -266,7 +302,12 @@ export default function ListingForm(props: {
           <label htmlFor="lf-price">Qiymət (₼)</label>
           <input id="lf-price" type="number" min={1} value={price || ""}
             onChange={(e) => setPrice(Number(e.target.value))} />
-          {prefill && (
+          {isEdit && editing && price !== editing.priceAzn && price > 0 && (
+            <span className="hint">
+              {fmt(editing.priceAzn)} ₼ → {fmt(price)} ₼ · dəyişiklik qiymət tarixçəsinə yazılacaq
+            </span>
+          )}
+          {!isEdit && prefill && (
             <span className="hint">
               Pribor təxmini: {fmt(prefill.priceAzn)} ₼ · öz qiymətinizi qoya bilərsiniz
             </span>
@@ -314,7 +355,7 @@ export default function ListingForm(props: {
 
         {error && <div className="err">{error}</div>}
         <button className="cta" onClick={() => void submit()} disabled={busy}>
-          {busy ? "Yerləşdirilir…" : "Elanı dərc et →"}
+          {busy ? "Yadda saxlanılır…" : isEdit ? "Yadda saxla" : "Elanı dərc et →"}
         </button>
       </div>
 

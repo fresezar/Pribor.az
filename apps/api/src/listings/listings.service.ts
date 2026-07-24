@@ -14,6 +14,7 @@ import {
   ListingQuery,
   ListingSort,
   LISTING_LIMIT_CODE,
+  UpdateListingDto,
   UserListing,
 } from "@pribor/contracts";
 import {
@@ -24,6 +25,7 @@ import {
   listingReAttrs,
   listings,
   locations,
+  priceSnapshots,
   sql,
 } from "@pribor/db";
 import { AuthService } from "../auth/auth.service";
@@ -364,6 +366,16 @@ export class ListingsService {
           sql`update valuations set converted_listing_id = ${row.id} where id = ${dto.valuationId}::uuid`,
         );
       }
+
+      // İlk fiyat gözlemi — kullanıcı ilanı tarihçesi buradan başlar
+      await tx.insert(priceSnapshots).values({
+        refKind: "listing",
+        refId: row.id,
+        observedAt: new Date(),
+        priceAzn: dto.priceAzn,
+        source: "user",
+      });
+
       return { id: row.id, refNo: row.refNo };
     });
 
@@ -474,6 +486,7 @@ export class ListingsService {
         createdAt: new Date(u.created_at as string).toISOString(),
         sourceSite: "pribor",
         canManage: isAdmin || u.user_id === viewerId,
+        priceHistory: await this.priceHistory("listing", u.id as string),
       });
     }
 
@@ -516,6 +529,7 @@ export class ListingsService {
       createdAt: new Date(s.first_seen_at as string).toISOString(),
       sourceSite: (n.source_site as string) ?? "seed-baku",
       canManage: isAdmin,
+      priceHistory: await this.priceHistory("scraped", s.id as string),
     });
   }
 
@@ -542,6 +556,132 @@ export class ListingsService {
     if (row.userId === userId) return;
     if (await this.auth.isAdmin(userId)) return;
     throw new ForbiddenException("Bu elan üzərində icazəniz yoxdur");
+  }
+
+  /**
+   * İlan düzenleme (kısmi) — sahip veya admin. Fiyat değiştiyse
+   * price_snapshots'a (ref_kind='listing') satır düşer; kart başlığı
+   * güncel özniteliklerden yeniden kurulur.
+   */
+  async updateListing(
+    listingId: string,
+    dto: UpdateListingDto,
+  ): Promise<{ id: string; title: string; refNo: string | null }> {
+    await this.assertCanManage(listingId, dto.userId);
+
+    const current = await db.query.listings.findFirst({
+      where: eq(listings.id, listingId),
+    });
+    if (!current) throw new NotFoundException("Elan tapılmadı");
+    const attrs = await db.query.listingReAttrs.findFirst({
+      where: eq(listingReAttrs.listingId, listingId),
+    });
+
+    // Birleşik görünüm: gönderilmeyen alan mevcut değerinde kalır
+    const merged = {
+      propertyType: dto.propertyType ?? attrs?.propertyType ?? "apartment",
+      district: dto.district ?? null,
+      areaM2: dto.areaM2 ?? (attrs?.areaM2 == null ? undefined : Number(attrs.areaM2)),
+      landAreaSot:
+        dto.landAreaSot ?? (attrs?.landAreaSot == null ? undefined : Number(attrs.landAreaSot)),
+      rooms: dto.rooms ?? attrs?.rooms ?? undefined,
+      buildingType: dto.buildingType ?? attrs?.buildingType ?? undefined,
+      repairState: dto.repairState ?? attrs?.repairState ?? undefined,
+      titleDeed: dto.titleDeed ?? attrs?.titleDeed ?? undefined,
+    };
+
+    const newPrice = dto.priceAzn ?? current.priceAzn;
+    const priceChanged = newPrice !== current.priceAzn;
+    const photos = dto.photos ?? (current.photos as string[]);
+    const coverIdx = Math.min(
+      dto.coverPhotoIdx ?? current.coverPhotoIdx,
+      Math.max(0, photos.length - 1),
+    );
+
+    // Rayon değiştiyse locations köprüsünü de taşı
+    const locationId = dto.district
+      ? await this.ensureLocation(dto.district)
+      : current.locationId;
+
+    // Başlık, güncel rayon + özniteliklerden yeniden kurulur
+    const district =
+      dto.district ??
+      (current.locationId
+        ? (
+            await db.query.locations.findFirst({
+              where: eq(locations.id, current.locationId),
+              columns: { district: true },
+            })
+          )?.district ?? "Bakı"
+        : "Bakı");
+    const title = this.buildListingTitle({
+      ...merged,
+      district,
+      priceAzn: newPrice,
+      userId: dto.userId,
+      photos,
+      coverPhotoIdx: coverIdx,
+    } as CreateListingDto);
+
+    const result = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(listings)
+        .set({
+          title,
+          priceAzn: newPrice,
+          description: dto.description !== undefined ? dto.description : current.description,
+          contactPhone: dto.contactPhone ?? current.contactPhone,
+          photos,
+          coverPhotoIdx: coverIdx,
+          locationId,
+          updatedAt: new Date(),
+        })
+        .where(eq(listings.id, listingId))
+        .returning({ id: listings.id, refNo: listings.refNo });
+      if (!row) throw new NotFoundException("Elan tapılmadı");
+
+      await tx
+        .update(listingReAttrs)
+        .set({
+          propertyType: merged.propertyType,
+          areaM2: merged.areaM2 != null ? String(merged.areaM2) : null,
+          landAreaSot: merged.landAreaSot != null ? String(merged.landAreaSot) : null,
+          rooms: merged.rooms ?? null,
+          buildingType: merged.buildingType ?? null,
+          repairState: merged.repairState ?? null,
+          titleDeed: merged.titleDeed ?? null,
+        })
+        .where(eq(listingReAttrs.listingId, listingId));
+
+      if (priceChanged) {
+        await tx.insert(priceSnapshots).values({
+          refKind: "listing",
+          refId: listingId,
+          observedAt: new Date(),
+          priceAzn: newPrice,
+          source: "user",
+        });
+      }
+      return row;
+    });
+
+    return { id: result.id, title, refNo: formatRefNo(result.refNo) };
+  }
+
+  /** Detay için fiyat gözlemleri (kullanıcı ilanı veya scraped). */
+  private async priceHistory(
+    refKind: "listing" | "scraped",
+    refId: string,
+  ): Promise<Array<{ at: string; priceAzn: number }>> {
+    const rows = await db.execute(sql`
+      select observed_at, price_azn from price_snapshots
+      where ref_kind = ${refKind} and ref_id = ${refId}::uuid
+      order by observed_at asc limit 20
+    `);
+    return (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+      at: new Date(r.observed_at as string).toISOString(),
+      priceAzn: Number(r.price_azn),
+    }));
   }
 
   async deleteListing(listingId: string, userId: string): Promise<{ deleted: true }> {

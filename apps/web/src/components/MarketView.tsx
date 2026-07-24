@@ -51,6 +51,8 @@ export default function MarketView() {
   const [items, setItems] = useState<ListingCard[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE = 12;
 
   // Arama + detay + auth
   const [search, setSearch] = useState("");
@@ -59,26 +61,31 @@ export default function MarketView() {
   const [detailPreloaded, setDetailPreloaded] = useState<ListingDetail | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({ sort, limit: "12" });
+  /** offset=0 → listeyi değiştir; offset>0 → sona ekle (Daha çox göstər). */
+  const load = useCallback(async (offset = 0) => {
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
+    const params = new URLSearchParams({
+      sort, limit: String(PAGE), offset: String(offset),
+    });
     if (district) params.set("district", district);
     if (propertyType) params.set("propertyType", propertyType);
     try {
       const res = await fetch(`${API}/v1/listings?${params.toString()}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setItems(data.items);
+      setItems((prev) => (offset === 0 ? data.items : [...prev, ...data.items]));
       setTotal(data.total);
     } catch {
-      setItems([]);
-      setTotal(0);
+      if (offset === 0) { setItems([]); setTotal(0); }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [sort, district, propertyType]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(0); }, [load]);
+  const hasMore = items.length < total;
 
   /** Karta tıklama — giriş yoksa AuthModal, varsa detay. */
   const openDetail = useCallback((id: string) => {
@@ -157,12 +164,24 @@ export default function MarketView() {
       ) : items.length === 0 ? (
         <div className="market-empty">Bu filtrə uyğun elan tapılmadı.</div>
       ) : (
-        <div className={view === "grid" ? "listing-grid" : "listing-list"}>
-          {items.map((it) => (
-            <ListingCardView key={it.id} it={it} view={view}
-              onOpen={() => openDetail(it.id)} />
-          ))}
-        </div>
+        <>
+          <div className={view === "grid" ? "listing-grid" : "listing-list"}>
+            {items.map((it) => (
+              <ListingCardView key={it.id} it={it} view={view}
+                onOpen={() => openDetail(it.id)} />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="load-more-row">
+              <button className="load-more" disabled={loadingMore}
+                onClick={() => void load(items.length)}>
+                {loadingMore
+                  ? "Yüklənir…"
+                  : `Daha çox göstər (${items.length} / ${total})`}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <ListingDetailModal

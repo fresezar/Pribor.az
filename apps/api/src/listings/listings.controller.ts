@@ -10,7 +10,12 @@ import {
   Query,
   UnauthorizedException,
 } from "@nestjs/common";
-import { CreateListingDto, ListingQuery, parseRefNo } from "@pribor/contracts";
+import {
+  CreateListingDto,
+  ListingQuery,
+  parseRefNo,
+  UpdateListingDto,
+} from "@pribor/contracts";
 import { AuthService } from "../auth/auth.service";
 import { ListingsService } from "./listings.service";
 
@@ -74,6 +79,21 @@ export class ListingsController {
     const viewer = await this.requireUser(userId);
     if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz elan kimliği");
     return this.listings.detail(id, viewer);
+  }
+
+  /** İlanı düzenle (kısmi) — sahip veya admin. Fiyat değişimi tarihçeye düşer. */
+  @Patch(":id")
+  async update(@Param("id") id: string, @Body() body: unknown) {
+    if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz elan kimliği");
+    const parsed = UpdateListingDto.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: "Elan məlumatları yanlışdır",
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+      });
+    }
+    await this.requireUser(parsed.data.userId);
+    return this.listings.updateListing(id, parsed.data);
   }
 
   /** İlanı sil — sahip veya admin. */

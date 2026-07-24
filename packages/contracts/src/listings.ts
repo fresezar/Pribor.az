@@ -96,6 +96,23 @@ export const CreateListingDto = z.object({
 });
 export type CreateListingDto = z.infer<typeof CreateListingDto>;
 
+/**
+ * İlan düzenleme — sahip veya admin. Tüm alanlar opsiyonel (kısmi güncelleme);
+ * gönderilmeyen alan olduğu gibi kalır. Fiyat değişirse price_snapshots'a
+ * (ref_kind='listing') tarih satırı düşer — kullanıcı ilanı fiyat geçmişi.
+ */
+export const UpdateListingDto = CreateListingDto.omit({ valuationId: true })
+  .partial()
+  .extend({ userId: z.string().uuid() });
+export type UpdateListingDto = z.infer<typeof UpdateListingDto>;
+
+/** Fiyat geçmişi noktası — detay ekranındaki "Qiymət tarixçəsi". */
+export const PricePoint = z.object({
+  at: z.string(),
+  priceAzn: z.number().int(),
+});
+export type PricePoint = z.infer<typeof PricePoint>;
+
 /** "Mənim elanlarım" kartı. */
 export const UserListing = z.object({
   id: z.string().uuid(),
@@ -144,8 +161,10 @@ export const ListingDetail = z.object({
   contactPhone: z.string().nullable(),
   createdAt: z.string(),
   sourceSite: z.string().nullable(),
-  /** Sahip veya admin mi — sil / satıldı aksiyonlarını açar. */
+  /** Sahip veya admin mi — sil / satıldı / redaktə aksiyonlarını açar. */
   canManage: z.boolean(),
+  /** Kronolojik fiyat gözlemleri (kullanıcı ilanı + scraped) — 1'den fazlaysa UI tarixçə gösterir. */
+  priceHistory: z.array(PricePoint).default([]),
 });
 export type ListingDetail = z.infer<typeof ListingDetail>;
 

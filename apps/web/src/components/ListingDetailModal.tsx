@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ListingDetail } from "@pribor/contracts";
+import ListingForm from "./ListingForm";
 import { useAuth } from "./AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -37,28 +38,36 @@ export default function ListingDetailModal(props: {
   const [activePhoto, setActivePhoto] = useState(0);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const open = props.listingId != null || props.preloaded != null;
 
+  const fetchDetail = useCallback(async (id: string) => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch(`${API}/v1/listings/${id}?userId=${user.id}`);
+      if (!r.ok) throw new Error(r.status === 401 ? "Daxil olun" : "Elan tapılmadı");
+      const d = (await r.json()) as ListingDetail;
+      setData(d);
+      setActivePhoto(d.coverPhotoIdx ?? 0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Xəta");
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
-    if (!open) { setData(null); setError(null); setConfirmDelete(false); return; }
+    if (!open) { setData(null); setError(null); setConfirmDelete(false); setEditOpen(false); return; }
     if (props.preloaded) {
       setData(props.preloaded);
       setActivePhoto(props.preloaded.coverPhotoIdx ?? 0);
       return;
     }
-    if (!props.listingId || !user) return;
-    setLoading(true);
-    setError(null);
-    fetch(`${API}/v1/listings/${props.listingId}?userId=${user.id}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(r.status === 401 ? "Daxil olun" : "Elan tapılmadı");
-        return r.json() as Promise<ListingDetail>;
-      })
-      .then((d) => { setData(d); setActivePhoto(d.coverPhotoIdx ?? 0); })
-      .catch((e) => setError(e instanceof Error ? e.message : "Xəta"))
-      .finally(() => setLoading(false));
-  }, [open, props.listingId, props.preloaded, user]);
+    if (props.listingId) void fetchDetail(props.listingId);
+  }, [open, props.listingId, props.preloaded, fetchDetail]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
@@ -118,6 +127,7 @@ export default function ListingDetailModal(props: {
     : [];
 
   return (
+    <>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal listing-detail" role="dialog" aria-modal="true"
         aria-label="Elan detalları" onMouseDown={(e) => e.stopPropagation()}>
@@ -178,6 +188,27 @@ export default function ListingDetailModal(props: {
               </div>
             )}
 
+            {data.priceHistory.length > 1 && (
+              <div className="ld-history">
+                <h3>Qiymət tarixçəsi</h3>
+                <div className="ld-history-row">
+                  {data.priceHistory.map((p, i) => {
+                    const prev = data.priceHistory[i - 1];
+                    const dir = prev
+                      ? p.priceAzn < prev.priceAzn ? "down" : p.priceAzn > prev.priceAzn ? "up" : ""
+                      : "";
+                    return (
+                      <span key={p.at} className={`ph-point ${dir}`}>
+                        {i > 0 && <span className="ph-arrow">→</span>}
+                        {fmt(p.priceAzn)} ₼
+                        <small>{new Date(p.at).toLocaleDateString("az-AZ")}</small>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="ld-contact">
               <div className="ld-contact-label">Əlaqə</div>
               {data.contactPhone ? (
@@ -192,6 +223,9 @@ export default function ListingDetailModal(props: {
 
             {data.canManage && data.kind === "user" && (
               <div className="ld-actions">
+                <button className="ghost" onClick={() => setEditOpen(true)} disabled={busy}>
+                  ✎ Redaktə et
+                </button>
                 {data.status !== "sold" && (
                   <button className="ghost" onClick={() => void markSold()} disabled={busy}>
                     ✓ Satıldı olaraq işarələ
@@ -222,5 +256,20 @@ export default function ListingDetailModal(props: {
         )}
       </div>
     </div>
+
+    {data && (
+      <ListingForm
+        open={editOpen}
+        prefill={null}
+        editing={data}
+        onClose={() => setEditOpen(false)}
+        onCreated={() => {
+          setEditOpen(false);
+          props.onChanged?.();
+          void fetchDetail(data.id);
+        }}
+      />
+    )}
+    </>
   );
 }
