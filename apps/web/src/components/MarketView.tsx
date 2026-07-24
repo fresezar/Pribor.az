@@ -14,6 +14,7 @@ import type { ListingCard, ListingDetail, ListingSort } from "@pribor/contracts"
 import AuthModal from "./AuthModal";
 import ListingDetailModal from "./ListingDetailModal";
 import { useAuth } from "./AuthContext";
+import { LISTINGS_CHANGED, requestNewListing } from "./listingEvents";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
@@ -85,6 +86,14 @@ export default function MarketView() {
   }, [sort, district, propertyType]);
 
   useEffect(() => { void load(0); }, [load]);
+
+  // Yeni ilan verildiğinde / düzenlendiğinde pano tazelensin
+  useEffect(() => {
+    const handler = () => void load(0);
+    window.addEventListener(LISTINGS_CHANGED, handler);
+    return () => window.removeEventListener(LISTINGS_CHANGED, handler);
+  }, [load]);
+
   const hasMore = items.length < total;
 
   /** Karta tıklama — giriş yoksa AuthModal, varsa detay. */
@@ -126,11 +135,16 @@ export default function MarketView() {
             {total} elan · Pribor dəyərləndirməsi ilə müqayisəli
           </p>
         </div>
-        <div className="view-toggle">
-          <button className={view === "grid" ? "on" : ""} onClick={() => setView("grid")}
-            aria-label="Izgara görünüş">▦</button>
-          <button className={view === "list" ? "on" : ""} onClick={() => setView("list")}
-            aria-label="Siyahı görünüş">☰</button>
+        <div className="market-head-actions">
+          <button className="post-btn" onClick={() => requestNewListing()}>
+            + Pulsuz elan yerləşdir
+          </button>
+          <div className="view-toggle">
+            <button className={view === "grid" ? "on" : ""} onClick={() => setView("grid")}
+              aria-label="Izgara görünüş">▦</button>
+            <button className={view === "list" ? "on" : ""} onClick={() => setView("list")}
+              aria-label="Siyahı görünüş">☰</button>
+          </div>
         </div>
       </div>
 

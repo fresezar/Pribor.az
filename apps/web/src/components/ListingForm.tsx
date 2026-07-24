@@ -56,6 +56,8 @@ export default function ListingForm(props: {
   const { user } = useAuth();
   const { prefill, editing } = props;
   const isEdit = editing != null;
+  // Manuel mod: değerleme olmadan doğrudan boş formdan ilan verme
+  const isManual = !isEdit && prefill == null;
 
   // Düzenlenebilir form durumu — prefill yalnızca başlangıç değeridir
   const [propertyType, setPropertyType] = useState<"apartment" | "house" | "land">("apartment");
@@ -101,7 +103,24 @@ export default function ListingForm(props: {
       setError(null);
       return;
     }
-    if (!prefill) return;
+    if (!prefill) {
+      // Manuel (doğrudan) ilan — boş formdan makul varsayılanlar
+      setPropertyType("apartment");
+      setDistrict(DISTRICTS[0]!);
+      setAreaM2(0);
+      setLandAreaSot(0);
+      setRooms(2);
+      setBuildingType("yeni_tikili");
+      setRepairState(3);
+      setTitleDeed(true);
+      setPrice(0);
+      setDescription("");
+      setPhotos([]);
+      setCoverIdx(0);
+      setError(null);
+      setContactPhone(user?.phone ?? "");
+      return;
+    }
     setPropertyType(prefill.propertyType);
     setDistrict(prefill.district);
     setAreaM2(prefill.areaM2 ?? 0);
@@ -216,11 +235,13 @@ export default function ListingForm(props: {
       <div className="modal listing-form" role="dialog" aria-modal="true" aria-label="Elan yerləşdir"
         onMouseDown={(e) => e.stopPropagation()}>
         <button className="modal-x" onClick={props.onClose} aria-label="Bağla">✕</button>
-        <h2 className="modal-h">{isEdit ? "Elanı redaktə et" : "Elan yerləşdir"}</h2>
+        <h2 className="modal-h">{isEdit ? "Elanı redaktə et" : "Pulsuz elan yerləşdir"}</h2>
         <p className="modal-sub">
           {isEdit
             ? <>Dəyişikliklər dərhal dərc olunur.{editing?.refNo && <> · <span className="card-ref">{editing.refNo}</span></>}</>
-            : "Dəyərləndirmə məlumatları dolduruldu — hamısını dəyişə bilərsiniz."}
+            : isManual
+              ? "Əmlak məlumatlarını daxil edin — elan dərhal və pulsuz dərc olunur."
+              : "Dəyərləndirmə məlumatları dolduruldu — hamısını dəyişə bilərsiniz."}
         </p>
 
         <div className="grid">

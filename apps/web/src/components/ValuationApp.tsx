@@ -21,6 +21,7 @@ import CompsCards from "./CompsCards";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
 import { useAuth } from "./AuthContext";
+import { notifyListingsChanged } from "./listingEvents";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -350,7 +351,7 @@ export default function ValuationApp() {
         open={listingOpen}
         prefill={listingOpen ? buildPrefill() : null}
         onClose={() => setListingOpen(false)}
-        onCreated={(l) => { setListingOpen(false); setPosted(l); }}
+        onCreated={(l) => { setListingOpen(false); setPosted(l); notifyListingsChanged(); }}
       />
     </div>
   );

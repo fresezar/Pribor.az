@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import ApkDownloadModal from "./ApkDownloadModal";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AuthModal from "./AuthModal";
+import ListingForm from "./ListingForm";
 import MyListings from "./MyListings";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "./AuthContext";
+import { NEW_LISTING, notifyListingsChanged } from "./listingEvents";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string } | null> = {
   AGENT_ADMIN: { label: "Rəsmi Emlakçı", cls: "agent" },
@@ -13,13 +14,14 @@ const ROLE_BADGE: Record<string, { label: string; cls: string } | null> = {
   USER: null,
 };
 
-/** Üst çubuk: marka + Bazar + tema + APK + Daxil ol / profil menüsü. */
+/** Üst çubuk: marka + Bazar + tema + Elan yerləşdir + Daxil ol / profil. */
 export default function SiteHeader() {
   const { user, logout } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [myOpen, setMyOpen] = useState(false);
-  const [apkOpen, setApkOpen] = useState(false);
+  const [postOpen, setPostOpen] = useState(false);
+  const pendingPost = useRef(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -29,6 +31,23 @@ export default function SiteHeader() {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
+
+  // "Elan yerləşdir" — giriş yoksa önce AuthModal, sonra boş ilan formu.
+  const startPost = useCallback(() => {
+    if (!user) {
+      pendingPost.current = true;
+      setAuthOpen(true);
+      return;
+    }
+    setPostOpen(true);
+  }, [user]);
+
+  // Herhangi bir yerden (bazar başlığı vb.) tetiklenen "yeni ilan" olayı
+  useEffect(() => {
+    const handler = () => startPost();
+    window.addEventListener(NEW_LISTING, handler);
+    return () => window.removeEventListener(NEW_LISTING, handler);
+  }, [startPost]);
 
   const initials = user
     ? user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -42,11 +61,7 @@ export default function SiteHeader() {
       <div className="topbar-right">
         <a className="nav-link" href="#bazar">Bazar</a>
         <ThemeToggle />
-        <button className="apk-btn" onClick={() => setApkOpen(true)}
-          title="Android tətbiqini yüklə">
-          <span className="apk-ico">▲</span>
-          <span className="apk-txt">Android<br /><b>.APK yüklə</b></span>
-        </button>
+        <button className="post-btn" onClick={startPost}>+ Elan yerləşdir</button>
 
         {!user ? (
           <button className="login-btn" onClick={() => setAuthOpen(true)}>Daxil ol</button>
@@ -76,9 +91,22 @@ export default function SiteHeader() {
         )}
       </div>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthModal open={authOpen}
+        onClose={() => { setAuthOpen(false); pendingPost.current = false; }}
+        onLoggedIn={() => {
+          if (pendingPost.current) { pendingPost.current = false; setPostOpen(true); }
+        }} />
+      <ListingForm
+        open={postOpen}
+        prefill={null}
+        onClose={() => setPostOpen(false)}
+        onCreated={() => {
+          setPostOpen(false);
+          notifyListingsChanged();
+          setMyOpen(true); // yeni ilanı hemen göster
+        }}
+      />
       <MyListings open={myOpen} onClose={() => setMyOpen(false)} />
-      <ApkDownloadModal open={apkOpen} onClose={() => setApkOpen(false)} />
     </header>
   );
 }

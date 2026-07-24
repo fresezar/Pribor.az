@@ -12,7 +12,14 @@ import {
   users,
 } from "@pribor/db";
 
-/** Bireysel kullanıcı ücretsiz aktif ilan limiti (free plan entitlement'ı). */
+/**
+ * Monetizasyon şimdilik ERTELENDİ: ilan panosu ilk etapta tamamen ücretsiz —
+ * herkes sınırsız ilan verebilir. Ödeme/abonelik geri açılınca bunu true yap;
+ * limit + UpgradeModal altyapısı olduğu gibi hazır bekliyor.
+ */
+const MONETIZATION_ENABLED = false;
+
+/** Monetizasyon açıkken bireysel kullanıcı ücretsiz aktif ilan limiti. */
 const FREE_MAX_LISTINGS = 5;
 const PRO_PLAN_CODE = "pro_unlimited";
 const FREE_PLAN_CODE = "free";
@@ -189,7 +196,14 @@ export class AuthService implements OnModuleInit {
       };
     }
 
-    // 3) Varsayılan: ücretsiz plan (2 aktif ilan)
+    // 3) Varsayılan kullanıcı. Monetizasyon ertelendiği için şimdilik sınırsız.
+    if (!MONETIZATION_ENABLED) {
+      return {
+        entitlements: { maxActiveListings: -1, unlimited: true, planCode: "free_unlimited" },
+        role: "USER",
+        dbRole,
+      };
+    }
     return {
       entitlements: { maxActiveListings: FREE_MAX_LISTINGS, unlimited: false, planCode: FREE_PLAN_CODE },
       role: "USER",

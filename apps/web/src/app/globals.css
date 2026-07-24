@@ -557,7 +557,20 @@ footer.note {
 }
 .listing-loc { font-size: 0.78rem; color: var(--faint); margin-top: 10px; }
 
-/* ---------- APK indirme butonu ---------- */
+/* ---------- Elan yerləşdir butonu (birincil aksiyon) ---------- */
+.post-btn {
+  padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
+  background: var(--flame); color: var(--flame-ink); border: none;
+  white-space: nowrap;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.post-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.market-head-actions { display: flex; align-items: center; gap: 10px; }
+@media (max-width: 560px) {
+  .post-btn { padding: 8px 12px; font-size: 0.8rem; }
+}
+
+/* ---------- APK indirme butonu (şimdilik gizli) ---------- */
 .apk-btn {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--line);

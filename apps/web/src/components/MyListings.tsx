@@ -44,7 +44,7 @@ export default function MyListings(props: { open: boolean; onClose: () => void }
           <h2 className="modal-h">Mənim elanlarım</h2>
           <p className="modal-sub">
             {user?.entitlements.unlimited
-              ? "Sərhədsiz paket · istədiyiniz qədər elan"
+              ? `İstədiyiniz qədər pulsuz elan · ${activeCount} aktiv`
               : `Pulsuz paket · ${activeCount}/${user?.entitlements.maxActiveListings ?? 5} aktiv elan`}
           </p>
 
