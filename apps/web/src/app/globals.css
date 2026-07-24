@@ -1,106 +1,191 @@
-/* Pribor MVP tasarım sistemi — Hazar koyusu + alev vurgusu.
-   İki tema: koyu (varsayılan) ve açık. Tüm renkler değişken üzerinden;
-   [data-theme="light"] yalnızca değişkenleri devirir, bileşen CSS'i aynı kalır. */
+/* ═══════════════════════════════════════════════════════════════════
+   PRIBOR — Design System v2 "Aurora"
+   Koyu: Obsidian Tech (derin uzay + zümrüt/siyan neon + gold değerleme)
+   Açık: Porcelain Luxury (katmanlı porselen + çok katlı soft gölge)
+   Tüm renk/derinlik değişken üzerinden; [data-theme] yalnızca token'ları devirir.
+   ═══════════════════════════════════════════════════════════════════ */
 
 :root,
 :root[data-theme="dark"] {
-  --bg: #0a161d;
-  --bg-raise: #0e1e26;
-  --surface: #12242e;
-  --surface-2: #16303b;
-  --line: #1e3641;
-  --line-soft: #1a2f3a;
-  --ink: #e6eff2;
-  --muted: #8fa6ae;
-  --faint: #5f7882;
-  --flame: #e8603a;
-  --flame-ink: #160905;
-  --flame-soft: rgba(232, 96, 58, 0.12);
-  --flame-line: rgba(232, 96, 58, 0.4);
-  --flame-text: #f4b09a;
-  --teal: #2ba69e;
-  --teal-soft: rgba(43, 166, 158, 0.12);
-  --teal-line: rgba(43, 166, 158, 0.35);
-  --good: #27a56c;
-  --good-soft: rgba(39, 165, 108, 0.14);
-  --good-line: rgba(39, 165, 108, 0.4);
-  --good-text: #5fd9a2;
-  --warn: #d9a13b;
-  --warn-soft: rgba(217, 161, 59, 0.14);
-  --warn-line: rgba(217, 161, 59, 0.4);
-  --warn-text: #ecc069;
-  --danger: #e05252;
-  --danger-soft: rgba(224, 82, 82, 0.14);
-  --danger-line: rgba(224, 82, 82, 0.42);
-  --shadow-lg: 0 24px 60px rgba(4, 12, 17, 0.5), 0 2px 8px rgba(4, 12, 17, 0.4);
-  --shadow-sm: 0 10px 28px rgba(4, 12, 17, 0.45);
-  --overlay: rgba(4, 10, 14, 0.72);
-  --glow-1: rgba(43, 166, 158, 0.08);
-  --glow-2: rgba(232, 96, 58, 0.06);
+  --bg: #080a0f;
+  --bg-2: #0b0f17;
+  --bg-raise: #0d111a;
+  --surface: #0f1520;
+  --surface-2: #141c28;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-soft: rgba(255, 255, 255, 0.05);
+  --ink: #eaf0f6;
+  --muted: #93a1b0;
+  --faint: #5e6e7e;
+
+  /* Cam (glassmorphism) */
+  --glass-bg: rgba(18, 25, 37, 0.55);
+  --glass-hi: rgba(255, 255, 255, 0.10);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --blur: 16px;
+
+  /* AI aksanı — zümrüt→siyan */
+  --emerald: #10b981;
+  --cyan: #06b6d4;
+  --teal: #10b981;                       /* geriye dönük birincil aksan */
+  --teal-soft: rgba(16, 185, 129, 0.13);
+  --teal-line: rgba(16, 185, 129, 0.42);
+  --ai-grad: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+
+  /* Değerleme aksanı — gold/amber */
+  --gold: #f5b84b;
+  --gold-soft: rgba(245, 184, 75, 0.14);
+  --gold-line: rgba(245, 184, 75, 0.42);
+  --gold-text: #f7cd7c;
+
+  /* Aksiyon (ilan ver) — sıcak turuncu */
+  --flame: #f97316;
+  --flame-ink: #140a02;
+  --flame-soft: rgba(249, 115, 22, 0.13);
+  --flame-line: rgba(249, 115, 22, 0.42);
+  --flame-text: #fdba74;
+
+  --good: #10b981;
+  --good-soft: rgba(16, 185, 129, 0.14);
+  --good-line: rgba(16, 185, 129, 0.42);
+  --good-text: #5eead4;
+  --warn: #f5b84b;
+  --warn-soft: rgba(245, 184, 75, 0.14);
+  --warn-line: rgba(245, 184, 75, 0.4);
+  --warn-text: #f7cd7c;
+  --danger: #f43f5e;
+  --danger-soft: rgba(244, 63, 94, 0.14);
+  --danger-line: rgba(244, 63, 94, 0.42);
+
+  --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+  --overlay: rgba(4, 6, 11, 0.74);
+
+  /* Aurora mesh glow renkleri */
+  --aurora-1: rgba(16, 185, 129, 0.16);
+  --aurora-2: rgba(6, 182, 212, 0.14);
+  --aurora-3: rgba(245, 184, 75, 0.08);
+  --dot: rgba(255, 255, 255, 0.035);
+  --noise-opacity: 0.045;
+
   /* Emlak tipi renk kodları */
-  --type-apartment: #3d8bd4;
-  --type-house: #d9a13b;
-  --type-land: #27a56c;
+  --type-apartment: #38bdf8;
+  --type-house: #f5b84b;
+  --type-land: #34d399;
   --radius: 12px;
   --mono: "Cascadia Code", "SF Mono", ui-monospace, Consolas, monospace;
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f7f9;
+  --bg: #f6f8fb;
+  --bg-2: #eef2f7;
   --bg-raise: #ffffff;
-  --surface: #f7fafb;
-  --surface-2: #eaf0f3;
-  --line: #d8e2e7;
-  --line-soft: #e6edf0;
-  --ink: #0e222c;
-  --muted: #5a7280;
-  --faint: #8ba0aa;
-  --flame: #d9531f;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --line: #e3e9f0;
+  --line-soft: #edf1f6;
+  --ink: #0b1220;
+  --muted: #51617a;
+  --faint: #94a3b8;
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-hi: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --blur: 16px;
+
+  --emerald: #059669;
+  --cyan: #0891b2;
+  --teal: #059669;
+  --teal-soft: rgba(5, 150, 105, 0.1);
+  --teal-line: rgba(5, 150, 105, 0.3);
+  --ai-grad: linear-gradient(135deg, #059669 0%, #0891b2 100%);
+
+  --gold: #b7791f;
+  --gold-soft: rgba(183, 121, 31, 0.12);
+  --gold-line: rgba(183, 121, 31, 0.34);
+  --gold-text: #8a5d10;
+
+  --flame: #ea580c;
   --flame-ink: #ffffff;
-  --flame-soft: rgba(217, 83, 31, 0.1);
-  --flame-line: rgba(217, 83, 31, 0.32);
+  --flame-soft: rgba(234, 88, 12, 0.1);
+  --flame-line: rgba(234, 88, 12, 0.32);
   --flame-text: #b8420f;
-  --teal: #12857e;
-  --teal-soft: rgba(18, 133, 126, 0.1);
-  --teal-line: rgba(18, 133, 126, 0.3);
-  --good: #12874f;
-  --good-soft: rgba(18, 135, 79, 0.12);
-  --good-line: rgba(18, 135, 79, 0.34);
-  --good-text: #0d6b3e;
-  --warn: #a9741a;
-  --warn-soft: rgba(169, 116, 26, 0.12);
-  --warn-line: rgba(169, 116, 26, 0.34);
+
+  --good: #059669;
+  --good-soft: rgba(5, 150, 105, 0.12);
+  --good-line: rgba(5, 150, 105, 0.34);
+  --good-text: #047857;
+  --warn: #b7791f;
+  --warn-soft: rgba(183, 121, 31, 0.12);
+  --warn-line: rgba(183, 121, 31, 0.34);
   --warn-text: #8a5d10;
-  --danger: #c23434;
-  --danger-soft: rgba(194, 52, 52, 0.1);
-  --danger-line: rgba(194, 52, 52, 0.34);
-  --shadow-lg: 0 18px 44px rgba(14, 34, 44, 0.12), 0 2px 6px rgba(14, 34, 44, 0.06);
-  --shadow-sm: 0 10px 24px rgba(14, 34, 44, 0.1);
-  --overlay: rgba(20, 40, 50, 0.42);
-  --glow-1: rgba(18, 133, 126, 0.07);
-  --glow-2: rgba(217, 83, 31, 0.05);
+  --danger: #e11d48;
+  --danger-soft: rgba(225, 29, 72, 0.1);
+  --danger-line: rgba(225, 29, 72, 0.32);
+
+  --shadow-lg: 0 24px 50px -18px rgba(15, 34, 62, 0.16), 0 6px 16px -8px rgba(15, 34, 62, 0.08);
+  --shadow-sm: 0 12px 28px -14px rgba(15, 34, 62, 0.14);
+  --overlay: rgba(20, 34, 54, 0.36);
+
+  --aurora-1: rgba(5, 150, 105, 0.1);
+  --aurora-2: rgba(8, 145, 178, 0.08);
+  --aurora-3: rgba(183, 121, 31, 0.06);
+  --dot: rgba(15, 23, 42, 0.045);
+  --noise-opacity: 0.03;
+
   --type-apartment: #2f6fae;
   --type-house: #a9741a;
-  --type-land: #12874f;
+  --type-land: #059669;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  background:
-    radial-gradient(1100px 500px at 85% -10%, var(--glow-1), transparent 60%),
-    radial-gradient(900px 480px at -10% 110%, var(--glow-2), transparent 55%),
-    var(--bg);
-  transition: background-color 0.25s ease, color 0.25s ease;
+  background: var(--bg);
+  transition: background-color 0.4s ease, color 0.4s ease;
   color: var(--ink);
   font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.55;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-::selection { background: var(--teal); color: var(--bg); }
+/* Aurora mesh + mikro nokta ızgarası — sabit, en arka katman */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 82% -8%, var(--aurora-1), transparent 60%),
+    radial-gradient(55% 45% at -6% 8%, var(--aurora-2), transparent 58%),
+    radial-gradient(50% 55% at 50% 118%, var(--aurora-3), transparent 60%),
+    radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 26px 26px;
+  animation: auroraDrift 24s ease-in-out infinite alternate;
+}
+
+/* İnce film grini (SVG noise) — dokusal derinlik */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes auroraDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-1.5%, 1%, 0) scale(1.05); }
+  100% { transform: translate3d(1.5%, -1%, 0) scale(1.08); }
+}
+
+::selection { background: var(--emerald); color: #04140e; }
 
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -125,15 +210,34 @@ button { cursor: pointer; }
 }
 
 /* ---------- hero ---------- */
-.hero { text-align: center; padding: 40px 0 30px; }
+.hero { text-align: center; padding: 54px 0 36px; position: relative; }
 .hero h1 {
   font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
-  font-size: clamp(1.9rem, 4.6vw, 3rem);
-  font-weight: 800; letter-spacing: -0.03em; line-height: 1.12;
-  margin: 0 0 10px; text-wrap: balance;
+  font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+  font-weight: 800; letter-spacing: -0.035em; line-height: 1.08;
+  margin: 0 0 12px; text-wrap: balance;
 }
-.hero h1 .flame { color: var(--flame); }
-.hero p { color: var(--muted); max-width: 52ch; margin: 0 auto; }
+/* "10 saniyədə" — zümrüt→siyan→gold gradient, hafif glow */
+.hero h1 .flame {
+  background: linear-gradient(100deg, var(--emerald), var(--cyan) 55%, var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 18px var(--teal-soft));
+}
+.hero p { color: var(--muted); max-width: 54ch; margin: 0 auto; font-size: 1.02rem; }
+/* AI rozeti — hero üstü */
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--emerald);
+  padding: 6px 14px; border-radius: 999px;
+  background: var(--glass-bg); border: 1px solid var(--teal-line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px -12px var(--teal-line);
+}
+.hero-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--emerald);
+  box-shadow: 0 0 10px 1px var(--emerald); animation: pulseGlow 1.8s ease-in-out infinite;
+}
 
 /* ---------- ana kart ---------- */
 .panel {
@@ -907,6 +1011,254 @@ footer.note {
 }
 .my-status.sold { background: var(--danger-soft); color: var(--danger); }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PREMIUM KATMAN v2 — cam, spotlight border, glow, hareket
+   (dosyanın sonunda: aynı seçicileri kasıtlı olarak override eder)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ---------- cam yüzeyler ---------- */
+.panel,
+.modal {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 0 var(--glass-hi);
+  border-radius: 16px;
+}
+
+/* ---------- spotlight border (cursor-takipli) ----------
+   Spotlight controller --mx/--my'yi hover edilen kartta günceller;
+   maskeli padding tekniğiyle yalnızca kenarda ışık hüzmesi belirir. */
+.panel, .modal, .listing, .pribor-card, .glow-border { position: relative; isolation: isolate; }
+.panel::after, .modal::after, .listing::after,
+.pribor-card::after, .glow-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, -20%),
+    color-mix(in srgb, var(--spot, var(--emerald)) 75%, transparent),
+    transparent 62%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+.panel:hover::after, .modal:hover::after, .listing:hover::after,
+.pribor-card:hover::after, .glow-border:hover::after { opacity: 1; }
+
+/* ---------- market kart: cam + tip-renkli spotlight + 3D lift ---------- */
+.listing {
+  --spot: var(--type, var(--emerald));
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 0 var(--glass-hi);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s ease, border-color 0.3s ease;
+}
+.listing:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+.listing:hover .listing-thumb span[aria-hidden] { transform: scale(1.12); }
+.listing-thumb span[aria-hidden] { transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); display: inline-block; }
+
+/* ---------- gradient CTA'lar + glow ---------- */
+.cta {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--flame) 92%, #fff), var(--flame));
+  box-shadow: 0 12px 32px -10px var(--flame-line), inset 0 1px 0 0 rgba(255, 255, 255, 0.28);
+}
+.cta:hover { box-shadow: 0 18px 44px -10px var(--flame-line), inset 0 1px 0 0 rgba(255, 255, 255, 0.34); }
+/* Değerleme (AI) CTA — zümrüt→siyan */
+.cta-ai {
+  background-image: var(--ai-grad);
+  color: #04140e;
+  box-shadow: 0 12px 34px -8px var(--teal-line), inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+}
+.cta-ai:hover { box-shadow: 0 20px 50px -8px var(--teal-line), inset 0 1px 0 0 rgba(255, 255, 255, 0.36); }
+
+.post-btn {
+  background-image: linear-gradient(135deg, color-mix(in srgb, var(--flame) 92%, #fff), var(--flame));
+  box-shadow: 0 8px 22px -8px var(--flame-line), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+}
+
+/* ---------- sekmeler / segment / toggle: cam + emerald aktif ---------- */
+.tabs button.active {
+  background: var(--teal-soft);
+  border-color: var(--teal-line);
+  box-shadow: inset 0 0 0 1px var(--teal-line), 0 6px 18px -10px var(--teal-line);
+}
+.seg button.on {
+  box-shadow: inset 0 0 0 1px var(--teal-line), 0 4px 14px -8px var(--teal-line);
+}
+
+/* ---------- hesaplama nabzı — AI aura ---------- */
+.computing .pulse {
+  border-color: var(--line);
+  border-top-color: var(--emerald);
+  box-shadow: 0 0 0 6px var(--teal-soft), 0 0 40px -4px var(--emerald);
+}
+
+/* ---------- header: yapışkan cam ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0 -24px;
+  padding: 16px 24px 14px;
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  border-bottom: 1px solid var(--line-soft);
+}
+.brand { position: relative; }
+
+/* ---------- shimmer yardımcı ---------- */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* ═══════════ ValuationResultVisual (Qiymət DNT-si showcase) ═══════════ */
+.vrv { position: relative; }
+.vrv-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--emerald);
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--teal-soft); border: 1px solid var(--teal-line);
+}
+.vrv-eyebrow .spark {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--emerald);
+  box-shadow: 0 0 10px 1px var(--emerald); animation: pulseGlow 1.8s ease-in-out infinite;
+}
+.vrv-query { color: var(--muted); font-size: 0.9rem; margin: 12px 0 18px; }
+.vrv-query b { color: var(--ink); font-weight: 600; }
+
+.vrv-price-wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.vrv-price {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: clamp(2.6rem, 8vw, 4rem); font-weight: 700; line-height: 0.95;
+  letter-spacing: -0.03em;
+  background: linear-gradient(180deg, var(--ink) 30%, var(--gold-text));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 4px 24px var(--gold-soft));
+}
+.vrv-price .cur {
+  font-size: 0.42em; margin-left: 6px; -webkit-text-fill-color: var(--gold);
+  color: var(--gold);
+}
+.vrv-conf {
+  display: flex; align-items: center; gap: 8px; font-family: var(--mono);
+  font-size: 0.72rem; color: var(--muted);
+}
+.vrv-conf .ring {
+  --p: 0;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: conic-gradient(var(--emerald) calc(var(--p) * 1%), var(--line) 0);
+  display: grid; place-items: center; position: relative;
+}
+.vrv-conf .ring::after {
+  content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--bg-raise);
+}
+
+/* güven aralığı — cam ray + parlayan p50 işareti */
+.vrv-range { margin: 22px 0 6px; }
+.vrv-track {
+  position: relative; height: 10px; border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  overflow: visible;
+}
+.vrv-band {
+  position: absolute; top: -1px; bottom: -1px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--teal-soft), color-mix(in srgb, var(--emerald) 45%, transparent), var(--teal-soft));
+  border: 1px solid var(--teal-line);
+  box-shadow: 0 0 18px -2px var(--teal-line);
+}
+.vrv-dot {
+  position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--gold); border: 3px solid var(--bg-raise);
+  box-shadow: 0 0 0 2px var(--gold-line), 0 0 22px 2px var(--gold);
+}
+.vrv-labels {
+  display: flex; justify-content: space-between; margin-top: 10px;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.vrv-labels .mid { color: var(--emerald); }
+
+.vrv-deal {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+  padding: 9px 15px; border-radius: 999px; font-size: 0.84rem; font-weight: 600;
+}
+.vrv-deal.good { background: var(--good-soft); color: var(--good-text); border: 1px solid var(--good-line); }
+.vrv-deal.bad { background: var(--warn-soft); color: var(--warn-text); border: 1px solid var(--warn-line); }
+.vrv-deal.neutral { background: var(--teal-soft); color: var(--emerald); border: 1px solid var(--teal-line); }
+
+.vrv-anchor {
+  margin-top: 14px; font-size: 0.82rem; color: var(--muted);
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--surface); border: 1px dashed var(--line);
+}
+.vrv-anchor b { color: var(--gold-text); }
+
+/* Qiymət DNT-si — staggered katkı çubukları */
+.vrv-dna { margin-top: 26px; }
+.vrv-dna h3 {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.vrv-dna h3::before {
+  content: ""; width: 14px; height: 14px; border-radius: 4px; background: var(--ai-grad);
+  box-shadow: 0 0 12px -2px var(--emerald);
+}
+.vrv-bar { display: grid; grid-template-columns: 132px 1fr 92px; gap: 12px; align-items: center; margin: 9px 0; }
+.vrv-bar .lbl { font-size: 0.82rem; color: var(--ink); }
+.vrv-bar .rail {
+  position: relative; height: 9px; border-radius: 5px;
+  background: var(--surface-2); overflow: hidden;
+}
+.vrv-bar .fill {
+  position: absolute; top: 0; bottom: 0; left: 0; border-radius: 5px;
+}
+.vrv-bar .fill.pos { background: linear-gradient(90deg, var(--emerald), var(--cyan)); box-shadow: 0 0 14px -2px var(--emerald); }
+.vrv-bar .fill.neg { background: linear-gradient(90deg, var(--gold), var(--flame)); box-shadow: 0 0 14px -2px var(--gold); }
+.vrv-bar .fill::after {
+  content: ""; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: shimmerSweep 2.4s ease-in-out infinite;
+}
+.vrv-bar .val {
+  font-family: var(--mono); font-size: 0.76rem; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.vrv-bar .val.pos { color: var(--good-text); }
+.vrv-bar .val.neg { color: var(--gold-text); }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+  body::before { animation: none !important; }
 }

@@ -11,15 +11,15 @@
  *   - Torpaq: yalnızca torpaq sahəsi (sot), metro, kupça
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type {
   RealEstatePropertyType,
   RealEstateValuationInput,
   ValuationResponse,
 } from "@pribor/contracts";
-import CompsCards from "./CompsCards";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
+import ValuationResultVisual from "./ValuationResultVisual";
 import { useAuth } from "./AuthContext";
 import { notifyListingsChanged } from "./listingEvents";
 
@@ -50,30 +50,6 @@ const COMPUTE_STEPS = [
   "Oxşar elanlar müqayisə edilir…",
   "Model qiymət aralığını hesablayır…",
 ];
-
-const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-
-function useCountUp(target: number | null, durationMs = 1300): number {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (target == null) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setValue(target);
-      return;
-    }
-    let raf = 0;
-    const t0 = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min((t - t0) / durationMs, 1);
-      const e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
-      setValue(target * e);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs]);
-  return value;
-}
 
 type Phase = "form" | "computing" | "result";
 
@@ -317,7 +293,9 @@ export default function ValuationApp() {
             <span className="hint">Doldursanız, elanın bazara görə sərfəli olub-olmadığını göstəririk.</span>
           </div>
 
-          <button className="cta" onClick={() => void submit()}>Qiyməti hesabla →</button>
+          <button className="cta cta-ai" onClick={() => void submit()}>
+            ✦ Qiyməti hesabla
+          </button>
           {error && <div className="err" role="alert">{error}</div>}
         </>
       )}
@@ -330,7 +308,7 @@ export default function ValuationApp() {
       )}
 
       {phase === "result" && result && (
-        <ResultCard
+        <ValuationResultVisual
           result={result}
           querySummary={querySummary}
           askingPrice={askingPrice ? Number(askingPrice) : null}
@@ -353,122 +331,6 @@ export default function ValuationApp() {
         onClose={() => setListingOpen(false)}
         onCreated={(l) => { setListingOpen(false); setPosted(l); notifyListingsChanged(); }}
       />
-    </div>
-  );
-}
-
-function ResultCard(props: {
-  result: ValuationResponse;
-  querySummary: string;
-  askingPrice: number | null;
-  posted: { id: string; title: string; refNo: string | null } | null;
-  onPostListing: () => void;
-  onReset: () => void;
-}) {
-  const { result, querySummary, askingPrice, posted } = props;
-  const animated = useCountUp(result.p50Azn);
-  const [reveal, setReveal] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setReveal(true), 250);
-    return () => clearTimeout(t);
-  }, []);
-
-  const span = Math.max(result.p90Azn - result.p10Azn, 1);
-  const lo = result.p10Azn - span * 0.18;
-  const hi = result.p90Azn + span * 0.18;
-  const pct = (v: number) => `${Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100))}%`;
-
-  let deal: { cls: string; text: string } | null = null;
-  if (askingPrice && askingPrice > 0) {
-    const delta = ((askingPrice - result.p50Azn) / result.p50Azn) * 100;
-    if (delta <= -3) deal = { cls: "good", text: `✓ Elan bazar dəyərindən ${Math.abs(delta).toFixed(0)}% sərfəli` };
-    else if (delta >= 3) deal = { cls: "bad", text: `⚠ Elan bazar dəyərindən ${delta.toFixed(0)}% bahadır` };
-    else deal = { cls: "neutral", text: "≈ Elan bazar qiymətinə uyğundur" };
-  }
-
-  const maxAbs = Math.max(...result.shapTop.map((s) => Math.abs(s.contributionAzn)), 1);
-
-  return (
-    <div className="result">
-      <div className="eyebrow">Qiymət analizi · nəticə</div>
-      <div className="query"><b>{querySummary}</b></div>
-
-      <div className="price-row">
-        <div className="price">{fmt(animated)}<span className="cur">₼</span></div>
-        <div className="conf">güvən {(Number(result.confidence) * 100).toFixed(0)}%</div>
-      </div>
-
-      <div className="range">
-        <div className="track">
-          <div className="band" style={reveal
-            ? { left: pct(result.p10Azn), right: `calc(100% - ${pct(result.p90Azn)})` }
-            : { left: pct(result.p50Azn), right: `calc(100% - ${pct(result.p50Azn)})` }} />
-          <div className="dot" style={{ left: pct(result.p50Azn) }} />
-        </div>
-        <div className="labels">
-          <span>{fmt(result.p10Azn)} ₼</span>
-          <span>etibarlılıq aralığı</span>
-          <span>{fmt(result.p90Azn)} ₼</span>
-        </div>
-      </div>
-
-      {deal && <div className={`deal ${deal.cls}`}>{deal.text}</div>}
-
-      {result.marketMedianPricePerM2 != null && (
-        <div className="market-anchor">
-          Bu rayonda orta bazar qiyməti: <b>{fmt(result.marketMedianPricePerM2)} ₼/m²</b>
-        </div>
-      )}
-
-      {result.shapTop.length > 0 && (
-        <div className="dna">
-          <h3>Qiymət DNT-si — nə üçün bu qiymət?</h3>
-          {result.shapTop.slice(0, 6).map((s, i) => (
-            <div className="row" key={s.feature}>
-              <span className="lbl">{s.label}</span>
-              <div className="track">
-                <div className={`fill ${s.contributionAzn >= 0 ? "pos" : "neg"}`}
-                  style={{
-                    width: reveal ? `${(Math.abs(s.contributionAzn) / maxAbs) * 100}%` : 0,
-                    transitionDelay: `${0.55 + i * 0.12}s`,
-                  }} />
-              </div>
-              <span className="val">
-                {s.contributionAzn >= 0 ? "+" : "−"}{fmt(Math.abs(s.contributionAzn))} ₼
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {result.comps.length > 0 && (
-        <CompsCards comps={result.comps} />
-      )}
-
-      {!posted ? (
-        <div className="convert">
-          <button className="primary" onClick={props.onPostListing}>
-            Elan yerləşdir →
-          </button>
-          <button className="ghost" onClick={props.onReset}>Yeni hesablama</button>
-        </div>
-      ) : (
-        <>
-          <div className="converted">
-            ✓ Elanınız dərc edildi: <b>{posted.title}</b>
-            {posted.refNo && <> · <span className="card-ref">{posted.refNo}</span></>}
-            <br /><small>“Mənim elanlarım” bölməsində görə bilərsiniz.</small>
-          </div>
-          <div className="convert">
-            <button className="ghost" onClick={props.onReset}>Yeni hesablama</button>
-          </div>
-        </>
-      )}
-
-      <div className="model-tag">
-        <span>model: {result.modelVersion}</span>
-        <span>id: {result.valuationId.slice(0, 8)}</span>
-      </div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ export default function HomePage() {
       <SiteHeader />
 
       <section className="hero">
+        <span className="hero-badge"><span className="dot" aria-hidden /> Süni intellekt · Bakı bazarı</span>
         <h1>
           Bazar dəyərini <span className="flame">10 saniyədə</span> öyrən
         </h1>
