@@ -1,7 +1,9 @@
 import { Controller, Get } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { db, sql } from "@pribor/db";
 
 @Controller("health")
+@SkipThrottle() // Yük dengeleyici probu rate limit'e takılmasın
 export class HealthController {
   @Get()
   async check() {

@@ -1,0 +1,68 @@
+# Pribor — üretim benzeri tam yığın. Tek makinede (VPS) baştan sona ayağa kaldırır.
+# Kullanım:
+#   cp .env.example .env   (prod değerlerini gir: şifreler, ADMIN_PHONES, URL'ler)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# NOT: web imajı NEXT_PUBLIC_API_URL'i BUILD zamanında gömer — .env'de
+# tarayıcıdan erişilebilir gerçek API URL'ini ayarla, sonra --build ile kur.
+services:
+  db:
+    image: timescale/timescaledb-ha:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pribor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?prod şifresi zorunlu}
+      POSTGRES_DB: ${POSTGRES_DB:-pribor}
+    volumes:
+      - db_data:/home/postgres/pgdata/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pribor} -d ${POSTGRES_DB:-pribor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ml:
+    build:
+      context: ./services/ml
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ml_artifacts:/app/artifacts
+    expose:
+      - "8100"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-pribor}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-pribor}
+      ML_SERVICE_URL: http://ml:8100
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      ADMIN_PHONES: ${ADMIN_PHONES}
+      API_PORT: "3001"
+    ports:
+      - "3001:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SUPPORT_PHONE: ${NEXT_PUBLIC_SUPPORT_PHONE}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
+  ml_artifacts:

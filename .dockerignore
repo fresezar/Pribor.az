@@ -1,0 +1,14 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+.pgdev
+**/.venv
+**/__pycache__
+**/*.pyc
+services/scraper/data
+services/ml/artifacts
+**/.env
+**/.env.local
+*.log
