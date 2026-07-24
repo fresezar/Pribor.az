@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 
 export default function AuthModal(props: {
@@ -66,6 +67,7 @@ export default function AuthModal(props: {
   };
 
   return (
+    <Portal>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label="Daxil ol"
         onMouseDown={(e) => e.stopPropagation()}>
@@ -122,5 +124,6 @@ export default function AuthModal(props: {
         )}
       </div>
     </div>
+    </Portal>
   );
 }

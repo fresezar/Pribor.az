@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 
 export default function UpgradeModal(props: {
@@ -36,6 +37,7 @@ export default function UpgradeModal(props: {
   };
 
   return (
+    <Portal>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal upgrade" role="dialog" aria-modal="true" aria-label="Paket yüksəlt"
         onMouseDown={(e) => e.stopPropagation()}>
@@ -69,5 +71,6 @@ export default function UpgradeModal(props: {
         <button className="link-btn" onClick={props.onClose}>İndi yox, sonra</button>
       </div>
     </div>
+    </Portal>
   );
 }

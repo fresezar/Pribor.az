@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CreateListingDto, ListingDetail, UpdateListingDto } from "@pribor/contracts";
+import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 import UpgradeModal from "./UpgradeModal";
 import { fileToResizedDataUri } from "./imageResize";
@@ -231,6 +232,7 @@ export default function ListingForm(props: {
   if (!props.open) return null;
 
   return (
+    <Portal>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal listing-form" role="dialog" aria-modal="true" aria-label="Elan yerləşdir"
         onMouseDown={(e) => e.stopPropagation()}>
@@ -386,5 +388,6 @@ export default function ListingForm(props: {
         onUpgraded={() => { setShowUpgrade(false); void submit(); }}
       />
     </div>
+    </Portal>
   );
 }

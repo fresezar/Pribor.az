@@ -510,12 +510,16 @@ footer.note {
 /* ---------- modal / auth ---------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 100;
-  background: rgba(4, 12, 17, 0.68); backdrop-filter: blur(3px);
-  display: grid; place-items: center; padding: 20px;
+  background: var(--overlay); backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  /* flex + overflow: uzun modal her zaman kaydırılabilir, üstü kesilmez */
+  display: flex; justify-content: center; align-items: flex-start;
+  overflow-y: auto; padding: max(24px, 4vh) 16px;
   animation: fadeUp 0.2s ease;
 }
 .modal {
   position: relative; width: 100%; max-width: 400px;
+  margin: auto; /* yer varsa dikey ortalar, yoksa yukarıdan kaydırılır */
   background: var(--bg-raise); border: 1px solid var(--line);
   border-radius: 18px; padding: 28px 26px 26px;
   box-shadow: 0 30px 70px rgba(4, 12, 17, 0.6);
@@ -1017,13 +1021,25 @@ footer.note {
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ---------- cam yüzeyler ---------- */
-.panel,
-.modal {
+/* Panel gerçek cam (arkasında sayfa var). Modal ise büyük ölçüde OPAK
+   olmalı ki form/metin okunsun — hafif cam kenar hissi kalsın diye %94. */
+.panel {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+.modal {
+  background: color-mix(in srgb, var(--bg-raise) 94%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 0 var(--glass-hi);
+}
+/* Uzun modallar kendi içinde de kaydırılabilsin (küçük ekran güvencesi) */
+.modal.listing-form, .modal.my-listings, .modal.listing-detail {
+  max-height: calc(100dvh - 8vh);
 }
 .glass {
   background: var(--glass-bg);

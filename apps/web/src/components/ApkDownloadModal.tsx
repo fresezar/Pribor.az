@@ -2,6 +2,8 @@
 
 /** APK indirme onay modalı — dosya doğrudan inmez, önce kullanıcı onaylar. */
 
+import Portal from "./Portal";
+
 export default function ApkDownloadModal(props: {
   open: boolean;
   onClose: () => void;
@@ -19,6 +21,7 @@ export default function ApkDownloadModal(props: {
   };
 
   return (
+    <Portal>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal apk-modal" role="dialog" aria-modal="true"
         aria-label="Tətbiqi endir" onMouseDown={(e) => e.stopPropagation()}>
@@ -37,5 +40,6 @@ export default function ApkDownloadModal(props: {
         <button className="link-btn" onClick={props.onClose}>İmtina</button>
       </div>
     </div>
+    </Portal>
   );
 }

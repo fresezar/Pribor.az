@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { UserListing } from "@pribor/contracts";
 import ListingDetailModal from "./ListingDetailModal";
+import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -37,6 +38,7 @@ export default function MyListings(props: { open: boolean; onClose: () => void }
 
   return (
     <>
+      <Portal>
       <div className="modal-overlay" onMouseDown={props.onClose}>
         <div className="modal my-listings" role="dialog" aria-modal="true"
           aria-label="Mənim elanlarım" onMouseDown={(e) => e.stopPropagation()}>
@@ -87,6 +89,7 @@ export default function MyListings(props: { open: boolean; onClose: () => void }
           )}
         </div>
       </div>
+      </Portal>
 
       <ListingDetailModal
         listingId={detailId}

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ListingDetail } from "@pribor/contracts";
 import ListingForm from "./ListingForm";
+import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -128,6 +129,7 @@ export default function ListingDetailModal(props: {
 
   return (
     <>
+    <Portal>
     <div className="modal-overlay" onMouseDown={props.onClose}>
       <div className="modal listing-detail" role="dialog" aria-modal="true"
         aria-label="Elan detalları" onMouseDown={(e) => e.stopPropagation()}>
@@ -256,6 +258,7 @@ export default function ListingDetailModal(props: {
         )}
       </div>
     </div>
+    </Portal>
 
     {data && (
       <ListingForm
