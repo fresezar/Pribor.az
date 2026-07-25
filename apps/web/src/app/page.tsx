@@ -1,6 +1,7 @@
 import SiteHeader from "@/components/SiteHeader";
 import ValuationApp from "@/components/ValuationApp";
 import MarketView from "@/components/MarketView";
+import BrandLogo from "@/components/BrandLogo";
 import { SupportFab, SupportLine } from "@/components/SupportCorner";
 
 export default function HomePage() {
@@ -25,9 +26,10 @@ export default function HomePage() {
       <MarketView />
 
       <footer className="note">
+        <div className="footer-brand"><BrandLogo size={26} /></div>
         <SupportLine />
         Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil ·
-        Pribor MVP · Bakı, 2026
+        Bakı, 2026
       </footer>
 
       <SupportFab />

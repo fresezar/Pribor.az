@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import BrandLogo from "./BrandLogo";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 
@@ -72,7 +73,7 @@ export default function AuthModal(props: {
       <div className="modal" role="dialog" aria-modal="true" aria-label="Daxil ol"
         onMouseDown={(e) => e.stopPropagation()}>
         <button className="modal-x" onClick={props.onClose} aria-label="Bağla">✕</button>
-        <div className="modal-brand">PRIBOR<b>.AZ</b></div>
+        <div className="modal-brand"><BrandLogo size={34} /></div>
 
         {step === "phone" ? (
           <>

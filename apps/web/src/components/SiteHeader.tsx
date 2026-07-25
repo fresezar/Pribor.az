@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import AuthModal from "./AuthModal";
+import BrandLogo from "./BrandLogo";
 import ListingForm from "./ListingForm";
 import MyListings from "./MyListings";
 import ThemeToggle from "./ThemeToggle";
@@ -56,7 +57,9 @@ export default function SiteHeader() {
 
   return (
     <header className="topbar">
-      <a href="/" className="brand" style={{ textDecoration: "none" }}>PRIBOR<b>.AZ</b></a>
+      <a href="/" className="brand" style={{ textDecoration: "none" }} aria-label="Pribor.az ana səhifə">
+        <BrandLogo size={30} />
+      </a>
 
       <div className="topbar-right">
         <a className="nav-link" href="#bazar">Bazar</a>
