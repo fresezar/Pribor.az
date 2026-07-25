@@ -13,14 +13,16 @@
 
 import { useCallback, useRef, useState } from "react";
 import type {
-  RealEstatePropertyType,
+  ReCategory,
   RealEstateValuationInput,
   ValuationResponse,
 } from "@pribor/contracts";
+import { categoryToType } from "@pribor/contracts";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
 import ValuationResultVisual from "./ValuationResultVisual";
 import { useAuth } from "./AuthContext";
+import { CATEGORIES, CATEGORY_BY_KEY } from "./categories";
 import { notifyListingsChanged } from "./listingEvents";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -39,12 +41,6 @@ const METRO_OPTIONS = [
 ] as const;
 const METRO_DEFAULT = 3000;
 
-const PROPERTY_TABS: { key: RealEstatePropertyType; label: string; icon: string }[] = [
-  { key: "apartment", label: "Mənzil", icon: "🏢" },
-  { key: "house", label: "Həyət evi", icon: "🏡" },
-  { key: "land", label: "Torpaq", icon: "🌳" },
-];
-
 const COMPUTE_STEPS = [
   "Bazar məlumatları yüklənir…",
   "Oxşar elanlar müqayisə edilir…",
@@ -55,7 +51,7 @@ type Phase = "form" | "computing" | "result";
 
 export default function ValuationApp() {
   const { user } = useAuth();
-  const [propertyType, setPropertyType] = useState<RealEstatePropertyType>("apartment");
+  const [category, setCategory] = useState<ReCategory>("yeni_tikili");
   const [phase, setPhase] = useState<Phase>("form");
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +71,6 @@ export default function ValuationApp() {
   const [areaM2, setAreaM2] = useState(65);
   const [landAreaSot, setLandAreaSot] = useState(4);
   const [rooms, setRooms] = useState(2);
-  const [buildingType, setBuildingType] = useState("yeni_tikili");
   const [repairState, setRepairState] = useState(4);
   const [metroDistM, setMetroDistM] = useState<number>(METRO_DEFAULT);
   const [titleDeed, setTitleDeed] = useState(true);
@@ -83,9 +78,7 @@ export default function ValuationApp() {
 
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const isLand = propertyType === "land";
-  const isHouse = propertyType === "house";
-  const isApartment = propertyType === "apartment";
+  const cfg = CATEGORY_BY_KEY[category];
 
   const submit = useCallback(async () => {
     setError(null);
@@ -97,8 +90,9 @@ export default function ValuationApp() {
       420,
     );
 
+    const { propertyType, buildingType } = categoryToType(category);
     // Torpaq: ana sahə m² = sot × 100 (model m² üzerinden çalışır)
-    const effectiveArea = isLand ? landAreaSot * 100 : areaM2;
+    const effectiveArea = cfg.areaM2 ? areaM2 : cfg.landSot ? landAreaSot * 100 : areaM2;
     const input: RealEstateValuationInput = {
       vertical: "real_estate",
       propertyType,
@@ -106,22 +100,19 @@ export default function ValuationApp() {
       areaM2: effectiveArea,
       metroDistM,
       titleDeed,
-      ...(isApartment && {
-        rooms,
-        buildingType: buildingType as RealEstateValuationInput["buildingType"],
-        repairState,
-      }),
-      ...(isHouse && { rooms, repairState, landAreaSot }),
-      ...(isLand && { landAreaSot }),
+      ...(cfg.rooms && { rooms }),
+      ...(buildingType && { buildingType }),
+      ...(cfg.repair && { repairState }),
+      ...(cfg.landSot && { landAreaSot }),
     };
 
-    const typeLabel = PROPERTY_TABS.find((t) => t.key === propertyType)!.label;
+    const label = cfg.label;
     setQuerySummary(
-      isLand
-        ? `${typeLabel} · ${landAreaSot} sot · ${district}`
-        : isHouse
-          ? `${typeLabel} · ${areaM2} m² tikili · ${landAreaSot} sot · ${district}`
-          : `${rooms} otaqlı ${typeLabel.toLowerCase()} · ${areaM2} m² · ${district} · ${REPAIR_LABELS[repairState]} təmir`,
+      cfg.landSot && !cfg.areaM2
+        ? `${label} · ${landAreaSot} sot · ${district}`
+        : cfg.rooms
+          ? `${rooms} otaqlı ${label.toLowerCase()} · ${areaM2} m² · ${district} · ${REPAIR_LABELS[repairState]} təmir`
+          : `${label} · ${areaM2} m² · ${district}`,
     );
 
     const started = performance.now();
@@ -146,27 +137,26 @@ export default function ValuationApp() {
     } finally {
       if (stepTimer.current) clearInterval(stepTimer.current);
     }
-  }, [propertyType, isLand, isHouse, isApartment, district, areaM2, landAreaSot,
-      rooms, buildingType, repairState, metroDistM, titleDeed]);
+  }, [category, cfg, district, areaM2, landAreaSot, rooms, repairState, metroDistM, titleDeed]);
 
   /** Değerleme sonuç alanlarından ilan formu ön-dolgusunu üretir. */
   const buildPrefill = useCallback((): ListingPrefill | null => {
     if (!result) return null;
+    const { propertyType, buildingType } = categoryToType(category);
     return {
       valuationId: result.valuationId,
       propertyType,
       district,
-      areaM2: isLand ? landAreaSot * 100 : areaM2,
-      landAreaSot: isLand || isHouse ? landAreaSot : undefined,
-      rooms: isLand ? undefined : rooms,
-      buildingType: isApartment ? buildingType : undefined,
-      repairState: isLand ? undefined : repairState,
+      areaM2: cfg.areaM2 ? areaM2 : cfg.landSot ? landAreaSot * 100 : areaM2,
+      landAreaSot: cfg.landSot ? landAreaSot : undefined,
+      rooms: cfg.rooms ? rooms : undefined,
+      buildingType,
+      repairState: cfg.repair ? repairState : undefined,
       titleDeed,
       metroDistM,
       priceAzn: result.p50Azn,
     };
-  }, [result, propertyType, district, isLand, isHouse, isApartment, areaM2,
-      landAreaSot, rooms, buildingType, repairState, titleDeed, metroDistM]);
+  }, [result, category, cfg, district, areaM2, landAreaSot, rooms, repairState, titleDeed, metroDistM]);
 
   /** "Elan yerləşdir" — giriş yoksa AuthModal, sonra ön-dolu ilan formu. */
   const postListing = useCallback(() => {
@@ -182,17 +172,16 @@ export default function ValuationApp() {
     <div className="panel" id="qiymetlendir">
       {phase === "form" && (
         <>
-          <div className="tabs" role="tablist" aria-label="Əmlak növü">
-            {PROPERTY_TABS.map((t) => (
-              <button key={t.key} role="tab" aria-selected={propertyType === t.key}
-                className={propertyType === t.key ? "active" : ""}
-                onClick={() => setPropertyType(t.key)}>
-                {t.icon} {t.label}
-              </button>
-            ))}
-          </div>
-
           <div className="grid">
+            <div className="field">
+              <label htmlFor="v-cat">Əmlak növü</label>
+              <select id="v-cat" value={category}
+                onChange={(e) => setCategory(e.target.value as ReCategory)}>
+                {CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="field">
               <label htmlFor="district">Rayon</label>
               <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)}>
@@ -200,33 +189,23 @@ export default function ValuationApp() {
               </select>
             </div>
 
-            {/* Sahə alanı tipe göre değişir */}
-            {isLand ? (
+            {cfg.areaM2 && (
+              <div className="field">
+                <label htmlFor="area">{cfg.areaLabel}</label>
+                <input id="area" type="number" min={5} max={5000} value={areaM2}
+                  onChange={(e) => setAreaM2(Number(e.target.value))} />
+              </div>
+            )}
+            {cfg.landSot && (
               <div className="field">
                 <label htmlFor="landsot">Torpaq sahəsi (sot)</label>
                 <input id="landsot" type="number" min={1} max={1000} step={0.5}
                   value={landAreaSot} onChange={(e) => setLandAreaSot(Number(e.target.value))} />
                 <span className="hint">1 sot = 100 m²</span>
               </div>
-            ) : (
-              <div className="field">
-                <label htmlFor="area">{isHouse ? "Tikili sahəsi (m²)" : "Sahə (m²)"}</label>
-                <input id="area" type="number" min={20} max={2000} value={areaM2}
-                  onChange={(e) => setAreaM2(Number(e.target.value))} />
-              </div>
             )}
 
-            {/* Həyət evi: ayrıca torpaq sahəsi */}
-            {isHouse && (
-              <div className="field">
-                <label htmlFor="hlandsot">Torpaq sahəsi (sot)</label>
-                <input id="hlandsot" type="number" min={1} max={200} step={0.5}
-                  value={landAreaSot} onChange={(e) => setLandAreaSot(Number(e.target.value))} />
-              </div>
-            )}
-
-            {/* Otaq — yalnızca mənzil ve həyət evi */}
-            {!isLand && (
+            {cfg.rooms && (
               <div className="field full">
                 <label>Otaq sayı</label>
                 <div className="seg">
@@ -238,31 +217,19 @@ export default function ValuationApp() {
               </div>
             )}
 
-            {/* Bina tipi — yalnızca mənzil */}
-            {isApartment && (
+            {cfg.metro && (
               <div className="field">
-                <label htmlFor="btype">Bina tipi</label>
-                <select id="btype" value={buildingType} onChange={(e) => setBuildingType(e.target.value)}>
-                  <option value="yeni_tikili">Yeni tikili</option>
-                  <option value="kohne_tikili">Köhnə tikili</option>
-                  <option value="stalinka">Stalinka</option>
+                <label htmlFor="metro">Metroya məsafə</label>
+                <select id="metro" value={String(metroDistM)}
+                  onChange={(e) => setMetroDistM(Number(e.target.value))}>
+                  {METRO_OPTIONS.map((o) => (
+                    <option key={o.label} value={String(o.value)}>{o.label}</option>
+                  ))}
                 </select>
               </div>
             )}
 
-            {/* Metro — tüm tipler */}
-            <div className="field">
-              <label htmlFor="metro">Metroya məsafə</label>
-              <select id="metro" value={String(metroDistM)}
-                onChange={(e) => setMetroDistM(Number(e.target.value))}>
-                {METRO_OPTIONS.map((o) => (
-                  <option key={o.label} value={String(o.value)}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Təmir — mənzil ve həyət evi */}
-            {!isLand && (
+            {cfg.repair && (
               <div className="field full">
                 <label>Təmir vəziyyəti</label>
                 <div className="seg">

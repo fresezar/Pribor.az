@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ListingCard, ListingDetail, ListingSort } from "@pribor/contracts";
+import { categoryLabel, DEAL_TYPE_LABEL } from "@pribor/contracts";
 import AuthModal from "./AuthModal";
 import ListingDetailModal from "./ListingDetailModal";
 import { useAuth } from "./AuthContext";
@@ -34,12 +35,19 @@ const DISTRICTS = [
 const TYPES: { value: string; label: string }[] = [
   { value: "", label: "Bütün növlər" },
   { value: "apartment", label: "Mənzil" },
-  { value: "house", label: "Həyət evi" },
+  { value: "house", label: "Həyət evi/Bağ evi" },
+  { value: "office", label: "Ofis" },
+  { value: "garage", label: "Qaraj" },
   { value: "land", label: "Torpaq" },
+  { value: "commercial", label: "Obyekt" },
 ];
-const TYPE_ICON: Record<string, string> = { apartment: "🏢", house: "🏡", land: "🌳" };
-const TYPE_LABEL: Record<string, string> = {
-  apartment: "Mənzil", house: "Həyət evi", land: "Torpaq",
+const DEAL_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "Alqı-satqı və kirayə" },
+  { value: "sale", label: "Satılır" },
+  { value: "rent", label: "Kirayə" },
+];
+const TYPE_ICON: Record<string, string> = {
+  apartment: "🏢", house: "🏡", office: "🏛️", garage: "🅿️", land: "🌳", commercial: "🏭",
 };
 const REPAIR_LABELS = ["Qara tikili", "Təmirsiz", "Köhnə", "Orta", "Yaxşı", "Əla"];
 
@@ -48,6 +56,7 @@ export default function MarketView() {
   const [sort, setSort] = useState<ListingSort>("newest");
   const [district, setDistrict] = useState("");
   const [propertyType, setPropertyType] = useState("");
+  const [dealType, setDealType] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [items, setItems] = useState<ListingCard[]>([]);
   const [total, setTotal] = useState(0);
@@ -71,6 +80,7 @@ export default function MarketView() {
     });
     if (district) params.set("district", district);
     if (propertyType) params.set("propertyType", propertyType);
+    if (dealType) params.set("dealType", dealType);
     try {
       const res = await fetch(`${API}/v1/listings?${params.toString()}`);
       if (!res.ok) throw new Error();
@@ -83,7 +93,7 @@ export default function MarketView() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [sort, district, propertyType]);
+  }, [sort, district, propertyType, dealType]);
 
   useEffect(() => { void load(0); }, [load]);
 
@@ -161,15 +171,18 @@ export default function MarketView() {
       {searchMsg && <div className="search-msg">{searchMsg}</div>}
 
       <div className="market-filters">
-        <select value={sort} onChange={(e) => setSort(e.target.value as ListingSort)}>
-          {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        <select value={dealType} onChange={(e) => setDealType(e.target.value)}>
+          {DEAL_FILTERS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+        </select>
+        <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
+          {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
         <select value={district} onChange={(e) => setDistrict(e.target.value)}>
           <option value="">Bütün rayonlar</option>
           {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
-        <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)}>
-          {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        <select value={sort} onChange={(e) => setSort(e.target.value as ListingSort)}>
+          {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
 
@@ -230,6 +243,8 @@ function ListingCardView({
   ].filter(Boolean) as string[];
 
   const type = it.propertyType ?? "apartment";
+  const catLabel = categoryLabel(it.propertyType, it.buildingType);
+  const isRent = it.dealType === "rent";
 
   return (
     <article className={`listing ${view} type-${type} ${it.status === "sold" ? "is-sold" : ""}`}
@@ -239,12 +254,13 @@ function ListingCardView({
         {it.coverPhoto
           ? <img src={it.coverPhoto} alt={it.title} />
           : <span aria-hidden>{TYPE_ICON[type] ?? "🏢"}</span>}
-        <span className="thumb-type">{TYPE_LABEL[type] ?? "Əmlak"}</span>
+        <span className="thumb-type">{catLabel}</span>
+        <span className={`thumb-deal ${isRent ? "rent" : "sale"}`}>{DEAL_TYPE_LABEL[it.dealType]}</span>
         {it.status === "sold" && <span className="thumb-sold">SATILDI</span>}
       </div>
       <div className="listing-body">
         <div className="listing-top">
-          <div className="listing-price">{fmt(it.priceAzn)} ₼</div>
+          <div className="listing-price">{fmt(it.priceAzn)} ₼{isRent ? <small>/ay</small> : null}</div>
           {deal && <span className={`listing-deal ${deal.cls}`}>{deal.text}</span>}
         </div>
         {it.pricePerM2 != null && (

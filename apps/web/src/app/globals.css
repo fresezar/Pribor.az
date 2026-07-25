@@ -872,6 +872,28 @@ footer.note {
   padding: 3px 8px; border-radius: 999px;
   background: var(--type, var(--teal)); color: #fff;
 }
+/* ilan növü rozeti (Satılır / Kirayə) */
+.thumb-deal {
+  position: absolute; left: 6px; bottom: 6px;
+  font-size: 0.56rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px;
+}
+.thumb-deal.sale { background: color-mix(in srgb, var(--emerald) 88%, #000); color: #fff; }
+.thumb-deal.rent { background: color-mix(in srgb, var(--gold) 90%, #000); color: #1a1204; }
+.deal-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+}
+.deal-badge.sale { background: var(--good-soft); color: var(--good-text); border: 1px solid var(--good-line); }
+.deal-badge.rent { background: var(--gold-soft); color: var(--gold-text); border: 1px solid var(--gold-line); }
+.deal-badge.sm { font-size: 0.58rem; padding: 2px 8px; }
+
+/* satılır / kirayə segment (ilan formu) */
+.deal-seg button.on {
+  background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold-text);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+.listing-price small, .ld-price small { color: var(--muted); font-size: 0.5em; font-weight: 600; }
+
 .thumb-sold, .sold-badge {
   position: absolute; right: 6px; top: 6px;
   font-family: var(--mono); font-size: 0.56rem; font-weight: 700;

@@ -35,6 +35,9 @@ export const listingStatus = pgEnum("listing_status", [
 
 export const listingSource = pgEnum("listing_source", ["user", "scraped"]);
 
+/** İlan növü — satış (Satılır) / kirayə (Kirayə). */
+export const dealType = pgEnum("deal_type", ["sale", "rent"]);
+
 export const propertyType = pgEnum("property_type", [
   "apartment",
   "house",

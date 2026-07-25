@@ -3,18 +3,25 @@
 /**
  * İlan verme formu — "Elan yerləşdir" akışı.
  *
- * Değerlemeden gelen tüm alanlar ön-doldurulur ve TAMAMI düzenlenebilir:
- * kullanıcı rayon/sahə/otaq/təmir gibi değerleri formda değiştirebilir.
- * Fiyat serbesttir (varsayılan P50), əlaqə nömrəsi profilden gelir ama
- * ilana özel değiştirilebilir. En fazla 5 foto + örtük şəkli seçimi.
- * Limit aşımında (402) UpgradeModal açılır.
+ * Kategori-tabanlı: 7 emlak kategorisi (Yeni tikili … Obyekt) + ilan növü
+ * (Satılır / Kirayə). Görünen alanlar kategoriye göre dinamikleşir
+ * (categories.ts config). Kategori submit'te propertyType + buildingType'a
+ * eşlenir (categoryToType). Değerleme/düzenleme verisi ön-doldurulur.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CreateListingDto, ListingDetail, UpdateListingDto } from "@pribor/contracts";
+import type {
+  CreateListingDto,
+  DealType,
+  ListingDetail,
+  ReCategory,
+  UpdateListingDto,
+} from "@pribor/contracts";
+import { categoryToType, DEAL_TYPE_LABEL, typeToCategory } from "@pribor/contracts";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 import UpgradeModal from "./UpgradeModal";
+import { CATEGORIES, CATEGORY_BY_KEY } from "./categories";
 import { fileToResizedDataUri } from "./imageResize";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -26,15 +33,11 @@ const DISTRICTS = [
   "Binəqədi", "Sabunçu", "Suraxanı", "Xəzər", "Qaradağ", "Abşeron",
 ];
 const REPAIR_LABELS = ["Qara tikili", "Təmirsiz", "Köhnə", "Orta", "Yaxşı", "Əla"];
-const TYPES = [
-  { value: "apartment", label: "Mənzil" },
-  { value: "house", label: "Həyət evi" },
-  { value: "land", label: "Torpaq" },
-] as const;
 
 export type ListingPrefill = {
   valuationId?: string;
-  propertyType: "apartment" | "house" | "land";
+  /** Tam emlak tipi (7 kategoriyi kapsar); kategori typeToCategory ile türetilir. */
+  propertyType: string;
   district: string;
   areaM2?: number;
   landAreaSot?: number;
@@ -49,7 +52,6 @@ export type ListingPrefill = {
 export default function ListingForm(props: {
   open: boolean;
   prefill: ListingPrefill | null;
-  /** Doluysa form DÜZENLEME modundadır: alanlar bu ilandan gelir, submit PATCH atar. */
   editing?: ListingDetail | null;
   onClose: () => void;
   onCreated: (listing: { id: string; title: string; refNo: string | null }) => void;
@@ -57,16 +59,14 @@ export default function ListingForm(props: {
   const { user } = useAuth();
   const { prefill, editing } = props;
   const isEdit = editing != null;
-  // Manuel mod: değerleme olmadan doğrudan boş formdan ilan verme
   const isManual = !isEdit && prefill == null;
 
-  // Düzenlenebilir form durumu — prefill yalnızca başlangıç değeridir
-  const [propertyType, setPropertyType] = useState<"apartment" | "house" | "land">("apartment");
+  const [category, setCategory] = useState<ReCategory>("yeni_tikili");
+  const [dealType, setDealType] = useState<DealType>("sale");
   const [district, setDistrict] = useState(DISTRICTS[0]!);
   const [areaM2, setAreaM2] = useState<number>(0);
   const [landAreaSot, setLandAreaSot] = useState<number>(0);
   const [rooms, setRooms] = useState<number>(2);
-  const [buildingType, setBuildingType] = useState("yeni_tikili");
   const [repairState, setRepairState] = useState(3);
   const [titleDeed, setTitleDeed] = useState(true);
   const [price, setPrice] = useState<number>(0);
@@ -74,7 +74,6 @@ export default function ListingForm(props: {
   const [photos, setPhotos] = useState<string[]>([]);
   const [coverIdx, setCoverIdx] = useState(0);
 
-  // İletişim (ilanda görünür). Doğrulama girişte yapıldığı için formda yok.
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
 
@@ -83,67 +82,48 @@ export default function ListingForm(props: {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const isLand = propertyType === "land";
-  const isHouse = propertyType === "house";
-  const isApartment = propertyType === "apartment";
+  const cfg = CATEGORY_BY_KEY[category];
   const digits = (s: string) => s.replace(/\D/g, "");
 
-  // Form her açılışta kaynağıyla tazelenir: edit → mevcut ilan, create → değerleme
   useEffect(() => {
     if (!props.open) return;
-    // İletişim ortak sıfırlaması
     setContactName(editing?.contactName ?? user?.name ?? "");
     setContactPhone(editing?.contactPhone ?? user?.phone ?? "");
     if (editing) {
-      setPropertyType((editing.propertyType as typeof propertyType) ?? "apartment");
+      setCategory(typeToCategory(editing.propertyType, editing.buildingType));
+      setDealType(editing.dealType);
       setDistrict(editing.district ?? DISTRICTS[0]!);
       setAreaM2(editing.areaM2 ?? 0);
       setLandAreaSot(editing.landAreaSot ?? 0);
       setRooms(editing.rooms ?? 2);
-      setBuildingType(editing.buildingType ?? "yeni_tikili");
       setRepairState(editing.repairState ?? 3);
       setTitleDeed(editing.titleDeed ?? true);
       setPrice(editing.priceAzn);
       setDescription(editing.description ?? "");
       setPhotos(editing.photos);
       setCoverIdx(editing.coverPhotoIdx ?? 0);
-      setContactPhone(editing.contactPhone ?? user?.phone ?? "");
       setError(null);
       return;
     }
+    setDealType("sale");
+    setError(null);
     if (!prefill) {
-      // Manuel (doğrudan) ilan — boş formdan makul varsayılanlar
-      setPropertyType("apartment");
+      setCategory("yeni_tikili");
       setDistrict(DISTRICTS[0]!);
-      setAreaM2(0);
-      setLandAreaSot(0);
-      setRooms(2);
-      setBuildingType("yeni_tikili");
-      setRepairState(3);
-      setTitleDeed(true);
-      setPrice(0);
-      setDescription("");
-      setPhotos([]);
-      setCoverIdx(0);
-      setError(null);
-      setContactPhone(user?.phone ?? "");
+      setAreaM2(0); setLandAreaSot(0); setRooms(2); setRepairState(3);
+      setTitleDeed(true); setPrice(0); setDescription(""); setPhotos([]); setCoverIdx(0);
       return;
     }
-    setPropertyType(prefill.propertyType);
+    setCategory(typeToCategory(prefill.propertyType, prefill.buildingType));
     setDistrict(prefill.district);
     setAreaM2(prefill.areaM2 ?? 0);
     setLandAreaSot(prefill.landAreaSot ?? 0);
     setRooms(prefill.rooms ?? 2);
-    setBuildingType(prefill.buildingType ?? "yeni_tikili");
     setRepairState(prefill.repairState ?? 3);
     setTitleDeed(prefill.titleDeed ?? true);
     setPrice(prefill.priceAzn);
-    setDescription("");
-    setPhotos([]);
-    setCoverIdx(0);
-    setError(null);
-    setContactPhone(user?.phone ?? "");
-  }, [props.open, prefill, editing, user?.phone]);
+    setDescription(""); setPhotos([]); setCoverIdx(0);
+  }, [props.open, prefill, editing, user?.phone, user?.name]);
 
   const addPhotos = useCallback(async (files: FileList | null) => {
     if (!files) return;
@@ -163,15 +143,14 @@ export default function ListingForm(props: {
 
   const removePhoto = useCallback((i: number) => {
     setPhotos((prev) => prev.filter((_, j) => j !== i));
-    // Kapak silinen fotoğrafın gerisine kaymasın
     setCoverIdx((c) => (i === c ? 0 : i < c ? c - 1 : c));
   }, []);
 
   const submit = useCallback(async () => {
     if (!user) return;
     if (!price || price <= 0) return setError("Qiymət daxil edin");
-    if (!isLand && (!areaM2 || areaM2 <= 0)) return setError("Sahə daxil edin");
-    if ((isLand || isHouse) && (!landAreaSot || landAreaSot <= 0)) {
+    if (cfg.areaM2 && (!areaM2 || areaM2 <= 0)) return setError("Sahə daxil edin");
+    if (cfg.landSot && (!landAreaSot || landAreaSot <= 0)) {
       return setError("Torpaq sahəsini daxil edin (sot)");
     }
     if (!isEdit) {
@@ -181,17 +160,20 @@ export default function ListingForm(props: {
     setBusy(true);
     setError(null);
 
+    const { propertyType, buildingType } = categoryToType(category);
+    // Torpaqda ana sahə (m²) = sot × 100 (model m² üzerinden çalışır)
+    const effArea = cfg.areaM2 ? areaM2 : cfg.landSot ? landAreaSot * 100 : undefined;
+
     const fields = {
       userId: user.id,
       propertyType,
+      dealType,
+      buildingType: buildingType as CreateListingDto["buildingType"],
       district: district as CreateListingDto["district"],
-      areaM2: isLand ? landAreaSot * 100 : areaM2,
-      landAreaSot: isLand || isHouse ? landAreaSot : undefined,
-      rooms: isLand ? undefined : rooms,
-      buildingType: isApartment
-        ? (buildingType as CreateListingDto["buildingType"])
-        : undefined,
-      repairState: isLand ? undefined : repairState,
+      areaM2: effArea,
+      landAreaSot: cfg.landSot ? landAreaSot : undefined,
+      rooms: cfg.rooms ? rooms : undefined,
+      repairState: cfg.repair ? repairState : undefined,
       titleDeed,
       priceAzn: price,
       description: description.trim() || undefined,
@@ -211,11 +193,7 @@ export default function ListingForm(props: {
           body: JSON.stringify(dto),
         });
       } else {
-        const dto: CreateListingDto = {
-          ...fields,
-          valuationId: prefill?.valuationId,
-          metroDistM: prefill?.metroDistM,
-        };
+        const dto: CreateListingDto = { ...fields, valuationId: prefill?.valuationId, metroDistM: prefill?.metroDistM };
         res = await fetch(`${API}/v1/listings`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -225,15 +203,8 @@ export default function ListingForm(props: {
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         const code = body?.code as string | undefined;
-        if (code === "WEEKLY_LIMIT_EXCEEDED") {
-          // Haftalık hesap limiti doldu — sınırsız için destek/whitelist
-          setError(body?.message ?? "Həftəlik limit doldu");
-          return;
-        }
-        if (code === "LISTING_LIMIT_EXCEEDED") {
-          setShowUpgrade(true);
-          return;
-        }
+        if (code === "WEEKLY_LIMIT_EXCEEDED") { setError(body?.message ?? "Həftəlik limit doldu"); return; }
+        if (code === "LISTING_LIMIT_EXCEEDED") { setShowUpgrade(true); return; }
         throw new Error(body?.message ?? `Server xətası (${res.status})`);
       }
       props.onCreated(await res.json());
@@ -242,9 +213,9 @@ export default function ListingForm(props: {
     } finally {
       setBusy(false);
     }
-  }, [user, prefill, editing, isEdit, propertyType, district, areaM2, landAreaSot,
-      rooms, buildingType, repairState, titleDeed, price, description, contactName,
-      contactPhone, photos, coverIdx, isLand, isHouse, isApartment, props]);
+  }, [user, prefill, editing, isEdit, category, cfg, dealType, district, areaM2,
+      landAreaSot, rooms, repairState, titleDeed, price, description, contactName,
+      contactPhone, photos, coverIdx, props]);
 
   if (!props.open) return null;
 
@@ -263,12 +234,25 @@ export default function ListingForm(props: {
               : "Dəyərləndirmə məlumatları dolduruldu — hamısını dəyişə bilərsiniz."}
         </p>
 
-        <div className="grid">
+        {/* İlan növü: Satılır / Kirayə */}
+        <div className="field">
+          <label>İlan növü</label>
+          <div className="seg deal-seg">
+            {(["sale", "rent"] as DealType[]).map((d) => (
+              <button type="button" key={d} className={dealType === d ? "on" : ""}
+                onClick={() => setDealType(d)}>{DEAL_TYPE_LABEL[d]}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid" style={{ marginTop: 14 }}>
           <div className="field">
-            <label htmlFor="lf-type">Əmlak növü</label>
-            <select id="lf-type" value={propertyType}
-              onChange={(e) => setPropertyType(e.target.value as typeof propertyType)}>
-              {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <label htmlFor="lf-cat">Əmlak növü</label>
+            <select id="lf-cat" value={category}
+              onChange={(e) => setCategory(e.target.value as ReCategory)}>
+              {CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+              ))}
             </select>
           </div>
           <div className="field">
@@ -278,33 +262,23 @@ export default function ListingForm(props: {
             </select>
           </div>
 
-          {!isLand && (
+          {cfg.areaM2 && (
             <div className="field">
-              <label htmlFor="lf-area">{isHouse ? "Tikili sahəsi (m²)" : "Sahə (m²)"}</label>
+              <label htmlFor="lf-area">{cfg.areaLabel}</label>
               <input id="lf-area" type="number" min={1} value={areaM2 || ""}
                 onChange={(e) => setAreaM2(Number(e.target.value))} />
             </div>
           )}
-          {(isLand || isHouse) && (
+          {cfg.landSot && (
             <div className="field">
               <label htmlFor="lf-land">Torpaq sahəsi (sot)</label>
               <input id="lf-land" type="number" min={0.1} step={0.1} value={landAreaSot || ""}
                 onChange={(e) => setLandAreaSot(Number(e.target.value))} />
-            </div>
-          )}
-          {isApartment && (
-            <div className="field">
-              <label htmlFor="lf-btype">Bina tipi</label>
-              <select id="lf-btype" value={buildingType}
-                onChange={(e) => setBuildingType(e.target.value)}>
-                <option value="yeni_tikili">Yeni tikili</option>
-                <option value="kohne_tikili">Köhnə tikili</option>
-                <option value="stalinka">Stalinka</option>
-              </select>
+              <span className="hint">1 sot = 100 m²</span>
             </div>
           )}
 
-          {!isLand && (
+          {cfg.rooms && (
             <div className="field full">
               <label>Otaq sayı</label>
               <div className="seg">
@@ -315,7 +289,7 @@ export default function ListingForm(props: {
               </div>
             </div>
           )}
-          {!isLand && (
+          {cfg.repair && (
             <div className="field full">
               <label>Təmir vəziyyəti</label>
               <div className="seg">
@@ -339,7 +313,7 @@ export default function ListingForm(props: {
         </div>
 
         <div className="field" style={{ marginTop: 16 }}>
-          <label htmlFor="lf-price">Qiymət (₼)</label>
+          <label htmlFor="lf-price">Qiymət (₼){dealType === "rent" ? " / ay" : ""}</label>
           <input id="lf-price" type="number" min={1} value={price || ""}
             onChange={(e) => setPrice(Number(e.target.value))} />
           {isEdit && editing && price !== editing.priceAzn && price > 0 && (
@@ -354,7 +328,6 @@ export default function ListingForm(props: {
           )}
         </div>
 
-        {/* İletişim — ilanda GÖRÜNEN bilgiler */}
         <div className="grid" style={{ marginTop: 14 }}>
           <div className="field">
             <label htmlFor="lf-cname">Əlaqə adı</label>

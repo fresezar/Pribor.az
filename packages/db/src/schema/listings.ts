@@ -17,6 +17,7 @@ import {
 import { sql } from "drizzle-orm";
 import {
   buildingType,
+  dealType,
   fuelType,
   listingSource,
   listingStatus,
@@ -46,6 +47,8 @@ export const listings = pgTable(
     vertical: vertical("vertical").notNull(),
     status: listingStatus("status").notNull().default("draft"),
     source: listingSource("source").notNull().default("user"),
+    /** İlan növü — satış / kirayə. */
+    dealType: dealType("deal_type").notNull().default("sale"),
     /** Scraped ilanlarda null olabilir; kullanıcı ilanında zorunluluk uygulama katmanında. */
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     organizationId: uuid("organization_id").references(() => organizations.id, {

@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { UserListing } from "@pribor/contracts";
+import { categoryLabel, DEAL_TYPE_LABEL } from "@pribor/contracts";
 import ListingDetailModal from "./ListingDetailModal";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
@@ -14,7 +15,9 @@ const STATUS_LABEL: Record<string, string> = {
   active: "Aktiv", draft: "Qaralama", pending_review: "Yoxlanılır",
   sold: "Satıldı", expired: "Vaxtı bitib", removed: "Silinib",
 };
-const TYPE_ICON: Record<string, string> = { apartment: "🏢", house: "🏡", land: "🌳" };
+const TYPE_ICON: Record<string, string> = {
+  apartment: "🏢", house: "🏡", office: "🏛️", garage: "🅿️", land: "🌳", commercial: "🏭",
+};
 
 export default function MyListings(props: { open: boolean; onClose: () => void }) {
   const { user, refresh } = useAuth();
@@ -78,6 +81,8 @@ export default function MyListings(props: { open: boolean; onClose: () => void }
                       <div className="my-title">{it.title}</div>
                       {it.description && <div className="my-desc">{it.description}</div>}
                       <div className="my-meta">
+                        <span className={`deal-badge sm ${it.dealType}`}>{DEAL_TYPE_LABEL[it.dealType]}</span>
+                        <span>{categoryLabel(it.propertyType, it.buildingType)}</span>
                         {it.refNo && <span className="card-ref">{it.refNo}</span>}
                         {it.photos.length > 0 && <span>📷 {it.photos.length}</span>}
                       </div>

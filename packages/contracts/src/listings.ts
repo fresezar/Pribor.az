@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { BakuDistrict, BuildingType, RepairState } from "./enums";
-import { RealEstatePropertyType } from "./valuation";
+import { DealType } from "./category";
+import { BakuDistrict, BuildingType, PropertyType, RepairState } from "./enums";
 
 /** Elanlar/Bazar görünümündeki sıralama seçenekleri. */
 export const ListingSort = z.enum([
@@ -18,6 +18,8 @@ export const ListingQuery = z.object({
   district: z.string().optional(),
   rooms: z.coerce.number().int().min(1).max(20).optional(),
   propertyType: z.string().optional(),
+  /** İlan növü filtresi: sale | rent. */
+  dealType: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(60).default(12),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -35,6 +37,7 @@ export const ListingCard = z.object({
   /** Yalnızca kullanıcı ilanlarında: "PRB-10042". */
   refNo: z.string().nullable().default(null),
   status: z.string().default("active"),
+  dealType: DealType.default("sale"),
   title: z.string(),
   district: z.string().nullable(),
   settlement: z.string().nullable(),
@@ -74,7 +77,10 @@ export type ListingsResponse = z.infer<typeof ListingsResponse>;
 export const CreateListingDto = z.object({
   userId: z.string().uuid(),
   valuationId: z.string().uuid().optional(),
-  propertyType: RealEstatePropertyType,
+  /** Tam emlak tipi (7 kategoriyi kapsar: office/garage/commercial dahil). */
+  propertyType: PropertyType,
+  /** İlan növü — satış / kirayə. */
+  dealType: DealType.default("sale"),
   district: BakuDistrict,
   areaM2: z.number().positive().max(100_000).optional(),
   landAreaSot: z.number().positive().max(10_000).optional(),
@@ -129,7 +135,9 @@ export const UserListing = z.object({
   refNo: z.string().nullable(),
   title: z.string(),
   status: z.string(),
+  dealType: DealType.default("sale"),
   propertyType: z.string().nullable(),
+  buildingType: z.string().nullable().default(null),
   district: z.string().nullable(),
   rooms: z.number().int().nullable(),
   areaM2: z.number().nullable(),
@@ -152,6 +160,7 @@ export const ListingDetail = z.object({
   refNo: z.string().nullable(),
   title: z.string(),
   status: z.string(),
+  dealType: DealType.default("sale"),
   propertyType: z.string().nullable(),
   district: z.string().nullable(),
   settlement: z.string().nullable(),

@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ListingDetail } from "@pribor/contracts";
+import { categoryLabel, DEAL_TYPE_LABEL } from "@pribor/contracts";
 import ListingForm from "./ListingForm";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
@@ -15,10 +16,9 @@ import { useAuth } from "./AuthContext";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
-const TYPE_LABEL: Record<string, string> = {
-  apartment: "Mənzil", house: "Həyət evi", land: "Torpaq",
+const TYPE_ICON: Record<string, string> = {
+  apartment: "🏢", house: "🏡", office: "🏛️", garage: "🅿️", land: "🌳", commercial: "🏭",
 };
-const TYPE_ICON: Record<string, string> = { apartment: "🏢", house: "🏡", land: "🌳" };
 const BUILDING_LABEL: Record<string, string> = {
   yeni_tikili: "Yeni tikili", kohne_tikili: "Köhnə tikili", stalinka: "Stalinka",
 };
@@ -114,7 +114,8 @@ export default function ListingDetailModal(props: {
 
   const specs: Array<[string, string]> = data
     ? ([
-        ["Əmlak növü", TYPE_LABEL[data.propertyType ?? ""] ?? "—"],
+        ["Əmlak növü", categoryLabel(data.propertyType, data.buildingType)],
+        ["İlan növü", DEAL_TYPE_LABEL[data.dealType]],
         ["Rayon", data.district ?? "—"],
         data.rooms != null ? ["Otaq sayı", String(data.rooms)] : null,
         data.areaM2 != null ? ["Sahə", `${Math.round(data.areaM2)} m²`] : null,
@@ -143,8 +144,9 @@ export default function ListingDetailModal(props: {
             <div className="ld-head">
               <span className={`type-badge ${data.propertyType ?? "apartment"}`}>
                 {TYPE_ICON[data.propertyType ?? ""] ?? "🏢"}{" "}
-                {TYPE_LABEL[data.propertyType ?? ""] ?? "Əmlak"}
+                {categoryLabel(data.propertyType, data.buildingType)}
               </span>
+              <span className={`deal-badge ${data.dealType}`}>{DEAL_TYPE_LABEL[data.dealType]}</span>
               {data.refNo && <span className="ref-no">{data.refNo}</span>}
               {data.status === "sold" && <span className="sold-badge">SATILDI</span>}
             </div>
@@ -171,7 +173,9 @@ export default function ListingDetailModal(props: {
               </div>
             )}
 
-            <div className="ld-price">{fmt(data.priceAzn)} ₼</div>
+            <div className="ld-price">
+              {fmt(data.priceAzn)} ₼{data.dealType === "rent" ? <small> /ay</small> : null}
+            </div>
             <h2 className="ld-title">{data.title}</h2>
 
             <div className="ld-specs">

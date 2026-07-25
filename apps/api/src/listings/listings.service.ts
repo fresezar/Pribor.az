@@ -76,6 +76,7 @@ export class ListingsService {
     if (q.district) filters.push(sql`district = ${q.district}`);
     if (q.propertyType) filters.push(sql`property_type = ${q.propertyType}`);
     if (q.rooms != null) filters.push(sql`rooms = ${q.rooms}`);
+    if (q.dealType) filters.push(sql`deal_type = ${q.dealType}`);
     const where = sql.join(filters, sql` and `);
 
     const rows = await db.execute(sql`
@@ -96,6 +97,7 @@ export class ListingsService {
           'scraped'::text                  as kind,
           null::int                        as ref_no,
           'active'::text                   as status,
+          'sale'::text                     as deal_type,
           sl.normalized->>'raw_title'      as raw_title,
           sl.normalized->>'district'       as district,
           sl.normalized->>'settlement'     as settlement,
@@ -117,6 +119,7 @@ export class ListingsService {
           'user'::text,
           l.ref_no,
           l.status::text,
+          l.deal_type::text,
           l.title,
           loc.district,
           loc.settlement,
@@ -174,6 +177,7 @@ export class ListingsService {
       kind,
       refNo: formatRefNo(r.ref_no == null ? null : Number(r.ref_no)),
       status: (r.status as string) ?? "active",
+      dealType: (r.deal_type as string) === "rent" ? "rent" : "sale",
       coverPhoto: (r.cover_photo as string) ?? null,
       title: (r.raw_title as string) || this.fallbackTitle(r),
       district: (r.district as string) ?? null,
@@ -348,6 +352,7 @@ export class ListingsService {
           vertical: "real_estate",
           status: "active",
           source: "user",
+          dealType: dto.dealType,
           userId: dto.userId,
           locationId,
           title,
@@ -411,12 +416,14 @@ export class ListingsService {
         title: listings.title,
         status: listings.status,
         priceAzn: listings.priceAzn,
+        dealType: listings.dealType,
         description: listings.description,
         photos: listings.photos,
         coverPhotoIdx: listings.coverPhotoIdx,
         createdAt: listings.createdAt,
         district: locations.district,
         propertyType: listingReAttrs.propertyType,
+        buildingType: listingReAttrs.buildingType,
         rooms: listingReAttrs.rooms,
         areaM2: listingReAttrs.areaM2,
       })
@@ -433,7 +440,9 @@ export class ListingsService {
         refNo: formatRefNo(r.refNo),
         title: r.title,
         status: r.status,
+        dealType: r.dealType,
         propertyType: r.propertyType ?? null,
+        buildingType: r.buildingType ?? null,
         district: r.district ?? null,
         rooms: r.rooms ?? null,
         areaM2: r.areaM2 == null ? null : Number(r.areaM2),
@@ -458,8 +467,8 @@ export class ListingsService {
 
     const userRows = await db.execute(sql`
       select
-        l.id, l.ref_no, l.title, l.status::text as status, l.description,
-        l.photos, l.cover_photo_idx, l.contact_name, l.contact_phone,
+        l.id, l.ref_no, l.title, l.status::text as status, l.deal_type::text as deal_type,
+        l.description, l.photos, l.cover_photo_idx, l.contact_name, l.contact_phone,
         l.price_azn, l.created_at, l.user_id,
         loc.district, loc.settlement,
         ra.property_type::text as property_type, ra.rooms::int as rooms,
@@ -482,6 +491,7 @@ export class ListingsService {
         refNo: formatRefNo(u.ref_no == null ? null : Number(u.ref_no)),
         title: u.title,
         status: u.status,
+        dealType: (u.deal_type as string) === "rent" ? "rent" : "sale",
         propertyType: (u.property_type as string) ?? null,
         district: (u.district as string) ?? null,
         settlement: (u.settlement as string) ?? null,
@@ -525,6 +535,7 @@ export class ListingsService {
         property_type: n.property_type, area_m2: n.area_m2, district: n.district,
       }),
       status: "active",
+      dealType: "sale",
       propertyType: (n.property_type as string) ?? null,
       district: (n.district as string) ?? null,
       settlement: (n.settlement as string) ?? null,
@@ -645,6 +656,7 @@ export class ListingsService {
         .set({
           title,
           priceAzn: newPrice,
+          dealType: dto.dealType ?? current.dealType,
           description: dto.description !== undefined ? dto.description : current.description,
           contactPhone: dto.contactPhone ?? current.contactPhone,
           photos,
