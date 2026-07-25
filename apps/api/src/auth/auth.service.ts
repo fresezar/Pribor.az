@@ -1,16 +1,28 @@
+import { createHash } from "node:crypto";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import type { AppUserRole, AuthUser, Entitlements } from "@pribor/contracts";
+import type { AppUserRole, AuthUser, Entitlements, OtpRequestResult } from "@pribor/contracts";
 import {
   and,
   db,
+  desc,
   eq,
+  gt,
   inArray,
+  isNull,
   listings,
+  otpCodes,
   plans,
+  promoCodes,
   sql,
   subscriptions,
   users,
 } from "@pribor/db";
+
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+/** Demo promo kodu — boot'ta idempotent seed edilir (Yöntem A bypass). */
+const DEMO_PROMO = "PRIBOR-VIP";
+const OTP_TTL_SEC = 300;
+const OTP_MAX_ATTEMPTS = 5;
 
 /**
  * Monetizasyon şimdilik ERTELENDİ: ilan panosu ilk etapta tamamen ücretsiz —
@@ -87,6 +99,95 @@ export class AuthService implements OnModuleInit {
     } catch (err) {
       this.logger.error(`Plan seed hatası: ${String(err)}`);
     }
+    // Demo promo kodu (Admin/Promokod bypass'ını test etmek için)
+    try {
+      await db
+        .insert(promoCodes)
+        .values({ code: DEMO_PROMO, label: "Demo VIP — limitsiz", isUnlimitedAdmin: true })
+        .onConflictDoNothing({ target: promoCodes.code });
+    } catch (err) {
+      this.logger.error(`Promo seed hatası: ${String(err)}`);
+    }
+  }
+
+  // ------------------------------------------------------------------ OTP
+
+  /**
+   * Doğrulama numarasına OTP gönderir. Gerçek SMS sağlayıcısı henüz yok:
+   * kod hash'lenip otp_codes'a yazılır, konsola loglanır ve non-production'da
+   * yanıtta devCode olarak döner (arayüz/test kullanabilsin). Prod'a geçişte
+   * yalnızca "mock gönderici" gerçek gateway ile değişir.
+   */
+  async requestOtp(phone: string): Promise<OtpRequestResult> {
+    const p = this.normalizePhone(phone);
+    const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 haneli
+    const expiresAt = new Date(Date.now() + OTP_TTL_SEC * 1000);
+    await db.insert(otpCodes).values({
+      phone: p,
+      codeHash: sha256(code),
+      purpose: "listing",
+      expiresAt,
+    });
+    this.logger.log(`OTP → ${p}: ${code} (mock SMS)`);
+    const devCode = process.env.NODE_ENV === "production" ? undefined : code;
+    return { sent: true, expiresInSec: OTP_TTL_SEC, devCode };
+  }
+
+  /** Kodu doğrular ve tüketir (tek kullanımlık). Brute-force freni: 5 deneme. */
+  async verifyOtp(phone: string, code: string): Promise<boolean> {
+    const p = this.normalizePhone(phone);
+    const [row] = await db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.phone, p),
+          eq(otpCodes.purpose, "listing"),
+          isNull(otpCodes.consumedAt),
+          gt(otpCodes.expiresAt, new Date()),
+        ),
+      )
+      .orderBy(desc(otpCodes.createdAt))
+      .limit(1);
+    if (!row || (row.attempts ?? 0) >= OTP_MAX_ATTEMPTS) return false;
+
+    const ok = sha256(code) === row.codeHash;
+    await db
+      .update(otpCodes)
+      .set({ attempts: (row.attempts ?? 0) + 1, consumedAt: ok ? new Date() : null })
+      .where(eq(otpCodes.id, row.id));
+    return ok;
+  }
+
+  // -------------------------------------------------------- bypass yardımcıları
+
+  /** .env ADMIN_PHONES whitelist'i (Yöntem B). */
+  isWhitelisted(phone: string): boolean {
+    return adminPhones().includes(this.normalizePhone(phone));
+  }
+
+  /** Geçerli (süresi dolmamış) promo kodu mu (Yöntem A). */
+  async isPromoValid(code: string): Promise<boolean> {
+    const row = await db.query.promoCodes.findFirst({
+      where: eq(promoCodes.code, code.trim()),
+    });
+    if (!row) return false;
+    if (row.expiresAt && row.expiresAt.getTime() < Date.now()) return false;
+    return true;
+  }
+
+  /** Kullanıcının oturum numarası (verificationPhone ön-doğrulama kontrolü için). */
+  async userPhone(userId: string): Promise<string | null> {
+    const u = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { phone: true },
+    });
+    return u?.phone ?? null;
+  }
+
+  /** E.164 normalize — listings.service da doğrulama numarasında kullanır. */
+  normalize(phone: string): string {
+    return this.normalizePhone(phone);
   }
 
   /**

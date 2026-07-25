@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { MockLoginDto, UpgradeDto } from "@pribor/contracts";
+import { MockLoginDto, OtpRequestDto, UpgradeDto } from "@pribor/contracts";
 import { AuthService } from "./auth.service";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -7,6 +7,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  /** İlan doğrulama numarasına OTP gönder (mock SMS). */
+  @Post("otp/request")
+  async otpRequest(@Body() body: unknown) {
+    const parsed = OtpRequestDto.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Nömrə düzgün deyil");
+    return this.auth.requestOtp(parsed.data.phone);
+  }
 
   /** Mock giriş/kayıt — telefon + ad. Rol sunucuda belirlenir (ADMIN_PHONES). */
   @Post("mock-login")

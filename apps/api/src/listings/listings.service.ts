@@ -13,15 +13,19 @@ import {
   ListingDetail,
   ListingQuery,
   ListingSort,
-  LISTING_LIMIT_CODE,
+  OTP_INVALID_CODE,
+  OTP_REQUIRED_CODE,
   UpdateListingDto,
   UserListing,
+  WEEKLY_FREE_LIMIT,
+  WEEKLY_LIMIT_CODE,
 } from "@pribor/contracts";
 import {
   and,
   db,
   desc,
   eq,
+  gte,
   listingReAttrs,
   listings,
   locations,
@@ -302,16 +306,44 @@ export class ListingsService {
   async createUserListing(
     dto: CreateListingDto,
   ): Promise<{ id: string; title: string; refNo: string | null }> {
-    const { entitlements } = await this.auth.resolveEntitlements(dto.userId);
-    if (!entitlements.unlimited) {
-      const active = await this.auth.countActiveListings(dto.userId);
-      if (active >= entitlements.maxActiveListings) {
+    const vphone = this.auth.normalize(dto.verificationPhone);
+
+    // 1) Doğrulama: oturum numarası ile aynıysa (giriş sırasında doğrulanmış)
+    //    OTP istenmez; farklı bir numaraysa SMS kodu şart.
+    const sessionPhone = await this.auth.userPhone(dto.userId);
+    const preVerified = sessionPhone != null && this.auth.normalize(sessionPhone) === vphone;
+    if (!preVerified) {
+      if (!dto.otp) {
+        throw new HttpException(
+          { code: OTP_REQUIRED_CODE, message: "Doğrulama nömrəsinə göndərilən kodu daxil edin." },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      const ok = await this.auth.verifyOtp(vphone, dto.otp);
+      if (!ok) {
+        throw new HttpException(
+          { code: OTP_INVALID_CODE, message: "Kod yanlış və ya vaxtı bitib." },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    // 2) Bypass: admin oturumu / whitelist numara (Yöntem B) / geçerli promo (Yöntem A)
+    const bypass =
+      (await this.auth.isAdmin(dto.userId)) ||
+      this.auth.isWhitelisted(vphone) ||
+      (dto.promoCode ? await this.auth.isPromoValid(dto.promoCode) : false);
+
+    // 3) Haftalık telefon-bazlı limit: son 7 günde en fazla 3 ilan
+    if (!bypass) {
+      const weekly = await this.weeklyCountByPhone(vphone);
+      if (weekly >= WEEKLY_FREE_LIMIT) {
         throw new HttpException(
           {
-            code: LISTING_LIMIT_CODE,
-            message: `Limiti keçdiniz — pulsuz paketdə maksimum ${entitlements.maxActiveListings} aktiv elan mümkündür.`,
-            maxActiveListings: entitlements.maxActiveListings,
-            activeListings: active,
+            code: WEEKLY_LIMIT_CODE,
+            message: "Həftəlik 3 pulsuz elan limitiniz bitmişdir.",
+            weeklyCount: weekly,
+            weeklyLimit: WEEKLY_FREE_LIMIT,
           },
           HttpStatus.PAYMENT_REQUIRED,
         );
@@ -338,8 +370,9 @@ export class ListingsService {
           title,
           description: dto.description ?? null,
           priceAzn: dto.priceAzn,
-          contactName: dto.contactName ?? null,
-          contactPhone: dto.contactPhone ?? null,
+          contactName: dto.contactName,
+          contactPhone: dto.contactPhone,
+          verificationPhone: vphone,
           photos: dto.photos,
           coverPhotoIdx: coverIdx,
           valuationId: dto.valuationId ?? null,
@@ -716,6 +749,20 @@ export class ListingsService {
       .returning({ id: locations.id });
     if (!row) throw new Error("Location oluşturulamadı");
     return row.id;
+  }
+
+  /** Son 7 günde bu doğrulama numarasıyla verilen ilan sayısı (haftalık limit). */
+  async weeklyCountByPhone(verificationPhone: string): Promise<number> {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(listings)
+      .where(
+        and(
+          eq(listings.verificationPhone, verificationPhone),
+          gte(listings.createdAt, sql`now() - interval '7 days'`),
+        ),
+      );
+    return row?.n ?? 0;
   }
 
   private buildListingTitle(dto: CreateListingDto): string {

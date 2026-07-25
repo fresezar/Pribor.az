@@ -90,9 +90,18 @@ export const CreateListingDto = z.object({
   photos: z.array(z.string().max(3_000_000)).max(5).default([]),
   /** Örtük şəkli — photos dizisindeki kapak fotoğrafının indeksi. */
   coverPhotoIdx: z.number().int().min(0).max(4).default(0),
-  contactName: z.string().max(120).optional(),
-  /** İlanda görünecek əlaqə nömrəsi — profil numarasından farklı olabilir. */
-  contactPhone: z.string().max(20).optional(),
+
+  // --- İletişim & doğrulama (telefon-bazlı akış) ---
+  /** İlanda görünecek isim/ünvan (alıcı görür). */
+  contactName: z.string().min(2).max(120),
+  /** İlanda görünecek iletişim numarası (alıcı görür). */
+  contactPhone: z.string().min(5).max(20),
+  /** OTP alınan doğrulama numarası — ilanda GİZLİ; haftalık limit buna göre. */
+  verificationPhone: z.string().min(5).max(20),
+  /** Doğrulama numarası oturum numarasından farklıysa girilen SMS kodu. */
+  otp: z.string().min(4).max(8).optional(),
+  /** Subtil "Admin / Promokod" alanı — geçerliyse haftalık limit bypass. */
+  promoCode: z.string().max(50).optional(),
 });
 export type CreateListingDto = z.infer<typeof CreateListingDto>;
 
@@ -170,6 +179,14 @@ export type ListingDetail = z.infer<typeof ListingDetail>;
 
 /** İlan limiti aşıldığında dönen hata gövdesi (frontend upgrade modalını açar). */
 export const LISTING_LIMIT_CODE = "LISTING_LIMIT_EXCEEDED" as const;
+
+/** Haftalık telefon-bazlı ilan limiti aşıldığında dönen hata kodu. */
+export const WEEKLY_LIMIT_CODE = "WEEKLY_LIMIT_EXCEEDED" as const;
+/** Doğrulama numarası için OTP gerekli / geçersiz hata kodları. */
+export const OTP_REQUIRED_CODE = "OTP_REQUIRED" as const;
+export const OTP_INVALID_CODE = "OTP_INVALID" as const;
+/** Haftalık ücretsiz ilan üst sınırı (verification_phone başına, 7 gün). */
+export const WEEKLY_FREE_LIMIT = 3;
 
 /** İlan numarası biçimi: 10042 → "PRB-10042". */
 export const formatRefNo = (n: number | null | undefined): string | null =>

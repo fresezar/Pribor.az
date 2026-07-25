@@ -6,4 +6,5 @@ export * from "./valuations";
 export * from "./scraping";
 export * from "./billing";
 export * from "./reviews";
+export * from "./promos";
 export * from "./relations";

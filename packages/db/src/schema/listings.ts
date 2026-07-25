@@ -55,8 +55,15 @@ export const listings = pgTable(
     title: varchar("title", { length: 200 }).notNull(),
     description: text("description"),
     priceAzn: integer("price_azn").notNull(),
+    /** İlanda GÖRÜNEN iletişim bilgisi (alıcı bunu görür). */
     contactName: varchar("contact_name", { length: 120 }),
     contactPhone: varchar("contact_phone", { length: 20 }),
+    /**
+     * DOĞRULAMA numarası — OTP bu numaraya gider, haftalık ilan limiti buna
+     * göre sayılır. İlanda GİZLİ kalır; iletişim numarasından farklı olabilir.
+     * (Mevcut satırlar için nullable; yeni ilanlarda uygulama katmanı zorunlu kılar.)
+     */
+    verificationPhone: varchar("verification_phone", { length: 20 }),
     /**
      * İlan fotoğrafları. MVP: data URI dizisi (istemci tarafında küçültülmüş
      * JPEG). Prod: R2/MinIO'ya yüklenip media tablosuna storage_key yazılır,
@@ -81,6 +88,8 @@ export const listings = pgTable(
     index("listings_user_idx").on(t.userId),
     index("listings_published_idx").on(t.publishedAt),
     uniqueIndex("listings_ref_no_uq").on(t.refNo),
+    // Haftalık telefon-bazlı limit sorgusu: (verification_phone, created_at)
+    index("listings_vphone_created_idx").on(t.verificationPhone, t.createdAt),
     check("listings_price_positive", sql`${t.priceAzn} > 0`),
   ],
 );

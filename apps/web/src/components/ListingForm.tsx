@@ -71,9 +71,19 @@ export default function ListingForm(props: {
   const [titleDeed, setTitleDeed] = useState(true);
   const [price, setPrice] = useState<number>(0);
   const [description, setDescription] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [coverIdx, setCoverIdx] = useState(0);
+
+  // İletişim (ilanda görünür) & doğrulama (gizli)
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [verificationPhone, setVerificationPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [showPromo, setShowPromo] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,9 +94,22 @@ export default function ListingForm(props: {
   const isHouse = propertyType === "house";
   const isApartment = propertyType === "apartment";
 
+  // Doğrulama numarası oturum numarasından farklıysa OTP gerekir
+  const digits = (s: string) => s.replace(/\D/g, "");
+  const needsOtp = !isEdit && !!user && digits(verificationPhone) !== digits(user.phone);
+
   // Form her açılışta kaynağıyla tazelenir: edit → mevcut ilan, create → değerleme
   useEffect(() => {
     if (!props.open) return;
+    // İletişim & doğrulama ortak sıfırlaması
+    setContactName(editing?.contactName ?? user?.name ?? "");
+    setContactPhone(editing?.contactPhone ?? user?.phone ?? "");
+    setVerificationPhone(user?.phone ?? "");
+    setOtp("");
+    setOtpSent(false);
+    setDevCode(null);
+    setPromoCode("");
+    setShowPromo(false);
     if (editing) {
       setPropertyType((editing.propertyType as typeof propertyType) ?? "apartment");
       setDistrict(editing.district ?? DISTRICTS[0]!);
@@ -160,12 +183,42 @@ export default function ListingForm(props: {
     setCoverIdx((c) => (i === c ? 0 : i < c ? c - 1 : c));
   }, []);
 
+  /** Doğrulama numarasına OTP kodu gönderir (mock SMS). */
+  const sendOtp = useCallback(async () => {
+    if (digits(verificationPhone).length < 7) return setError("Doğrulama nömrəsini tam daxil edin");
+    setOtpSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/v1/auth/otp/request`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phone: verificationPhone.trim() }),
+      });
+      if (!res.ok) throw new Error();
+      const body = (await res.json()) as { devCode?: string };
+      setOtpSent(true);
+      setDevCode(body.devCode ?? null);
+    } catch {
+      setError("Kod göndərilə bilmədi");
+    } finally {
+      setOtpSending(false);
+    }
+  }, [verificationPhone]);
+
   const submit = useCallback(async () => {
     if (!user) return;
     if (!price || price <= 0) return setError("Qiymət daxil edin");
     if (!isLand && (!areaM2 || areaM2 <= 0)) return setError("Sahə daxil edin");
     if ((isLand || isHouse) && (!landAreaSot || landAreaSot <= 0)) {
       return setError("Torpaq sahəsini daxil edin (sot)");
+    }
+    if (!isEdit) {
+      if (contactName.trim().length < 2) return setError("Əlaqə adını daxil edin");
+      if (digits(contactPhone).length < 7) return setError("Əlaqə nömrəsini daxil edin");
+      if (digits(verificationPhone).length < 7) return setError("Doğrulama nömrəsini daxil edin");
+      if (needsOtp && otp.trim().length < 4) {
+        return setError("Doğrulama nömrəsinə göndərilən kodu daxil edin");
+      }
     }
     setBusy(true);
     setError(null);
@@ -186,7 +239,7 @@ export default function ListingForm(props: {
       description: description.trim() || undefined,
       photos,
       coverPhotoIdx: coverIdx,
-      contactName: user.name,
+      contactName: contactName.trim() || user.name,
       contactPhone: contactPhone.trim() || user.phone,
     };
 
@@ -204,6 +257,9 @@ export default function ListingForm(props: {
           ...fields,
           valuationId: prefill?.valuationId,
           metroDistM: prefill?.metroDistM,
+          verificationPhone: verificationPhone.trim(),
+          otp: needsOtp ? otp.trim() : undefined,
+          promoCode: promoCode.trim() || undefined,
         };
         res = await fetch(`${API}/v1/listings`, {
           method: "POST",
@@ -211,12 +267,23 @@ export default function ListingForm(props: {
           body: JSON.stringify(dto),
         });
       }
-      if (res.status === 402) {
-        setShowUpgrade(true);
-        return;
-      }
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        const code = body?.code as string | undefined;
+        if (code === "WEEKLY_LIMIT_EXCEEDED") {
+          setShowPromo(true);
+          setError(body?.message ?? "Həftəlik limit doldu");
+          return;
+        }
+        if (code === "LISTING_LIMIT_EXCEEDED") {
+          setShowUpgrade(true);
+          return;
+        }
+        if (code === "OTP_REQUIRED" || code === "OTP_INVALID") {
+          setOtpSent(true);
+          setError(body?.message ?? "Doğrulama kodu tələb olunur");
+          return;
+        }
         throw new Error(body?.message ?? `Server xətası (${res.status})`);
       }
       props.onCreated(await res.json());
@@ -226,8 +293,9 @@ export default function ListingForm(props: {
       setBusy(false);
     }
   }, [user, prefill, editing, isEdit, propertyType, district, areaM2, landAreaSot,
-      rooms, buildingType, repairState, titleDeed, price, description, contactPhone,
-      photos, coverIdx, isLand, isHouse, isApartment, props]);
+      rooms, buildingType, repairState, titleDeed, price, description, contactName,
+      contactPhone, verificationPhone, otp, needsOtp, promoCode, photos, coverIdx,
+      isLand, isHouse, isApartment, props]);
 
   if (!props.open) return null;
 
@@ -337,12 +405,51 @@ export default function ListingForm(props: {
           )}
         </div>
 
-        <div className="field" style={{ marginTop: 14 }}>
-          <label htmlFor="lf-phone">Əlaqə nömrəsi</label>
-          <input id="lf-phone" inputMode="tel" placeholder="+994 50 123 45 67"
-            value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-          <span className="hint">Elanda bu nömrə görünəcək.</span>
+        {/* İletişim — ilanda GÖRÜNEN bilgiler */}
+        <div className="grid" style={{ marginTop: 14 }}>
+          <div className="field">
+            <label htmlFor="lf-cname">Əlaqə adı</label>
+            <input id="lf-cname" placeholder="Ad / ünvan"
+              value={contactName} onChange={(e) => setContactName(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="lf-phone">Əlaqə nömrəsi</label>
+            <input id="lf-phone" inputMode="tel" placeholder="+994 50 123 45 67"
+              value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+            <span className="hint">Elanda bu nömrə görünəcək.</span>
+          </div>
         </div>
+
+        {/* Doğrulama — ilanda GİZLİ; SMS kod & haftalık limit bu numaraya bağlı.
+            Yalnızca yeni ilan verirken; düzenlemede gerekmez. */}
+        {!isEdit && (
+          <div className="verify-box">
+            <div className="field">
+              <label htmlFor="lf-vphone">Təsdiq nömrəsi <span className="lock">gizli 🔒</span></label>
+              <div className="verify-row">
+                <input id="lf-vphone" inputMode="tel" placeholder="+994 50 ..."
+                  value={verificationPhone} onChange={(e) => setVerificationPhone(e.target.value)} />
+                {needsOtp && (
+                  <button type="button" className="otp-send" onClick={() => void sendOtp()}
+                    disabled={otpSending}>
+                    {otpSending ? "…" : otpSent ? "Yenidən" : "Kod göndər"}
+                  </button>
+                )}
+              </div>
+              <span className="hint">
+                Bu nömrə elanda görünməz. SMS kod bura gəlir; həftəlik 3 pulsuz elan limiti bu nömrəyə görə sayılır.
+              </span>
+            </div>
+            {needsOtp && otpSent && (
+              <div className="field" style={{ marginTop: 10 }}>
+                <label htmlFor="lf-otp">Təsdiq kodu</label>
+                <input id="lf-otp" inputMode="numeric" maxLength={6} placeholder="6 rəqəm"
+                  value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
+                {devCode && <span className="hint">Demo kodu: <b>{devCode}</b></span>}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="field" style={{ marginTop: 14 }}>
           <label htmlFor="lf-desc">Açıqlama</label>
@@ -375,6 +482,24 @@ export default function ListingForm(props: {
           <input ref={fileRef} type="file" accept="image/*" multiple hidden
             onChange={(e) => void addPhotos(e.target.files)} />
         </div>
+
+        {/* Subtil "Admin / Promokod" — limit bypass (Yöntem A) */}
+        {!isEdit && (
+          <div className="promo-line">
+            {!showPromo ? (
+              <button type="button" className="promo-toggle" onClick={() => setShowPromo(true)}>
+                Admin / Promokodunuz var?
+              </button>
+            ) : (
+              <div className="field">
+                <label htmlFor="lf-promo">Admin / Promokod</label>
+                <input id="lf-promo" placeholder="Kod daxil edin"
+                  value={promoCode} onChange={(e) => setPromoCode(e.target.value)} />
+                <span className="hint">Geçərli kod həftəlik limiti aradan qaldırır.</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {error && <div className="err">{error}</div>}
         <button className="cta" onClick={() => void submit()} disabled={busy}>
