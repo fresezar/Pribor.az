@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import type { AppUserRole, AuthUser, Entitlements, OtpRequestResult } from "@pribor/contracts";
+import {
+  type AppUserRole,
+  type AuthUser,
+  type Entitlements,
+  type OtpRequestResult,
+  WEEKLY_FREE_LIMIT,
+} from "@pribor/contracts";
 import {
   and,
   db,
@@ -118,14 +124,14 @@ export class AuthService implements OnModuleInit {
    * yanıtta devCode olarak döner (arayüz/test kullanabilsin). Prod'a geçişte
    * yalnızca "mock gönderici" gerçek gateway ile değişir.
    */
-  async requestOtp(phone: string): Promise<OtpRequestResult> {
+  async requestOtp(phone: string, purpose = "login"): Promise<OtpRequestResult> {
     const p = this.normalizePhone(phone);
     const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 haneli
     const expiresAt = new Date(Date.now() + OTP_TTL_SEC * 1000);
     await db.insert(otpCodes).values({
       phone: p,
       codeHash: sha256(code),
-      purpose: "listing",
+      purpose,
       expiresAt,
     });
     this.logger.log(`OTP → ${p}: ${code} (mock SMS)`);
@@ -134,7 +140,7 @@ export class AuthService implements OnModuleInit {
   }
 
   /** Kodu doğrular ve tüketir (tek kullanımlık). Brute-force freni: 5 deneme. */
-  async verifyOtp(phone: string, code: string): Promise<boolean> {
+  async verifyOtp(phone: string, code: string, purpose = "login"): Promise<boolean> {
     const p = this.normalizePhone(phone);
     const [row] = await db
       .select()
@@ -142,7 +148,7 @@ export class AuthService implements OnModuleInit {
       .where(
         and(
           eq(otpCodes.phone, p),
-          eq(otpCodes.purpose, "listing"),
+          eq(otpCodes.purpose, purpose),
           isNull(otpCodes.consumedAt),
           gt(otpCodes.expiresAt, new Date()),
         ),
@@ -210,6 +216,17 @@ export class AuthService implements OnModuleInit {
     if (!row) throw new Error("Kullanıcı upsert edilemedi");
     if (dbRole === "admin") this.logger.log(`Admin girişi: ${phone}`);
     return this.buildAuthUser(row.id, dto.name, phone);
+  }
+
+  /**
+   * OTP ile giriş: kod doğrulanırsa hesabı açar/oluşturur. Doğrulama artık
+   * yalnızca burada (girişte) yapılır; ilan formunda tekrar OTP sorulmaz.
+   * Kod geçersizse null döner (controller 401 verir).
+   */
+  async verifyLogin(phone: string, name: string, code: string): Promise<AuthUser | null> {
+    const ok = await this.verifyOtp(phone, code, "login");
+    if (!ok) return null;
+    return this.mockLogin({ phone, name });
   }
 
   /** Yönetici mi — ilan silme/satıldı yetkisi bunu kullanır. */
@@ -297,10 +314,12 @@ export class AuthService implements OnModuleInit {
       };
     }
 
-    // 3) Varsayılan kullanıcı. Monetizasyon ertelendiği için şimdilik sınırsız.
+    // 3) Varsayılan kullanıcı: haftada 3 ücretsiz ilan (sınırsız değil).
+    //    Gerçek sınırlama createUserListing'te haftalık sayımla uygulanır;
+    //    bu yalnızca UI'ın doğru mesaj göstermesi için.
     if (!MONETIZATION_ENABLED) {
       return {
-        entitlements: { maxActiveListings: -1, unlimited: true, planCode: "free_unlimited" },
+        entitlements: { maxActiveListings: WEEKLY_FREE_LIMIT, unlimited: false, planCode: "weekly_free" },
         role: "USER",
         dbRole,
       };

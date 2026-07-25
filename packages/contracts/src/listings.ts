@@ -91,16 +91,17 @@ export const CreateListingDto = z.object({
   /** Örtük şəkli — photos dizisindeki kapak fotoğrafının indeksi. */
   coverPhotoIdx: z.number().int().min(0).max(4).default(0),
 
-  // --- İletişim & doğrulama (telefon-bazlı akış) ---
+  // --- İletişim (ilanda GÖRÜNÜR) ---
   /** İlanda görünecek isim/ünvan (alıcı görür). */
   contactName: z.string().min(2).max(120),
   /** İlanda görünecek iletişim numarası (alıcı görür). */
   contactPhone: z.string().min(5).max(20),
-  /** OTP alınan doğrulama numarası — ilanda GİZLİ; haftalık limit buna göre. */
-  verificationPhone: z.string().min(5).max(20),
-  /** Doğrulama numarası oturum numarasından farklıysa girilen SMS kodu. */
-  otp: z.string().min(4).max(8).optional(),
-  /** Subtil "Admin / Promokod" alanı — geçerliyse haftalık limit bypass. */
+  /**
+   * Doğrulama girişte yapılır (OTP), bu yüzden formda numara/OTP sorulmaz.
+   * Haftalık limit hesabın (oturum) numarasına göre sayılır; sunucu
+   * verification_phone'u oturumdan türetir. promoCode admin bypass için
+   * opsiyonel kalır (arayüzde gösterilmez).
+   */
   promoCode: z.string().max(50).optional(),
 });
 export type CreateListingDto = z.infer<typeof CreateListingDto>;

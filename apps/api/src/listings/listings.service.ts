@@ -13,8 +13,6 @@ import {
   ListingDetail,
   ListingQuery,
   ListingSort,
-  OTP_INVALID_CODE,
-  OTP_REQUIRED_CODE,
   UpdateListingDto,
   UserListing,
   WEEKLY_FREE_LIMIT,
@@ -306,35 +304,20 @@ export class ListingsService {
   async createUserListing(
     dto: CreateListingDto,
   ): Promise<{ id: string; title: string; refNo: string | null }> {
-    const vphone = this.auth.normalize(dto.verificationPhone);
-
-    // 1) Doğrulama: oturum numarası ile aynıysa (giriş sırasında doğrulanmış)
-    //    OTP istenmez; farklı bir numaraysa SMS kodu şart.
+    // Doğrulama girişte yapıldı (OTP). Haftalık limit HESAP bazlıdır:
+    // verification_phone oturum numarasından türetilir, form OTP sormaz.
     const sessionPhone = await this.auth.userPhone(dto.userId);
-    const preVerified = sessionPhone != null && this.auth.normalize(sessionPhone) === vphone;
-    if (!preVerified) {
-      if (!dto.otp) {
-        throw new HttpException(
-          { code: OTP_REQUIRED_CODE, message: "Doğrulama nömrəsinə göndərilən kodu daxil edin." },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      const ok = await this.auth.verifyOtp(vphone, dto.otp);
-      if (!ok) {
-        throw new HttpException(
-          { code: OTP_INVALID_CODE, message: "Kod yanlış və ya vaxtı bitib." },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-    }
+    if (!sessionPhone) throw new NotFoundException("İstifadəçi tapılmadı");
+    const vphone = this.auth.normalize(sessionPhone);
 
-    // 2) Bypass: admin oturumu / whitelist numara (Yöntem B) / geçerli promo (Yöntem A)
+    // Bypass: admin oturumu / whitelist numara (bizim eklediğimiz numaralar) /
+    // geçerli promo (opsiyonel, arayüzde gösterilmez).
     const bypass =
       (await this.auth.isAdmin(dto.userId)) ||
       this.auth.isWhitelisted(vphone) ||
       (dto.promoCode ? await this.auth.isPromoValid(dto.promoCode) : false);
 
-    // 3) Haftalık telefon-bazlı limit: son 7 günde en fazla 3 ilan
+    // Haftalık hesap-bazlı limit: son 7 günde en fazla 3 ilan
     if (!bypass) {
       const weekly = await this.weeklyCountByPhone(vphone);
       if (weekly >= WEEKLY_FREE_LIMIT) {

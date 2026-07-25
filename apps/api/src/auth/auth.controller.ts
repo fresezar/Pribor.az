@@ -1,5 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { MockLoginDto, OtpRequestDto, UpgradeDto } from "@pribor/contracts";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { MockLoginDto, OtpRequestDto, UpgradeDto, VerifyLoginDto } from "@pribor/contracts";
 import { AuthService } from "./auth.service";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -8,15 +16,29 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** İlan doğrulama numarasına OTP gönder (mock SMS). */
+  /** Giriş için telefona OTP gönder (mock SMS). */
   @Post("otp/request")
   async otpRequest(@Body() body: unknown) {
     const parsed = OtpRequestDto.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Nömrə düzgün deyil");
-    return this.auth.requestOtp(parsed.data.phone);
+    return this.auth.requestOtp(parsed.data.phone, "login");
   }
 
-  /** Mock giriş/kayıt — telefon + ad. Rol sunucuda belirlenir (ADMIN_PHONES). */
+  /** OTP ile giriş: kod doğrulanırsa hesap açılır. Kod geçersizse 401. */
+  @Post("verify-login")
+  async verifyLogin(@Body() body: unknown) {
+    const parsed = VerifyLoginDto.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Giriş məlumatları yanlışdır");
+    const user = await this.auth.verifyLogin(
+      parsed.data.phone,
+      parsed.data.name,
+      parsed.data.code,
+    );
+    if (!user) throw new UnauthorizedException("Kod yanlış və ya vaxtı bitib");
+    return user;
+  }
+
+  /** Mock giriş (test/geriye dönük) — OTP'siz. Frontend verify-login kullanır. */
   @Post("mock-login")
   async mockLogin(@Body() body: unknown) {
     const parsed = MockLoginDto.safeParse(body);

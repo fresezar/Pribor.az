@@ -43,6 +43,14 @@ export const MockLoginDto = z.object({
 });
 export type MockLoginDto = z.infer<typeof MockLoginDto>;
 
+/** Giriş: telefona gelen OTP ile doğrula + hesabı aç/oluştur. */
+export const VerifyLoginDto = z.object({
+  phone: z.string().min(5).max(20),
+  name: z.string().min(2).max(120),
+  code: z.string().min(4).max(8),
+});
+export type VerifyLoginDto = z.infer<typeof VerifyLoginDto>;
+
 /** Mock ödeme sonrası paket yükseltme. */
 export const UpgradeDto = z.object({
   userId: z.string().uuid(),

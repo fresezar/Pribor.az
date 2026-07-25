@@ -22,8 +22,10 @@ const STORAGE_KEY = "pribor.user";
 
 type AuthContextValue = {
   user: AuthUser | null;
-  /** Rol sunucuda belirlenir (admin numarası) — istemci rol göndermez. */
-  login: (phone: string, name: string) => Promise<AuthUser>;
+  /** Telefona OTP gönderir; non-prod'da devCode döner (arayüz gösterir). */
+  requestOtp: (phone: string) => Promise<{ devCode?: string }>;
+  /** OTP ile giriş: kod doğrulanırsa hesap açılır. Rol sunucuda belirlenir. */
+  login: (phone: string, name: string, code: string) => Promise<AuthUser>;
   logout: () => void;
   upgrade: () => Promise<AuthUser>;
   refresh: () => Promise<void>;
@@ -54,13 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const requestOtp = useCallback(async (phone: string) => {
+    const res = await fetch(`${API}/v1/auth/otp/request`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) throw new Error("Kod göndərilə bilmədi");
+    return (await res.json()) as { devCode?: string };
+  }, []);
+
   const login = useCallback(
-    async (phone: string, name: string) => {
-      const res = await fetch(`${API}/v1/auth/mock-login`, {
+    async (phone: string, name: string, code: string) => {
+      const res = await fetch(`${API}/v1/auth/verify-login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, name }),
+        body: JSON.stringify({ phone, name, code }),
       });
+      if (res.status === 401) throw new Error("Kod yanlış və ya vaxtı bitib");
       if (!res.ok) throw new Error("Giriş alınmadı");
       const u = (await res.json()) as AuthUser;
       setUser(u);
@@ -95,8 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => setUser(null), [setUser]);
 
   const value = useMemo(
-    () => ({ user, login, logout, upgrade, refresh, setUser }),
-    [user, login, logout, upgrade, refresh, setUser],
+    () => ({ user, requestOtp, login, logout, upgrade, refresh, setUser }),
+    [user, requestOtp, login, logout, upgrade, refresh, setUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
