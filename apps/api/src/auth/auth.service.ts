@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import * as nodemailer from "nodemailer";
 import {
   type AppUserRole,
   type AuthUser,
@@ -45,13 +46,27 @@ const FREE_PLAN_CODE = "free";
 const ACTIVE_STATUSES = ["draft", "pending_review", "active"] as const;
 
 /**
- * Yönetici numaraları — .env ADMIN_PHONES (virgülle ayrık, E.164).
- * Rol istemciden GELMEZ; bu listedeki numarayla giriş yapan otomatik
+ * Yönetici email'leri — .env ADMIN_EMAILS (virgülle ayrık, küçük harf).
+ * Rol istemciden GELMEZ; bu listedeki email ile giriş yapan otomatik
  * admin (AGENT_ADMIN) olur. Böylece istemci kendini yükseltemez.
  */
-function adminPhones(): string[] {
-  const raw = process.env.ADMIN_PHONES ?? "+994555000001";
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+function adminEmails(): string[] {
+  const raw = process.env.ADMIN_EMAILS ?? "admin@pribor.az";
+  return raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+}
+
+/** SMTP yapılandırılmışsa email göndericisi, yoksa null (dev: kodu logla/döndür). */
+function mailer(): nodemailer.Transporter | null {
+  const host = process.env.SMTP_HOST;
+  if (!host) return null;
+  return nodemailer.createTransport({
+    host,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: process.env.SMTP_USER
+      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      : undefined,
+  });
 }
 
 /**
@@ -119,35 +134,42 @@ export class AuthService implements OnModuleInit {
   // ------------------------------------------------------------------ OTP
 
   /**
-   * Doğrulama numarasına OTP gönderir. Gerçek SMS sağlayıcısı henüz yok:
-   * kod hash'lenip otp_codes'a yazılır, konsola loglanır ve non-production'da
-   * yanıtta devCode olarak döner (arayüz/test kullanabilsin). Prod'a geçişte
-   * yalnızca "mock gönderici" gerçek gateway ile değişir.
+   * Email'e OTP gönderir: kod hash'lenip otp_codes'a yazılır. SMTP
+   * yapılandırılmışsa gerçek email gönderilir; her hâlükârda konsola loglanır
+   * ve non-production'da yanıtta devCode döner (arayüz/test kullanabilsin).
    */
-  async requestOtp(phone: string, purpose = "login"): Promise<OtpRequestResult> {
-    const p = this.normalizePhone(phone);
+  async requestOtp(email: string, purpose = "login"): Promise<OtpRequestResult> {
+    const e = this.normalize(email);
     const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 haneli
     const expiresAt = new Date(Date.now() + OTP_TTL_SEC * 1000);
-    await db.insert(otpCodes).values({
-      phone: p,
-      codeHash: sha256(code),
-      purpose,
-      expiresAt,
-    });
-    this.logger.log(`OTP → ${p}: ${code} (mock SMS)`);
+    await db.insert(otpCodes).values({ phone: e, codeHash: sha256(code), purpose, expiresAt });
+
+    this.logger.log(`OTP → ${e}: ${code}`);
+    const transport = mailer();
+    if (transport) {
+      transport
+        .sendMail({
+          from: process.env.MAIL_FROM ?? "Pribor <no-reply@pribor.az>",
+          to: e,
+          subject: `Pribor təsdiq kodu: ${code}`,
+          text: `Pribor.az giriş kodunuz: ${code}\nKod 5 dəqiqə etibarlıdır.`,
+          html: `<p>Pribor.az giriş kodunuz:</p><h2 style="letter-spacing:4px">${code}</h2><p>Kod 5 dəqiqə etibarlıdır.</p>`,
+        })
+        .catch((err) => this.logger.error(`Email göndərilə bilmədi: ${String(err)}`));
+    }
     const devCode = process.env.NODE_ENV === "production" ? undefined : code;
     return { sent: true, expiresInSec: OTP_TTL_SEC, devCode };
   }
 
   /** Kodu doğrular ve tüketir (tek kullanımlık). Brute-force freni: 5 deneme. */
-  async verifyOtp(phone: string, code: string, purpose = "login"): Promise<boolean> {
-    const p = this.normalizePhone(phone);
+  async verifyOtp(email: string, code: string, purpose = "login"): Promise<boolean> {
+    const e = this.normalize(email);
     const [row] = await db
       .select()
       .from(otpCodes)
       .where(
         and(
-          eq(otpCodes.phone, p),
+          eq(otpCodes.phone, e),
           eq(otpCodes.purpose, purpose),
           isNull(otpCodes.consumedAt),
           gt(otpCodes.expiresAt, new Date()),
@@ -167,12 +189,7 @@ export class AuthService implements OnModuleInit {
 
   // -------------------------------------------------------- bypass yardımcıları
 
-  /** .env ADMIN_PHONES whitelist'i (Yöntem B). */
-  isWhitelisted(phone: string): boolean {
-    return adminPhones().includes(this.normalizePhone(phone));
-  }
-
-  /** Geçerli (süresi dolmamış) promo kodu mu (Yöntem A). */
+  /** Geçerli (süresi dolmamış) promo kodu mu. */
   async isPromoValid(code: string): Promise<boolean> {
     const row = await db.query.promoCodes.findFirst({
       where: eq(promoCodes.code, code.trim()),
@@ -182,40 +199,31 @@ export class AuthService implements OnModuleInit {
     return true;
   }
 
-  /** Kullanıcının oturum numarası (verificationPhone ön-doğrulama kontrolü için). */
-  async userPhone(userId: string): Promise<string | null> {
-    const u = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { phone: true },
-    });
-    return u?.phone ?? null;
-  }
-
-  /** E.164 normalize — listings.service da doğrulama numarasında kullanır. */
-  normalize(phone: string): string {
-    return this.normalizePhone(phone);
+  /** Email normalize — küçük harf + trim. */
+  normalize(email: string): string {
+    return email.trim().toLowerCase();
   }
 
   /**
    * Herkes düz kullanıcı olarak girer; rol sunucuda belirlenir:
-   * numara ADMIN_PHONES listesindeyse 'admin', değilse 'individual'.
+   * email ADMIN_EMAILS listesindeyse 'admin', değilse 'individual'.
    */
-  async mockLogin(dto: { phone: string; name: string }): Promise<AuthUser> {
-    const phone = this.normalizePhone(dto.phone);
-    const dbRole = adminPhones().includes(phone) ? "admin" : "individual";
+  async mockLogin(dto: { email: string; name: string }): Promise<AuthUser> {
+    const email = this.normalize(dto.email);
+    const dbRole = adminEmails().includes(email) ? "admin" : "individual";
 
     const [row] = await db
       .insert(users)
-      .values({ phone, fullName: dto.name, role: dbRole, phoneVerifiedAt: new Date() })
+      .values({ email, fullName: dto.name, role: dbRole, verifiedAt: new Date() })
       .onConflictDoUpdate({
-        target: users.phone,
-        set: { fullName: dto.name, role: dbRole, phoneVerifiedAt: new Date() },
+        target: users.email,
+        set: { fullName: dto.name, role: dbRole, verifiedAt: new Date() },
       })
       .returning({ id: users.id });
 
     if (!row) throw new Error("Kullanıcı upsert edilemedi");
-    if (dbRole === "admin") this.logger.log(`Admin girişi: ${phone}`);
-    return this.buildAuthUser(row.id, dto.name, phone);
+    if (dbRole === "admin") this.logger.log(`Admin girişi: ${email}`);
+    return this.buildAuthUser(row.id, dto.name, email);
   }
 
   /**
@@ -223,10 +231,10 @@ export class AuthService implements OnModuleInit {
    * yalnızca burada (girişte) yapılır; ilan formunda tekrar OTP sorulmaz.
    * Kod geçersizse null döner (controller 401 verir).
    */
-  async verifyLogin(phone: string, name: string, code: string): Promise<AuthUser | null> {
-    const ok = await this.verifyOtp(phone, code, "login");
+  async verifyLogin(email: string, name: string, code: string): Promise<AuthUser | null> {
+    const ok = await this.verifyOtp(email, code, "login");
     if (!ok) return null;
-    return this.mockLogin({ phone, name });
+    return this.mockLogin({ email, name });
   }
 
   /** Yönetici mi — ilan silme/satıldı yetkisi bunu kullanır. */
@@ -272,7 +280,7 @@ export class AuthService implements OnModuleInit {
   async getAuthUser(userId: string): Promise<AuthUser> {
     const u = await db.query.users.findFirst({ where: eq(users.id, userId) });
     if (!u) throw new Error("Kullanıcı bulunamadı");
-    return this.buildAuthUser(u.id, u.fullName ?? "İstifadəçi", u.phone);
+    return this.buildAuthUser(u.id, u.fullName ?? "İstifadəçi", u.email ?? "");
   }
 
   /** Yetki çözümleyici — listing create burayı tek kapı olarak kullanır. */
@@ -341,20 +349,27 @@ export class AuthService implements OnModuleInit {
     return row?.n ?? 0;
   }
 
+  /** Son 7 günde bu hesabın verdiği ilan sayısı — haftalık limit. */
+  async weeklyCountByUser(userId: string): Promise<number> {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(listings)
+      .where(
+        and(
+          eq(listings.userId, userId),
+          gt(listings.createdAt, sql`now() - interval '7 days'`),
+        ),
+      );
+    return row?.n ?? 0;
+  }
+
   private async buildAuthUser(
     userId: string,
     name: string,
-    phone: string,
+    email: string,
   ): Promise<AuthUser> {
     const { entitlements, role } = await this.resolveEntitlements(userId);
     const activeListings = await this.countActiveListings(userId);
-    return { id: userId, name, phone, role, entitlements, activeListings };
-  }
-
-  private normalizePhone(raw: string): string {
-    const digits = raw.replace(/[^\d]/g, "");
-    if (raw.startsWith("+")) return raw;
-    if (digits.startsWith("994")) return `+${digits}`;
-    return `+994${digits}`;
+    return { id: userId, name, email, role, entitlements, activeListings };
   }
 }

@@ -21,9 +21,12 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    phone: varchar("phone", { length: 20 }).notNull(),
-    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+    /** Hesap kimliği: giriş email'i (OTP buraya gider). Küçük harf saklanır. */
     email: varchar("email", { length: 255 }),
+    /** Doğrulama girişte yapılır; giriş anı verified sayılır. */
+    verifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
+    /** Opsiyonel — kişisel iletişim; ilan iletişim numarası ayrı (listings.contact_phone). */
+    phone: varchar("phone", { length: 20 }),
     fullName: varchar("full_name", { length: 120 }),
     role: userRole("role").notNull().default("individual"),
     locale: locale("locale").notNull().default("az"),
@@ -38,7 +41,7 @@ export const users = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("users_phone_uq").on(t.phone),
+    uniqueIndex("users_email_uq").on(t.email),
     index("users_role_idx").on(t.role),
   ],
 );
@@ -51,7 +54,8 @@ export const otpCodes = pgTable(
   "otp_codes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    phone: varchar("phone", { length: 20 }).notNull(),
+    /** OTP hedefi — email (255'e genişletildi; kolon adı geriye dönük 'phone'). */
+    phone: varchar("phone", { length: 255 }).notNull(),
     codeHash: varchar("code_hash", { length: 64 }).notNull(),
     purpose: varchar("purpose", { length: 20 }).notNull().default("login"),
     attempts: integer("attempts").notNull().default(0),

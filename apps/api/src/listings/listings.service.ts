@@ -23,7 +23,6 @@ import {
   db,
   desc,
   eq,
-  gte,
   listingReAttrs,
   listings,
   locations,
@@ -308,22 +307,14 @@ export class ListingsService {
   async createUserListing(
     dto: CreateListingDto,
   ): Promise<{ id: string; title: string; refNo: string | null }> {
-    // Doğrulama girişte yapıldı (OTP). Haftalık limit HESAP bazlıdır:
-    // verification_phone oturum numarasından türetilir, form OTP sormaz.
-    const sessionPhone = await this.auth.userPhone(dto.userId);
-    if (!sessionPhone) throw new NotFoundException("İstifadəçi tapılmadı");
-    const vphone = this.auth.normalize(sessionPhone);
-
-    // Bypass: admin oturumu / whitelist numara (bizim eklediğimiz numaralar) /
-    // geçerli promo (opsiyonel, arayüzde gösterilmez).
+    // Doğrulama girişte (email OTP) yapıldı. Haftalık limit HESAP bazlıdır:
+    // giriş yapan her hesap son 7 günde en fazla 3 ilan.
     const bypass =
       (await this.auth.isAdmin(dto.userId)) ||
-      this.auth.isWhitelisted(vphone) ||
       (dto.promoCode ? await this.auth.isPromoValid(dto.promoCode) : false);
 
-    // Haftalık hesap-bazlı limit: son 7 günde en fazla 3 ilan
     if (!bypass) {
-      const weekly = await this.weeklyCountByPhone(vphone);
+      const weekly = await this.auth.weeklyCountByUser(dto.userId);
       if (weekly >= WEEKLY_FREE_LIMIT) {
         throw new HttpException(
           {
@@ -360,7 +351,6 @@ export class ListingsService {
           priceAzn: dto.priceAzn,
           contactName: dto.contactName,
           contactPhone: dto.contactPhone,
-          verificationPhone: vphone,
           photos: dto.photos,
           coverPhotoIdx: coverIdx,
           valuationId: dto.valuationId ?? null,
@@ -744,20 +734,6 @@ export class ListingsService {
       .returning({ id: locations.id });
     if (!row) throw new Error("Location oluşturulamadı");
     return row.id;
-  }
-
-  /** Son 7 günde bu doğrulama numarasıyla verilen ilan sayısı (haftalık limit). */
-  async weeklyCountByPhone(verificationPhone: string): Promise<number> {
-    const [row] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(listings)
-      .where(
-        and(
-          eq(listings.verificationPhone, verificationPhone),
-          gte(listings.createdAt, sql`now() - interval '7 days'`),
-        ),
-      );
-    return row?.n ?? 0;
   }
 
   private buildListingTitle(dto: CreateListingDto): string {

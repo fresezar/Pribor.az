@@ -16,12 +16,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Giriş için telefona OTP gönder (mock SMS). */
+  /** Giriş için email'e OTP gönder. */
   @Post("otp/request")
   async otpRequest(@Body() body: unknown) {
     const parsed = OtpRequestDto.safeParse(body);
-    if (!parsed.success) throw new BadRequestException("Nömrə düzgün deyil");
-    return this.auth.requestOtp(parsed.data.phone, "login");
+    if (!parsed.success) throw new BadRequestException("Email düzgün deyil");
+    return this.auth.requestOtp(parsed.data.email, "login");
   }
 
   /** OTP ile giriş: kod doğrulanırsa hesap açılır. Kod geçersizse 401. */
@@ -30,7 +30,7 @@ export class AuthController {
     const parsed = VerifyLoginDto.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Giriş məlumatları yanlışdır");
     const user = await this.auth.verifyLogin(
-      parsed.data.phone,
+      parsed.data.email,
       parsed.data.name,
       parsed.data.code,
     );

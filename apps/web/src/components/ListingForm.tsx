@@ -88,7 +88,7 @@ export default function ListingForm(props: {
   useEffect(() => {
     if (!props.open) return;
     setContactName(editing?.contactName ?? user?.name ?? "");
-    setContactPhone(editing?.contactPhone ?? user?.phone ?? "");
+    setContactPhone(editing?.contactPhone ?? "");
     if (editing) {
       setCategory(typeToCategory(editing.propertyType, editing.buildingType));
       setDealType(editing.dealType);
@@ -123,7 +123,7 @@ export default function ListingForm(props: {
     setTitleDeed(prefill.titleDeed ?? true);
     setPrice(prefill.priceAzn);
     setDescription(""); setPhotos([]); setCoverIdx(0);
-  }, [props.open, prefill, editing, user?.phone, user?.name]);
+  }, [props.open, prefill, editing, user?.name]);
 
   const addPhotos = useCallback(async (files: FileList | null) => {
     if (!files) return;
@@ -180,7 +180,7 @@ export default function ListingForm(props: {
       photos,
       coverPhotoIdx: coverIdx,
       contactName: contactName.trim() || user.name,
-      contactPhone: contactPhone.trim() || user.phone,
+      contactPhone: contactPhone.trim(),
     };
 
     try {

@@ -23,7 +23,8 @@ export type Entitlements = z.infer<typeof Entitlements>;
 export const AuthUser = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  phone: z.string(),
+  /** Hesap kimliği — giriş email'i. */
+  email: z.string(),
   role: AppUserRole,
   entitlements: Entitlements,
   activeListings: z.number().int().default(0),
@@ -31,21 +32,21 @@ export const AuthUser = z.object({
 export type AuthUser = z.infer<typeof AuthUser>;
 
 /**
- * Mock giriş — Faz 3'te gerçek OTP doğrulaması bu akışın yerini alır.
+ * Mock giriş (test/geriye dönük) — OTP'siz hesap açar.
  *
  * Rol İSTEMCİDEN ALINMAZ: herkes düz USER olarak kaydolur; yönetici yetkisi
- * yalnızca sunucudaki ADMIN_PHONES listesindeki numarayla girildiğinde verilir.
+ * yalnızca sunucudaki ADMIN_EMAILS listesindeki email ile girildiğinde verilir.
  * Böylece istemci kendini yükseltemez.
  */
 export const MockLoginDto = z.object({
-  phone: z.string().min(5).max(20),
+  email: z.string().email().max(255),
   name: z.string().min(2).max(120),
 });
 export type MockLoginDto = z.infer<typeof MockLoginDto>;
 
-/** Giriş: telefona gelen OTP ile doğrula + hesabı aç/oluştur. */
+/** Giriş: email'e gelen OTP ile doğrula + hesabı aç/oluştur. */
 export const VerifyLoginDto = z.object({
-  phone: z.string().min(5).max(20),
+  email: z.string().email().max(255),
   name: z.string().min(2).max(120),
   code: z.string().min(4).max(8),
 });

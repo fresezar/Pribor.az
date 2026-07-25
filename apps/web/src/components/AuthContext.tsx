@@ -22,10 +22,10 @@ const STORAGE_KEY = "pribor.user";
 
 type AuthContextValue = {
   user: AuthUser | null;
-  /** Telefona OTP gönderir; non-prod'da devCode döner (arayüz gösterir). */
-  requestOtp: (phone: string) => Promise<{ devCode?: string }>;
+  /** Email'e OTP gönderir; non-prod'da devCode döner (arayüz gösterir). */
+  requestOtp: (email: string) => Promise<{ devCode?: string }>;
   /** OTP ile giriş: kod doğrulanırsa hesap açılır. Rol sunucuda belirlenir. */
-  login: (phone: string, name: string, code: string) => Promise<AuthUser>;
+  login: (email: string, name: string, code: string) => Promise<AuthUser>;
   logout: () => void;
   upgrade: () => Promise<AuthUser>;
   refresh: () => Promise<void>;
@@ -56,22 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const requestOtp = useCallback(async (phone: string) => {
+  const requestOtp = useCallback(async (email: string) => {
     const res = await fetch(`${API}/v1/auth/otp/request`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ email }),
     });
     if (!res.ok) throw new Error("Kod göndərilə bilmədi");
     return (await res.json()) as { devCode?: string };
   }, []);
 
   const login = useCallback(
-    async (phone: string, name: string, code: string) => {
+    async (email: string, name: string, code: string) => {
       const res = await fetch(`${API}/v1/auth/verify-login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ phone, name, code }),
+        body: JSON.stringify({ email, name, code }),
       });
       if (res.status === 401) throw new Error("Kod yanlış və ya vaxtı bitib");
       if (!res.ok) throw new Error("Giriş alınmadı");

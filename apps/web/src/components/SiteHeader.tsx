@@ -81,7 +81,7 @@ export default function SiteHeader() {
                     {user.name}
                     {badge && <span className={`role-badge ${badge.cls}`}>{badge.label}</span>}
                   </div>
-                  <div className="pm-phone">{user.phone}</div>
+                  <div className="pm-phone">{user.email}</div>
                 </div>
                 <button role="menuitem" className="pm-item"
                   onClick={() => { setMenuOpen(false); setMyOpen(true); }}>

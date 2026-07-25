@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-/** OTP kod isteği — doğrulama numarasına SMS kodu gönderir. */
+/** OTP kod isteği — email adresine doğrulama kodu gönderir. */
 export const OtpRequestDto = z.object({
-  phone: z.string().min(5).max(20),
+  email: z.string().email().max(255),
 });
 export type OtpRequestDto = z.infer<typeof OtpRequestDto>;
 

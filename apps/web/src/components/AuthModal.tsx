@@ -20,9 +20,9 @@ export default function AuthModal(props: {
   onLoggedIn?: () => void;
 }) {
   const { requestOtp, login } = useAuth();
-  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [step, setStep] = useState<"email" | "otp">("email");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +30,9 @@ export default function AuthModal(props: {
 
   useEffect(() => {
     if (props.open) {
-      setStep("phone");
+      setStep("email");
       setName("");
-      setPhone("");
+      setEmail("");
       setOtp("");
       setDevCode(null);
       setError(null);
@@ -47,16 +47,16 @@ export default function AuthModal(props: {
 
   if (!props.open) return null;
 
-  const normalizedPhone = phone.replace(/[^\d]/g, "");
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   // Adım 1 → kodu GÖNDER, sonra kod adımına geç
   const sendCode = async () => {
     if (name.trim().length < 2) return setError("Ad və soyadınızı daxil edin");
-    if (normalizedPhone.length < 9) return setError("Nömrəni tam daxil edin (məs. 50 123 45 67)");
+    if (!emailValid) return setError("Düzgün email ünvanı daxil edin");
     setBusy(true);
     setError(null);
     try {
-      const { devCode } = await requestOtp(normalizedPhone);
+      const { devCode } = await requestOtp(email.trim());
       setDevCode(devCode ?? null);
       setStep("otp");
     } catch {
@@ -71,7 +71,7 @@ export default function AuthModal(props: {
     setBusy(true);
     setError(null);
     try {
-      await login(normalizedPhone, name.trim(), otp.trim());
+      await login(email.trim(), name.trim(), otp.trim());
       props.onClose();
       props.onLoggedIn?.();
     } catch (err) {
@@ -89,10 +89,10 @@ export default function AuthModal(props: {
         <button className="modal-x" onClick={props.onClose} aria-label="Bağla">✕</button>
         <div className="modal-brand"><BrandLogo size={34} /></div>
 
-        {step === "phone" ? (
+        {step === "email" ? (
           <>
             <h2 className="modal-h">Daxil ol və ya qeydiyyatdan keç</h2>
-            <p className="modal-sub">Telefon nömrənizə birdəfəlik kod göndərəcəyik.</p>
+            <p className="modal-sub">Email ünvanınıza birdəfəlik kod göndərəcəyik.</p>
 
             <div className="field">
               <label htmlFor="nm">Ad və Soyad</label>
@@ -101,13 +101,10 @@ export default function AuthModal(props: {
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
-              <label htmlFor="ph">Telefon nömrəsi</label>
-              <div className="phone-input">
-                <span className="phone-cc">+994</span>
-                <input id="ph" inputMode="tel" placeholder="50 123 45 67"
-                  value={phone} onChange={(e) => setPhone(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void sendCode()} />
-              </div>
+              <label htmlFor="em">Email ünvanı</label>
+              <input id="em" type="email" inputMode="email" placeholder="ad@example.com"
+                value={email} onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void sendCode()} />
             </div>
 
             <p className="modal-note">
@@ -123,7 +120,7 @@ export default function AuthModal(props: {
           <>
             <h2 className="modal-h">Kodu daxil edin</h2>
             <p className="modal-sub">
-              +994 {normalizedPhone} nömrəsinə göndərilən kodu yazın.
+              <b>{email.trim()}</b> ünvanına göndərilən kodu yazın.
               {devCode && (
                 <><br /><small style={{ color: "var(--faint)" }}>Demo kodu: <b>{devCode}</b></small></>
               )}
@@ -138,7 +135,7 @@ export default function AuthModal(props: {
             <button className="cta" onClick={() => void verify()} disabled={busy}>
               {busy ? "Yoxlanılır…" : "Təsdiqlə və daxil ol"}
             </button>
-            <button className="link-btn" onClick={() => { setStep("phone"); setOtp(""); setError(null); }}>
+            <button className="link-btn" onClick={() => { setStep("email"); setOtp(""); setError(null); }}>
               ← Geri
             </button>
           </>
