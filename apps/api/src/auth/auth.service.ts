@@ -70,6 +70,51 @@ function mailer(): nodemailer.Transporter | null {
 }
 
 /**
+ * Brevo transactional HTTP API (port 443/HTTPS) ile mail gönderir. Render gibi
+ * PaaS'lar giden SMTP portlarını (25/465/587) bloklar; bu yol HTTPS üzerinden
+ * çalışır. BREVO_API_KEY (v3 "xkeysib-…" anahtarı) gerekir. Gönderen MAIL_FROM'un
+ * "Ad <email>" biçiminden ayrıştırılır (email Brevo'da doğrulanmış sender olmalı).
+ */
+async function sendViaBrevoApi(
+  to: string,
+  subject: string,
+  text: string,
+  html: string,
+): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error("BREVO_API_KEY tanımlı değil");
+  const sender = parseMailFrom(process.env.MAIL_FROM ?? "Pribor <no-reply@pribor.az>");
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": apiKey,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Brevo API ${res.status}: ${body}`);
+  }
+}
+
+/** "Pribor <no-reply@pribor.az>" → { name, email }. Köşeli parantez yoksa tümü email. */
+function parseMailFrom(raw: string): { name: string; email: string } {
+  const m = raw.match(/^\s*(.*?)\s*<\s*(.+?)\s*>\s*$/);
+  const email = m?.[2];
+  if (email) return { name: m?.[1]?.trim() || "Pribor", email };
+  return { name: "Pribor", email: raw.trim() };
+}
+
+/**
  * Mock kimlik + yetki (entitlement) katmanı.
  *
  * Faz 3'te gerçek OTP + JWT oturumu bunun yerini alır; şimdilik mock-login
@@ -145,17 +190,29 @@ export class AuthService implements OnModuleInit {
     await db.insert(otpCodes).values({ phone: e, codeHash: sha256(code), purpose, expiresAt });
 
     this.logger.log(`OTP → ${e}: ${code}`);
-    const transport = mailer();
-    if (transport) {
-      transport
-        .sendMail({
-          from: process.env.MAIL_FROM ?? "Pribor <no-reply@pribor.az>",
-          to: e,
-          subject: `Pribor təsdiq kodu: ${code}`,
-          text: `Pribor.az giriş kodunuz: ${code}\nKod 5 dəqiqə etibarlıdır.`,
-          html: `<p>Pribor.az giriş kodunuz:</p><h2 style="letter-spacing:4px">${code}</h2><p>Kod 5 dəqiqə etibarlıdır.</p>`,
-        })
-        .catch((err) => this.logger.error(`Email göndərilə bilmədi: ${String(err)}`));
+    const subject = `Pribor təsdiq kodu: ${code}`;
+    const text = `Pribor.az giriş kodunuz: ${code}\nKod 5 dəqiqə etibarlıdır.`;
+    const html = `<p>Pribor.az giriş kodunuz:</p><h2 style="letter-spacing:4px">${code}</h2><p>Kod 5 dəqiqə etibarlıdır.</p>`;
+
+    // Render giden SMTP portlarını bloklar → önce Brevo HTTP API (443) denenir;
+    // BREVO_API_KEY yoksa klasik SMTP'ye düşülür (lokal geliştirme).
+    if (process.env.BREVO_API_KEY) {
+      sendViaBrevoApi(e, subject, text, html).catch((err) =>
+        this.logger.error(`Email göndərilə bilmədi (Brevo API): ${String(err)}`),
+      );
+    } else {
+      const transport = mailer();
+      if (transport) {
+        transport
+          .sendMail({
+            from: process.env.MAIL_FROM ?? "Pribor <no-reply@pribor.az>",
+            to: e,
+            subject,
+            text,
+            html,
+          })
+          .catch((err) => this.logger.error(`Email göndərilə bilmədi: ${String(err)}`));
+      }
     }
     const devCode = process.env.NODE_ENV === "production" ? undefined : code;
     return { sent: true, expiresInSec: OTP_TTL_SEC, devCode };
