@@ -17,9 +17,10 @@ async function bootstrap() {
   app.use(urlencoded({ limit: "16mb", extended: true }));
   app.enableShutdownHooks();
 
-  const port = Number(process.env.API_PORT ?? 3001);
-  await app.listen(port);
-  new Logger("Bootstrap").log(`Pribor API hazır → http://localhost:${port}/v1`);
+  // Render/Railway/Fly gibi platformlar PORT enjekte eder; 0.0.0.0'a bağlan.
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3001);
+  await app.listen(port, "0.0.0.0");
+  new Logger("Bootstrap").log(`Pribor API hazır → :${port}/v1`);
 }
 
 void bootstrap();
