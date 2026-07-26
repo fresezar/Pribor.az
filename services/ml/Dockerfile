@@ -16,5 +16,6 @@ RUN pip install .
 # artifacts/ bir volume ile /app/artifacts'e bağlanır; yoksa servis
 # deterministik heuristik stub'a düşer (sözleşme aynı kalır).
 VOLUME ["/app/artifacts"]
+# Render/PaaS $PORT enjekte eder; yoksa lokal 8100. Env genişlemesi için shell-form.
 EXPOSE 8100
-CMD ["uvicorn", "pribor_ml.main:app", "--host", "0.0.0.0", "--port", "8100"]
+CMD ["sh", "-c", "uvicorn pribor_ml.main:app --host 0.0.0.0 --port ${PORT:-8100}"]

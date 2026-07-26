@@ -22,6 +22,8 @@ export class ValuationsService {
 
   async create(dto: CreateValuationDto): Promise<ValuationResponse> {
     const mlUrl = this.config.get<string>("ML_SERVICE_URL") ?? "http://localhost:8100";
+    // Free tier ML servisi uykudan kalkarken yavaş olabilir; env ile ayarlanır.
+    const timeoutMs = Number(this.config.get<string>("ML_TIMEOUT_MS") ?? 30_000);
 
     let res: Response;
     try {
@@ -29,7 +31,7 @@ export class ValuationsService {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(dto),
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       this.logger.error(`ML servisine ulaşılamadı: ${String(err)}`);
