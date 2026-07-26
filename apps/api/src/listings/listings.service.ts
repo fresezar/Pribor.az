@@ -30,6 +30,7 @@ import {
   sql,
 } from "@pribor/db";
 import { AuthService } from "../auth/auth.service";
+import { MediaService } from "../media/media.service";
 
 const TYPE_LABEL: Record<string, string> = {
   apartment: "Mənzil", house: "Həyət evi", land: "Torpaq",
@@ -46,7 +47,10 @@ const TYPE_LABEL: Record<string, string> = {
  */
 @Injectable()
 export class ListingsService {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly media: MediaService,
+  ) {}
 
   private orderByClause(sort: ListingSort) {
     switch (sort) {
@@ -332,8 +336,10 @@ export class ListingsService {
     const areaText = dto.areaM2 != null ? String(dto.areaM2) : null;
     const landText = dto.landAreaSot != null ? String(dto.landAreaSot) : null;
     const locationId = await this.ensureLocation(dto.district);
+    // R2 yapılandırılıysa data URI'lar herkese açık URL'e dönüşür; yoksa no-op.
+    const photos = await this.media.uploadPhotos(dto.photos, dto.userId);
     // Kapak indeksi foto sayısını aşmasın (istemci silme sonrası göndermiş olabilir)
-    const coverIdx = Math.min(dto.coverPhotoIdx, Math.max(0, dto.photos.length - 1));
+    const coverIdx = Math.min(dto.coverPhotoIdx, Math.max(0, photos.length - 1));
 
     // Ana ilan + dikeye özgü öznitelikler (re_attrs) tek transaction'da
     const listingId = await db.transaction(async (tx) => {
@@ -351,7 +357,7 @@ export class ListingsService {
           priceAzn: dto.priceAzn,
           contactName: dto.contactName,
           contactPhone: dto.contactPhone,
-          photos: dto.photos,
+          photos,
           coverPhotoIdx: coverIdx,
           valuationId: dto.valuationId ?? null,
           publishedAt: new Date(),
@@ -609,7 +615,10 @@ export class ListingsService {
 
     const newPrice = dto.priceAzn ?? current.priceAzn;
     const priceChanged = newPrice !== current.priceAzn;
-    const photos = dto.photos ?? (current.photos as string[]);
+    // R2 yapılandırılıysa yeni gelen data URI'lar yüklenir; zaten URL olanlar
+    // (değişmeyen fotoğraflar) ve R2 kapalıyken data URI'lar dokunulmadan geçer.
+    const rawPhotos = dto.photos ?? (current.photos as string[]);
+    const photos = await this.media.uploadPhotos(rawPhotos, dto.userId);
     const coverIdx = Math.min(
       dto.coverPhotoIdx ?? current.coverPhotoIdx,
       Math.max(0, photos.length - 1),

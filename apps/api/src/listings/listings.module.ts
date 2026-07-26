@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { MediaModule } from "../media/media.module";
 import { ListingsController } from "./listings.controller";
 import { ListingsService } from "./listings.service";
 
@@ -9,7 +10,7 @@ import { ListingsService } from "./listings.service";
  * scraped_listings piyasa görünümü.
  */
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, MediaModule],
   controllers: [ListingsController],
   providers: [ListingsService],
   exports: [ListingsService],
