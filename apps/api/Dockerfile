@@ -23,7 +23,7 @@ COPY . .
 RUN pnpm --filter @pribor/contracts build \
  && pnpm --filter @pribor/db build \
  && pnpm --filter @pribor/api build \
- && pnpm --filter @pribor/api --prod deploy /out
+ && pnpm --filter @pribor/api --prod --legacy deploy /out
 
 # --- runner: yalın çalışma imajı ---
 FROM node:20-slim AS runner
