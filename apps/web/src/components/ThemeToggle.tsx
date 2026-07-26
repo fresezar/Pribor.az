@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Koyu/Açık tema geçişi. Seçim localStorage'da; ilk boyamadan önce
- * layout'taki inline script data-theme'i uyguladığı için tema atlaması olmaz.
+ * Koyu/Açık tema geçişi. Varsayılan AÇIK; seçim localStorage'da; ilk boyamadan
+ * önce layout'taki inline script data-theme'i uyguladığı için tema atlaması olmaz.
  */
 
 import { useEffect, useState } from "react";
@@ -11,10 +11,10 @@ type Theme = "dark" | "light";
 const KEY = "pribor.theme";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const current = (document.documentElement.dataset.theme as Theme) ?? "dark";
+    const current = (document.documentElement.dataset.theme as Theme) ?? "light";
     setTheme(current);
   }, []);
 

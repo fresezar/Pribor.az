@@ -11,14 +11,15 @@ export const metadata: Metadata = {
 };
 
 /**
- * Tema ilk boyamadan ÖNCE uygulanır — aksi halde koyu tema bir kare
- * görünüp açık temaya atlar (flash of wrong theme).
+ * Varsayılan tema AÇIK (Porcelain); kullanıcı isterse koyuya geçer. Kayıtlı
+ * seçim ilk boyamadan ÖNCE uygulanır — aksi halde yanlış tema bir kare görünüp
+ * atlar (flash of wrong theme).
  */
 const THEME_INIT = `try{var t=localStorage.getItem("pribor.theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="az" data-theme="dark">
+    <html lang="az" data-theme="light">
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
