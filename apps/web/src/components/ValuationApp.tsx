@@ -20,6 +20,7 @@ import type {
 import { categoryToType } from "@pribor/contracts";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
+import NumberField from "./NumberField";
 import ValuationResultVisual from "./ValuationResultVisual";
 import { useAuth } from "./AuthContext";
 import { CATEGORIES, CATEGORY_BY_KEY } from "./categories";
@@ -192,15 +193,15 @@ export default function ValuationApp() {
             {cfg.areaM2 && (
               <div className="field">
                 <label htmlFor="area">{cfg.areaLabel}</label>
-                <input id="area" type="number" min={5} max={5000} value={areaM2}
-                  onChange={(e) => setAreaM2(Number(e.target.value))} />
+                <NumberField id="area" min={5} max={5000} value={areaM2}
+                  onChange={(v) => setAreaM2(Number(v))} />
               </div>
             )}
             {cfg.landSot && (
               <div className="field">
                 <label htmlFor="landsot">Torpaq sahəsi (sot)</label>
-                <input id="landsot" type="number" min={1} max={1000} step={0.5}
-                  value={landAreaSot} onChange={(e) => setLandAreaSot(Number(e.target.value))} />
+                <NumberField id="landsot" min={1} max={1000} step={0.5}
+                  value={landAreaSot} onChange={(v) => setLandAreaSot(Number(v))} />
                 <span className="hint">1 sot = 100 m²</span>
               </div>
             )}
@@ -255,8 +256,8 @@ export default function ValuationApp() {
 
           <div className="field" style={{ marginTop: 16 }}>
             <label htmlFor="asking">Elanda gördüyünüz qiymət (₼, istəyə bağlı)</label>
-            <input id="asking" type="number" min={0} placeholder="Bazarla müqayisə üçün"
-              value={askingPrice} onChange={(e) => setAskingPrice(e.target.value)} />
+            <NumberField id="asking" min={0} placeholder="Bazarla müqayisə üçün"
+              value={askingPrice} onChange={setAskingPrice} />
             <span className="hint">Doldursanız, elanın bazara görə sərfəli olub-olmadığını göstəririk.</span>
           </div>
 

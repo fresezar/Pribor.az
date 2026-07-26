@@ -18,6 +18,7 @@ import type {
   UpdateListingDto,
 } from "@pribor/contracts";
 import { categoryToType, DEAL_TYPE_LABEL, typeToCategory } from "@pribor/contracts";
+import NumberField from "./NumberField";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
 import UpgradeModal from "./UpgradeModal";
@@ -265,15 +266,15 @@ export default function ListingForm(props: {
           {cfg.areaM2 && (
             <div className="field">
               <label htmlFor="lf-area">{cfg.areaLabel}</label>
-              <input id="lf-area" type="number" min={1} value={areaM2 || ""}
-                onChange={(e) => setAreaM2(Number(e.target.value))} />
+              <NumberField id="lf-area" min={1} value={areaM2 || ""}
+                onChange={(v) => setAreaM2(Number(v))} />
             </div>
           )}
           {cfg.landSot && (
             <div className="field">
               <label htmlFor="lf-land">Torpaq sahəsi (sot)</label>
-              <input id="lf-land" type="number" min={0.1} step={0.1} value={landAreaSot || ""}
-                onChange={(e) => setLandAreaSot(Number(e.target.value))} />
+              <NumberField id="lf-land" min={0.1} step={0.1} value={landAreaSot || ""}
+                onChange={(v) => setLandAreaSot(Number(v))} />
               <span className="hint">1 sot = 100 m²</span>
             </div>
           )}
@@ -314,8 +315,8 @@ export default function ListingForm(props: {
 
         <div className="field" style={{ marginTop: 16 }}>
           <label htmlFor="lf-price">Qiymət (₼){dealType === "rent" ? " / ay" : ""}</label>
-          <input id="lf-price" type="number" min={1} value={price || ""}
-            onChange={(e) => setPrice(Number(e.target.value))} />
+          <NumberField id="lf-price" min={1} value={price || ""}
+            onChange={(v) => setPrice(Number(v))} />
           {isEdit && editing && price !== editing.priceAzn && price > 0 && (
             <span className="hint">
               {fmt(editing.priceAzn)} ₼ → {fmt(price)} ₼ · dəyişiklik qiymət tarixçəsinə yazılacaq

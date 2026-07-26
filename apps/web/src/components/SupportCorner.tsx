@@ -5,7 +5,7 @@
  * satırı. Numara .env'den (NEXT_PUBLIC_SUPPORT_PHONE) gelir.
  */
 
-const RAW = process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+994555000001";
+const RAW = process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+994508046966";
 const DIGITS = RAW.replace(/[^\d]/g, "");
 
 /** +994555000001 → +994 55 500 00 01 */

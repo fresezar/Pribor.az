@@ -150,6 +150,8 @@ html, body {
   line-height: 1.55;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  /* Mobilde tek bir taşan öğe tüm sayfayı yatay kaydırılabilir yapmasın */
+  overflow-x: hidden;
 }
 
 /* Aurora mesh + mikro nokta ızgarası — sabit, en arka katman */
@@ -293,6 +295,33 @@ button { cursor: pointer; }
 .field input:hover, .field select:hover { border-color: var(--faint); }
 .field input:focus, .field select:focus { border-color: var(--teal); outline: none; }
 .field .hint { font-size: 0.72rem; color: var(--faint); }
+
+/* ---------- sayı girişi — temayla uyumlu özel spin düymələri ---------- */
+.num-field { position: relative; }
+.num-field input {
+  padding-right: 34px;
+  /* Firefox default spinner'ı tamamen kapat — özel düymelerimiz onun yerine geçer */
+  -moz-appearance: textfield;
+}
+.num-field input::-webkit-outer-spin-button,
+.num-field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.num-spin {
+  position: absolute; top: 1px; right: 1px; bottom: 1px;
+  display: flex; flex-direction: column;
+  width: 26px; border-radius: 0 8px 8px 0; overflow: hidden;
+}
+.num-spin button {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: none; border-left: 1px solid var(--line);
+  color: var(--faint); font-size: 0.55rem; line-height: 1; padding: 0;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.num-spin button:first-child { border-bottom: 1px solid var(--line); }
+.num-spin button:hover { background: var(--teal-soft); color: var(--teal); }
+.num-spin button:active { background: var(--teal-line); }
 
 /* segment kontrolü (otaq, təmir) */
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -631,8 +660,9 @@ footer.note {
   background: var(--bg-raise); border: 1px solid var(--line); border-radius: 14px;
 }
 
+/* Masaüstünde satır başına 5 kart (1120px kabuk) — 4 fazla seyrekti */
 .listing-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px;
 }
 .listing-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -683,6 +713,7 @@ footer.note {
 @media (max-width: 560px) {
   .post-btn { padding: 8px 12px; font-size: 0.8rem; }
 }
+
 
 /* ---------- APK indirme butonu (şimdilik gizli) ---------- */
 .apk-btn {
@@ -1333,4 +1364,38 @@ footer.note {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   body::before { animation: none !important; }
+}
+
+/* ═══════════ mobil düzeltmeleri ═══════════
+   Bilinçli olarak dosyanın sonunda: yukarıdaki geç .topbar tanımı
+   (margin: 0 -24px) aynı specificity'de olduğu için buradan sonra ezilemez. */
+@media (max-width: 640px) {
+  /* Kabuk kenar boşluğu daralır; topbar'ın negatif margin'i onunla eşleşmeli,
+     yoksa header viewport'tan taşar (sağda boşluk). */
+  .shell { padding-left: 14px; padding-right: 14px; }
+  .topbar { margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+
+  /* Üst bar öğeleri sığmıyordu — aralık ve boyutları kıs */
+  .topbar-right { gap: 8px; }
+  .nav-link { display: none; }              /* "Bazar" zaten hemen aşağıda */
+  .login-btn { padding: 7px 11px; font-size: 0.8rem; }
+  .avatar { width: 33px; height: 33px; font-size: 0.74rem; }
+  .theme-toggle { width: 30px; height: 30px; font-size: 0.85rem; }
+  .brand-word { font-size: 1rem; }
+
+  /* Izgarada iki kart yan yana — liste görünümünden gerçekten farklı olsun */
+  .listing-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .listing.grid .listing-thumb { height: 92px; font-size: 1.9rem; }
+  .listing.grid .listing-body { padding: 10px 11px; }
+  .listing.grid .listing-price { font-size: 0.95rem; }
+  .listing.grid .listing-title {
+    font-size: 0.8rem; margin-top: 6px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .listing.grid .listing-ppm2 { font-size: 0.68rem; }
+  .listing.grid .listing-chips { gap: 4px; margin-top: 7px; }
+  .listing.grid .chip-sm { font-size: 0.64rem; padding: 2px 6px; }
+  .listing.grid .listing-loc { font-size: 0.7rem; margin-top: 7px; }
+  .listing.grid .listing-deal { font-size: 0.56rem; padding: 2px 6px; }
 }
