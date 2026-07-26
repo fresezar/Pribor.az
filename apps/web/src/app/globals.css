@@ -1383,6 +1383,13 @@ footer.note {
   .theme-toggle { width: 30px; height: 30px; font-size: 0.85rem; }
   .brand-word { font-size: 1rem; }
 
+  /* Bazar başlığı: "Elan yerləşdir" + görünüş düymələri dar ekranda başlıqla
+     yan-yana sığmırdı (sağa daşırdı) — alt sətrə keç, düymələr genişliyi bölsün */
+  .market-head { flex-wrap: wrap; gap: 12px; }
+  .market-head > div:first-child { flex: 1 1 100%; }
+  .market-head-actions { flex: 1 1 100%; justify-content: space-between; }
+  .post-btn { flex: 1; }
+
   /* Izgarada iki kart yan yana — liste görünümünden gerçekten farklı olsun */
   .listing-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .listing.grid .listing-thumb { height: 92px; font-size: 1.9rem; }
@@ -1398,4 +1405,13 @@ footer.note {
   .listing.grid .chip-sm { font-size: 0.64rem; padding: 2px 6px; }
   .listing.grid .listing-loc { font-size: 0.7rem; margin-top: 7px; }
   .listing.grid .listing-deal { font-size: 0.56rem; padding: 2px 6px; }
+}
+
+/* Çox dar ekranlar (≤360px, məs. iPhone SE): üst barda hər şey sığmır —
+   wordmark gizlənir, yalnız marka işarəsi qalır. */
+@media (max-width: 360px) {
+  .brand-word { display: none; }
+  .topbar-right { gap: 6px; }
+  .post-btn { padding: 7px 10px; font-size: 0.76rem; }
+  .login-btn { padding: 7px 10px; font-size: 0.76rem; }
 }
