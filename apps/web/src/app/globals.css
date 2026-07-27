@@ -1008,9 +1008,13 @@ footer.note {
   overscroll-behavior: contain; /* modal sonuna gelince sayfa kaymasın */
 }
 .ld-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+/* Elan nömrəsi — istifadəçi bunu oxuyup paylaşır (dəstəyə deyir, axtarır),
+   ona görə soluk deyil, oxunaqlı olmalıdır. */
 .ld-head .ref-no {
-  font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
-  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+  font-family: var(--mono); font-size: 0.82rem; font-weight: 600;
+  color: var(--ink); letter-spacing: 0.02em;
+  background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
 }
 .ld-head .sold-badge { position: static; }
 .ld-gallery { margin-bottom: 16px; }

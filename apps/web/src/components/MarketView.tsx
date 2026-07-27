@@ -266,9 +266,10 @@ function ListingCardView({
         <div className="listing-chips">
           {chips.map((c) => <span key={c} className="chip-sm">{c}</span>)}
         </div>
+        {/* Elan nömrəsi kartda GÖSTERİLMEZ — kalabalık yapıp konumla karışıyordu.
+            Numara detay ekranında ("No: 10042") ve axtarışta kullanılır. */}
         <div className="listing-loc">
           {it.district ?? "Bakı"}{it.settlement ? ` · ${it.settlement}` : ""}
-          {it.refNo && <span className="card-ref">№{it.refNo}</span>}
         </div>
       </div>
     </article>

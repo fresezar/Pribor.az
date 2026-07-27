@@ -83,7 +83,7 @@ export default function MyListings(props: { open: boolean; onClose: () => void }
                       <div className="my-meta">
                         <span className={`deal-badge sm ${it.dealType}`}>{DEAL_TYPE_LABEL[it.dealType]}</span>
                         <span>{categoryLabel(it.propertyType, it.buildingType)}</span>
-                        {it.refNo && <span className="card-ref">№{it.refNo}</span>}
+                        {it.refNo && <span className="card-ref">No: {it.refNo}</span>}
                         {it.photos.length > 0 && <span>📷 {it.photos.length}</span>}
                       </div>
                     </div>
