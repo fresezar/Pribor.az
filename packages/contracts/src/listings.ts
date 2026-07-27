@@ -32,9 +32,9 @@ export type ListingQuery = z.infer<typeof ListingQuery>;
  */
 export const ListingCard = z.object({
   id: z.string().uuid(),
-  /** user = platformda verilmiş ilan (PRB no'lu), scraped = piyasa verisi. */
+  /** user = platformda verilmiş ilan (numaralı), scraped = piyasa verisi. */
   kind: z.enum(["user", "scraped"]).default("scraped"),
-  /** Yalnızca kullanıcı ilanlarında: "PRB-10042". */
+  /** Yalnızca kullanıcı ilanlarında: "10042". */
   refNo: z.string().nullable().default(null),
   status: z.string().default("active"),
   dealType: DealType.default("sale"),
@@ -203,9 +203,17 @@ export const OTP_INVALID_CODE = "OTP_INVALID" as const;
 /** Haftalık ücretsiz ilan üst sınırı (verification_phone başına, 7 gün). */
 export const WEEKLY_FREE_LIMIT = 3;
 
-/** İlan numarası biçimi: 10042 → "PRB-10042". */
+/**
+ * İlan numarası biçimi: 10042 → "10042".
+ *
+ * Eskiden "PRB-" öneki vardı; kullanıcılar kafa karıştırıcı buldu. Numara
+ * bilinçli olarak yalnızca rakamdır: kalıcıdır (ilan düzenlenip rayonu
+ * değişse bile aynı kalır) ve telefonda söylemesi/aramada yazması kolaydır.
+ * parseRefNo eski "PRB-10042" yazımını hâlâ kabul eder — paylaşılmış
+ * numaralar ölmesin.
+ */
 export const formatRefNo = (n: number | null | undefined): string | null =>
-  n == null ? null : `PRB-${n}`;
+  n == null ? null : String(n);
 
 /** "PRB-10042" | "10042" → 10042 (geçersizse null). */
 export function parseRefNo(input: string): number | null {

@@ -40,7 +40,7 @@ export const listings = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     /**
-     * İnsan-okur ilan numarası (UI'da "PRB-10042"). Identity kolonu —
+     * İnsan-okur ilan numarası (UI'da "№10042"). Identity kolonu —
      * Postgres sırayı kendi yönetir; arama ve müşteri desteği bu numarayla.
      */
     refNo: integer("ref_no").generatedByDefaultAsIdentity({ startWith: 10000 }),

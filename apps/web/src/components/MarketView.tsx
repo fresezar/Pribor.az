@@ -160,7 +160,7 @@ export default function MarketView() {
 
       <div className="market-search">
         <input
-          placeholder="Elan nömrəsi ilə axtar — məs. PRB-10042"
+          placeholder="Elan nömrəsi ilə axtar — məs. 10042"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setSearchMsg(null); }}
           onKeyDown={(e) => e.key === "Enter" && void runSearch()}
@@ -272,7 +272,7 @@ function ListingCardView({
         </div>
         <div className="listing-loc">
           {it.district ?? "Bakı"}{it.settlement ? ` · ${it.settlement}` : ""}
-          {it.refNo && <span className="card-ref">{it.refNo}</span>}
+          {it.refNo && <span className="card-ref">№{it.refNo}</span>}
         </div>
       </div>
     </article>

@@ -148,7 +148,7 @@ export default function ListingDetailModal(props: {
                 {categoryLabel(data.propertyType, data.buildingType)}
               </span>
               <span className={`deal-badge ${data.dealType}`}>{DEAL_TYPE_LABEL[data.dealType]}</span>
-              {data.refNo && <span className="ref-no">{data.refNo}</span>}
+              {data.refNo && <span className="ref-no">Elan №{data.refNo}</span>}
               {data.status === "sold" && <span className="sold-badge">SATILDI</span>}
             </div>
 

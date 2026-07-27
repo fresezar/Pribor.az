@@ -564,7 +564,7 @@ export class ListingsService {
       .from(listings)
       .where(eq(listings.refNo, refNo))
       .limit(1);
-    if (!rows[0]) throw new NotFoundException(`PRB-${refNo} nömrəli elan tapılmadı`);
+    if (!rows[0]) throw new NotFoundException(`№${refNo} nömrəli elan tapılmadı`);
     return this.detail(rows[0].id, viewerId);
   }
 

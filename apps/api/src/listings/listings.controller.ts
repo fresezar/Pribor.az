@@ -64,7 +64,7 @@ export class ListingsController {
     return this.listings.myListings(userId);
   }
 
-  /** İlan numarasıyla arama: /v1/listings/by-ref/PRB-10042?userId=… */
+  /** İlan numarasıyla arama: /v1/listings/by-ref/10042?userId=… (eski "PRB-10042" de kabul) */
   @Get("by-ref/:ref")
   async byRef(@Param("ref") ref: string, @Query("userId") userId?: string) {
     const viewer = await this.requireUser(userId);
