@@ -96,7 +96,7 @@ export default function AuthModal(props: {
 
             <div className="field">
               <label htmlFor="nm">Ad və Soyad</label>
-              <input id="nm" placeholder="Elvin Məmmədov" autoFocus
+              <input id="nm" placeholder="Adınız və soyadınız" autoFocus
                 value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 

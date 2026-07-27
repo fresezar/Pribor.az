@@ -78,6 +78,7 @@ export default function ValuationApp() {
   const [askingPrice, setAskingPrice] = useState<string>("");
 
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const cfg = CATEGORY_BY_KEY[category];
 
@@ -86,6 +87,9 @@ export default function ValuationApp() {
     setPosted(null);
     setPhase("computing");
     setStepIdx(0);
+    // Form (uzun) yerini hesaplama animasyonuna (kısa) bırakınca panel yukarıda
+    // kalıyordu; kullanıcı sayfanın altında olduğu için anı kaçırıyordu.
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     stepTimer.current = setInterval(
       () => setStepIdx((i) => Math.min(i + 1, COMPUTE_STEPS.length - 1)),
       420,
@@ -170,7 +174,7 @@ export default function ValuationApp() {
   }, [user]);
 
   return (
-    <div className="panel" id="qiymetlendir">
+    <div className="panel" id="qiymetlendir" ref={panelRef}>
       {phase === "form" && (
         <>
           <div className="grid">
