@@ -65,6 +65,12 @@ class RealEstateInput(BaseModel):
     vertical: Literal["real_estate"]
     propertyType: str
     district: str
+    # Qəsəbə: rayon içi fiyat farkını açıklayan ana sinyal (bkz. contracts).
+    # Modelin coğrafi profil alanları (center_km/sea_km/area_character) bundan
+    # türetilir — gönderilmezse o sinyaller boş kalır ve tahmin rayon
+    # ortalamasına yaklaşır.
+    settlement: str | None = None
+    metroStation: str | None = None
     areaM2: float = Field(gt=0)
     landAreaSot: float | None = None
     rooms: int | None = None
@@ -105,8 +111,12 @@ class ShapContribution(BaseModel):
 class ValuationResult(BaseModel):
     valuationId: str
     vertical: str
+    # İki aralık: P25–P75 "ehtimal olunan" (dar), P10–P90 "geniş".
+    # Gerekçe ve ölçülen kapsama için bkz. contracts/src/valuation.ts.
     p10Azn: int
+    p25Azn: int
     p50Azn: int
+    p75Azn: int
     p90Azn: int
     confidence: float
     shapTop: list[ShapContribution]
@@ -125,6 +135,8 @@ def _predict_real_estate_catboost(inp: RealEstateInput) -> ValuationResult:
     assert RE_MODEL is not None
     pred = RE_MODEL.predict({
         "district": inp.district,
+        "settlement": inp.settlement,
+        "metro_station": inp.metroStation,
         "property_type": inp.propertyType,
         "building_type": inp.buildingType,
         "area_m2": inp.areaM2,
@@ -140,7 +152,9 @@ def _predict_real_estate_catboost(inp: RealEstateInput) -> ValuationResult:
         valuationId=str(uuid.uuid4()),
         vertical="real_estate",
         p10Azn=pred.p10,
+        p25Azn=pred.p25,
         p50Azn=pred.p50,
+        p75Azn=pred.p75,
         p90Azn=pred.p90,
         confidence=pred.confidence,
         shapTop=[ShapContribution(**s) for s in pred.shap_top],
@@ -170,7 +184,8 @@ def _estimate_real_estate(inp: RealEstateInput) -> ValuationResult:
         p50 = int(round(price, -2))
         return ValuationResult(
             valuationId=str(uuid.uuid4()), vertical="real_estate",
-            p10Azn=int(p50 * 0.88), p50Azn=p50, p90Azn=int(p50 * 1.14),
+            p10Azn=int(p50 * 0.88), p25Azn=int(p50 * 0.94), p50Azn=p50,
+            p75Azn=int(p50 * 1.07), p90Azn=int(p50 * 1.14),
             confidence=0.4, shapTop=sorted(shap, key=lambda s: -abs(s.contributionAzn))[:8],
             compListingIds=[], modelVersion=MODEL_VERSION, createdAt=_now_iso())
 
@@ -213,7 +228,9 @@ def _estimate_real_estate(inp: RealEstateInput) -> ValuationResult:
         valuationId=str(uuid.uuid4()),
         vertical="real_estate",
         p10Azn=int(p50 * 0.94),
+        p25Azn=int(p50 * 0.97),
         p50Azn=p50,
+        p75Azn=int(p50 * 1.03),
         p90Azn=int(p50 * 1.06),
         confidence=0.5,  # stub — gerçek skor comps yoğunluğundan gelecek
         shapTop=sorted(shap, key=lambda s: -abs(s.contributionAzn))[:8],
@@ -247,7 +264,9 @@ def _estimate_vehicle(inp: VehicleInput) -> ValuationResult:
         valuationId=str(uuid.uuid4()),
         vertical="vehicle",
         p10Azn=int(p50 * 0.92),
+        p25Azn=int(p50 * 0.96),
         p50Azn=p50,
+        p75Azn=int(p50 * 1.04),
         p90Azn=int(p50 * 1.08),
         confidence=0.4,
         shapTop=sorted(shap, key=lambda s: -abs(s.contributionAzn))[:8],

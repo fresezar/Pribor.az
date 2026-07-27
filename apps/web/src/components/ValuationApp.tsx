@@ -17,13 +17,13 @@ import type {
   RealEstateValuationInput,
   ValuationResponse,
 } from "@pribor/contracts";
-import { categoryToType } from "@pribor/contracts";
+import { categoryToType, settlementsOf } from "@pribor/contracts";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
 import NumberField from "./NumberField";
 import ValuationResultVisual from "./ValuationResultVisual";
 import { useAuth } from "./AuthContext";
-import { CATEGORIES, CATEGORY_BY_KEY } from "./categories";
+import { CATEGORY_BY_KEY, VALUATION_CATEGORIES } from "./categories";
 import { notifyListingsChanged } from "./listingEvents";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -69,6 +69,10 @@ export default function ValuationApp() {
 
   // form state
   const [district, setDistrict] = useState("Nərimanov");
+  // Qəsəbə — rayon içi fiyat farkını açıklayan ana sinyal (Xəzərdə Mərdəkan ile
+  // Türkan arasında iki kat fark olabiliyor). Boş = "fərq etməz": model rayon
+  // ortalamasına düşer, yanlış bir qəsəbə seçmekten iyidir.
+  const [settlement, setSettlement] = useState("");
   const [areaM2, setAreaM2] = useState(65);
   const [landAreaSot, setLandAreaSot] = useState(4);
   const [rooms, setRooms] = useState(2);
@@ -81,6 +85,7 @@ export default function ValuationApp() {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const cfg = CATEGORY_BY_KEY[category];
+  const settlementOptions = settlementsOf(district);
 
   const submit = useCallback(async () => {
     setError(null);
@@ -105,6 +110,7 @@ export default function ValuationApp() {
       areaM2: effectiveArea,
       metroDistM,
       titleDeed,
+      ...(settlement && { settlement }),
       ...(cfg.rooms && { rooms }),
       ...(buildingType && { buildingType }),
       ...(cfg.repair && { repairState }),
@@ -182,17 +188,37 @@ export default function ValuationApp() {
               <label htmlFor="v-cat">Əmlak növü</label>
               <select id="v-cat" value={category}
                 onChange={(e) => setCategory(e.target.value as ReCategory)}>
-                {CATEGORIES.map((c) => (
+                {/* Yalnız motorun ölçülmüş doğrulukta hesapladığı kategoriler —
+                    bkz. categories.ts `valuation`. İlan verme hepsini kabul eder. */}
+                {VALUATION_CATEGORIES.map((c) => (
                   <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
                 ))}
               </select>
             </div>
             <div className="field">
               <label htmlFor="district">Rayon</label>
-              <select id="district" value={district} onChange={(e) => setDistrict(e.target.value)}>
+              <select
+                id="district"
+                value={district}
+                onChange={(e) => {
+                  setDistrict(e.target.value);
+                  setSettlement("");  // qəsəbə listesi rayona bağlı — seçim geçersizleşir
+                }}
+              >
                 {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
+            {settlementOptions.length > 0 && (
+              <div className="field">
+                <label htmlFor="settlement">Qəsəbə</label>
+                <select id="settlement" value={settlement}
+                  onChange={(e) => setSettlement(e.target.value)}>
+                  <option value="">Fərq etməz</option>
+                  {settlementOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <span className="hint">Eyni rayonda qəsəbələr arası fərq böyük ola bilər</span>
+              </div>
+            )}
 
             {cfg.areaM2 && (
               <div className="field">

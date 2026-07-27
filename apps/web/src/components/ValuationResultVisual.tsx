@@ -51,6 +51,10 @@ export default function ValuationResultVisual(props: {
   const p10p = pos(result.p10Azn);
   const p50p = pos(result.p50Azn);
   const p90p = pos(result.p90Azn);
+  // Dar bant yalnız beş quantile ile üretilmiş sonuçlarda var
+  const hasNarrow = result.p25Azn != null && result.p75Azn != null;
+  const p25p = pos(result.p25Azn ?? result.p10Azn);
+  const p75p = pos(result.p75Azn ?? result.p90Azn);
 
   const confPct = Math.round(Number(result.confidence) * 100);
 
@@ -87,7 +91,15 @@ export default function ValuationResultVisual(props: {
         </div>
       </div>
 
-      {/* Güven aralığı */}
+      {/*
+        İki aralık. Dar bant (P25–P75) benzer ilanların yarısını, geniş bant
+        (P10–P90) 10 ilandan 8'ini kapsıyor — ölçülen değerler. Tek aralık
+        göstermek zorunda kalsaydık ya yanıltıcı derecede dar ya da yol
+        göstermeyecek kadar geniş olurdu; ikisi birlikte hem net bir rakam
+        hem belirsizliğin gerçek boyutunu veriyor.
+        Dar bant eski değerlemelerde yok (üç quantile ile üretilmişlerdi) —
+        o durumda yalnız geniş bant çizilir.
+      */}
       <div className="vrv-range">
         <div className="vrv-track">
           <motion.div
@@ -96,6 +108,14 @@ export default function ValuationResultVisual(props: {
             animate={{ left: `${p10p}%`, right: `${100 - p90p}%` }}
             transition={{ duration: 0.9, ease: EASE, delay: 0.15 }}
           />
+          {hasNarrow && (
+            <motion.div
+              className="vrv-band narrow"
+              initial={reduce ? false : { left: `${p50p}%`, right: `${100 - p50p}%` }}
+              animate={{ left: `${p25p}%`, right: `${100 - p75p}%` }}
+              transition={{ duration: 0.9, ease: EASE, delay: 0.35 }}
+            />
+          )}
           <motion.div
             className="vrv-dot"
             initial={reduce ? false : { left: `${p50p}%`, scale: 0 }}
@@ -103,9 +123,16 @@ export default function ValuationResultVisual(props: {
             transition={{ duration: 0.5, ease: EASE, delay: 0.5 }}
           />
         </div>
+        {hasNarrow && (
+          <div className="vrv-labels strong">
+            <span>{fmt(result.p25Azn!)} ₼</span>
+            <span className="mid">ehtimal olunan aralıq</span>
+            <span>{fmt(result.p75Azn!)} ₼</span>
+          </div>
+        )}
         <div className="vrv-labels">
           <span>{fmt(result.p10Azn)} ₼</span>
-          <span className="mid">etibarlılıq aralığı</span>
+          <span className="mid">geniş aralıq</span>
           <span>{fmt(result.p90Azn)} ₼</span>
         </div>
       </div>

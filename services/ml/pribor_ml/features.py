@@ -43,11 +43,16 @@ FEATURE_ORDER: list[str] = [
     # ₼/sot medyanı: kommersiya 30.159 ↔ kənd təsərrüfatı 5.000 (6 kat).
     # Mənzildə boştur (unknown) — model tipe göre zaten ayrışıyor.
     "land_use",        # kategorik — kommersiya|tikinti|yasayis|bag|kend_teserrufati
+    # Metro İSTASYONU (mesafe değil). metro_dist_m gerçek veride hep boş kalıyor:
+    # mesafe hesabı geocoding ister, motor dışa bağımlı olmayacak. İstasyon adı
+    # ise ilan metninde yazılı ve şehir içinde güçlü bir konum sinyali —
+    # eklendiğinde mənzil medyan hatası %10.1 → %9.8, band %46.1 → %44.3.
+    "metro_station",   # kategorik
 ]
 
 CAT_FEATURES: list[str] = [
     "district", "property_type", "building_type", "settlement", "area_character",
-    "land_use",
+    "land_use", "metro_station",
 ]
 
 # SHAP çıktısını kullanıcı diline çeviren etiketler (AZ) — "Qiymət DNT-si"
@@ -68,6 +73,7 @@ LABELS_AZ: dict[str, str] = {
     "sea_km": "Dənizə yaxınlıq",
     "area_character": "Ərazinin xarakteri",
     "land_use": "Torpağın təyinatı",
+    "metro_station": "Metro stansiyası",
 }
 
 _CAT_UNKNOWN = "unknown"
@@ -145,5 +151,6 @@ def build_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
             "area_character": str(r.get("area_character")
                                   or (prof[2] if prof else None) or _CAT_UNKNOWN),
             "land_use": str(r.get("land_use") or _CAT_UNKNOWN),
+            "metro_station": str(r.get("metro_station") or _CAT_UNKNOWN),
         })
     return pd.DataFrame(rows, columns=FEATURE_ORDER)

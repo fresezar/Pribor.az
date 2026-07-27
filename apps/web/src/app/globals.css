@@ -1347,12 +1347,25 @@ footer.note {
   background: var(--gold); border: 3px solid var(--bg-raise);
   box-shadow: 0 0 0 2px var(--gold-line), 0 0 22px 2px var(--gold);
 }
+/* Dar bant (P25–P75) geniş bandın üstüne biner: göz önce daha doygun olan
+   dar aralığı, sonra çevresindeki soluk geniş aralığı okur. */
+.vrv-band.narrow {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--emerald) 55%, transparent),
+    var(--emerald),
+    color-mix(in srgb, var(--emerald) 55%, transparent));
+  border-color: var(--emerald);
+  box-shadow: 0 0 22px -1px var(--emerald);
+}
 .vrv-labels {
   display: flex; justify-content: space-between; margin-top: 10px;
   font-family: var(--mono); font-size: 0.7rem; color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 .vrv-labels .mid { color: var(--emerald); }
+/* Ana aralık daha okunur — kullanıcının rakamı buradan alması bekleniyor */
+.vrv-labels.strong { margin-top: 12px; font-size: 0.78rem; color: var(--text); }
+.vrv-labels.strong + .vrv-labels { margin-top: 4px; opacity: 0.75; }
 
 .vrv-deal {
   display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;

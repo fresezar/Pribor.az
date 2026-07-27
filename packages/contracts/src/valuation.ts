@@ -18,6 +18,16 @@ export const RealEstateValuationInput = z.object({
   vertical: z.literal("real_estate"),
   propertyType: PropertyType,
   district: BakuDistrict,
+  /**
+   * Qəsəbə — rayon içi fiyat uçurumunu açıklayan ana sinyal. Xəzərdə
+   * Mərdəkan/Şüvəlan (dəniz kənarı) ile Türkan/Zirə arasındaki fark iki katı
+   * bulabiliyor; rayon tek başına bunu göremiyor. Model bunu qəsəbənin kendisi
+   * VE coğrafi profili (merkeze/denize uzaklık, bölge karakteri) üzerinden
+   * öğreniyor — bkz. services/ml/pribor_ml/features.py.
+   */
+  settlement: z.string().max(80).optional(),
+  /** Metro stansiyası — şəhər içində güclü konum sinyali. */
+  metroStation: z.string().max(60).optional(),
   /** Opsiyonel hassas konum — verilirse metro mesafesi sunucuda hesaplanır. */
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
@@ -77,9 +87,22 @@ export type ShapContribution = z.infer<typeof ShapContribution>;
 export const ValuationResult = z.object({
   valuationId: z.string().uuid(),
   vertical: z.enum(["real_estate", "vehicle"]),
-  /** Kalibre quantile tahminleri — tek sayı değil, dürüst aralık. */
+  /**
+   * Kalibre quantile tahminleri — tek sayı değil, İKİ aralık.
+   *
+   * P25–P75 "ehtimal olunan": benzer ilanların yarısı bu aralıkta.
+   * P10–P90 "geniş": 10 ilandan 8'i bu aralıkta.
+   *
+   * Neden ikisi birden: tek aralık göstermek zorunda kalınca ya yanıltıcı
+   * derecede dar (yarısını kaçırır) ya da yol göstermeyecek kadar geniş
+   * oluyor. Ölçüm — tipik bir mənzildə dar ±36.000 ₼, geniş ±79.000 ₼.
+   * Aralığı yapay daraltmıyoruz; kalibrasyon bozulur ve kullanıcıya yanlış
+   * güven verir (ölçülen kapsama %47 ve %77, nominal %50 ve %80'e yakın).
+   */
   p10Azn: z.number().int().nonnegative(),
+  p25Azn: z.number().int().nonnegative(),
   p50Azn: z.number().int().nonnegative(),
+  p75Azn: z.number().int().nonnegative(),
   p90Azn: z.number().int().nonnegative(),
   /** 0..1 — comps yoğunluğu ve aralık genişliğinden türetilen güven skoru. */
   confidence: z.number().min(0).max(1),

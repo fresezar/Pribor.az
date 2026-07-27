@@ -37,7 +37,9 @@ from .features import CAT_FEATURES, FEATURE_ORDER, build_frame
 
 ARTIFACTS_DIR = Path(__file__).resolve().parents[1] / "artifacts"
 
-QUANTILES = (0.10, 0.50, 0.90)
+# Beş quantile — ürün iki aralık gösteriyor (bkz. model_runtime.QUANTILE_KEYS):
+# P25–P75 "ehtimal olunan" (dar), P10–P90 "geniş". P50 ana rakam.
+QUANTILES = (0.10, 0.25, 0.50, 0.75, 0.90)
 
 # ------------------------------------------------------------------ sentetik
 
@@ -165,6 +167,16 @@ def _dirichlet_weights(k: int, rng: np.random.Generator) -> np.ndarray:
 # ayrı bir piyasadır (getiriye göre fiyatlanır, m² ile değil) — aynı modele
 # konursa ikisini de bozar.
 TRAINABLE_TYPES = ("apartment", "house", "land")
+
+# Ürüne AÇIK tipler. Torpaq eğitiliyor ama gösterilmiyor: medyan hatası %36,
+# mənzildə %9.7. Arsa fiyatını ayıran şey (təyinat, yol cephesi, imar durumu)
+# ilan metninde çoğunlukla yazmıyor — %36 hatayla verilen rakam kullanıcıyı
+# yanıltır. Veri zenginleşince tekrar değerlendirilecek.
+SERVED_TYPES = ("apartment", "house")
+
+# Kalite kapısı: medyan yüzde hata eşiği (ortalama değil — birkaç uç kayıt
+# ortalamayı ele geçiriyor, bkz. metrics_by_type notu).
+MDAPE_GATE = 0.20
 
 # Eğitim seti sağlık filtreleri. Kaynakta 3 AZN'lik "torpaq" ve 37 milyonluk
 # ilanlar var: ilki dikkat çekmek için konmuş sahte fiyat, ikincisi tek örneklik
@@ -309,17 +321,21 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
     y = df.loc[~mask, "price_azn"].to_numpy()
     # Quantile crossing düzeltmesi değerlendirmede de uygulanır (servisle tutarlı)
     stacked = np.sort(np.vstack([preds[q] for q in QUANTILES]), axis=0)
-    p10, p50, p90 = stacked
+    p10, p25, p50, p75, p90 = stacked
     mape = float(np.mean(np.abs(p50 - y) / y))
     coverage = float(np.mean((y >= p10) & (y <= p90)))
+    coverage_narrow = float(np.mean((y >= p25) & (y <= p75)))
 
-    # --- aralık genişliği: ürün hedefi P10–P90 bandının dar olması ---
-    # Bandı zorla daraltmıyoruz (kalibrasyon bozulur, coverage düşer); ne kadar
-    # dar OLDUĞUNU ölçüp raporluyoruz. Hedef: bandın P50'ye oranı ≤ %10 —
-    # yaygın segmentlerde ulaşılabilir, nadir segmentlerde dürüstçe genişler.
+    # --- iki aralık: dar (P25–P75) ve geniş (P10–P90) ---
+    # Bandı zorla daraltmıyoruz — kalibrasyon bozulur ve kullanıcıya yanlış
+    # güven verir. Bunun yerine iki aralığı da ÖLÇÜP gösteriyoruz: dar aralık
+    # "benzer ilanların yarısı burada", geniş aralık "10 ilandan 8'i burada".
+    # Kapsama oranları nominal değerlerine (%50 / %80) yakın çıkmalı; sapma
+    # kalibrasyonun bozulduğunu söyler.
     rel_width = (p90 - p10) / np.maximum(p50, 1)
-    band_within_10pct = float(np.mean(rel_width <= 0.10))
+    rel_width_narrow = (p75 - p25) / np.maximum(p50, 1)
     band_azn = p90 - p10
+    band_azn_narrow = p75 - p25
 
     # --- tip bazında doğruluk ---
     # Toplam MAPE yanıltıcıdır: üç emlak tipi tek sayıya karıştığında zayıf
@@ -338,9 +354,32 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
             "mape": round(float(np.mean(ape[i])), 4),
             "mdape": round(float(np.median(ape[i])), 4),
             "coverage": round(float(np.mean((y[i] >= p10[i]) & (y[i] <= p90[i]))), 4),
+            "coverage_narrow": round(
+                float(np.mean((y[i] >= p25[i]) & (y[i] <= p75[i]))), 4),
             "band_rel_median": round(float(np.median(rel_width[i])), 4),
             "band_azn_median": int(np.median(band_azn[i])),
+            "band_rel_median_narrow": round(float(np.median(rel_width_narrow[i])), 4),
+            "band_azn_median_narrow": int(np.median(band_azn_narrow[i])),
         }
+
+    # --- tip başına referans kayıt ---
+    # Sonuç ekranındaki "Qiymət DNT-si" katkılarını buna göre gösteriyoruz:
+    # "veri setinin ortalamasına göre" değil, "AYNI TİPTE TİPİK BİR EMLAKA
+    # göre". Ortalama tüm tipleri karıştırdığı için 100 m²'lik bir mənzil
+    # torpaqların yanında "küçük" sayılıp negatif katkı üretiyordu.
+    # Sayısallarda medyan, kategoriklerde en sık değer alınır.
+    reference_records: dict[str, dict[str, Any]] = {}
+    for pt in df["property_type"].unique():
+        sub = df[df["property_type"] == pt]
+        ref: dict[str, Any] = {}
+        for col in FEATURE_ORDER:
+            if col in CAT_FEATURES:
+                modes = sub[col].mode()
+                ref[col] = str(modes.iloc[0]) if len(modes) else None
+            else:
+                med = sub[col].median()
+                ref[col] = None if pd.isna(med) else float(med)
+        reference_records[str(pt)] = ref
 
     tag = f"re-catboost-q-{datetime.now(timezone.utc).strftime('%Y.%m.%d')}"
     metadata = {
@@ -353,15 +392,17 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
         "metrics": {
             "mape_p50": round(mape, 4),
             "coverage_p10_p90": round(coverage, 4),
-            # Ürün hedefi: aralık P50'nin %10'unu aşmasın (bkz. yukarıdaki not)
+            "coverage_p25_p75": round(coverage_narrow, 4),
             "band_rel_median": round(float(np.median(rel_width)), 4),
-            "band_within_10pct": round(band_within_10pct, 4),
             "band_azn_median": int(np.median(band_azn)),
+            "band_rel_median_narrow": round(float(np.median(rel_width_narrow)), 4),
+            "band_azn_median_narrow": int(np.median(band_azn_narrow)),
             "mdape_p50": round(float(np.median(ape)), 4),
             "n_train": int(mask.sum()),
             "n_valid": int((~mask).sum()),
         },
         "metrics_by_type": per_type,
+        "reference_records": reference_records,
         "trained_at": datetime.now(timezone.utc).isoformat(),
     }
     (out_dir / "metadata.json").write_text(
@@ -399,15 +440,25 @@ def main(
         f"P10–P90 kapsama: %{m['coverage_p10_p90'] * 100:.1f} · "
         f"n_train: {m['n_train']}"
     )
-    typer.echo(f"  {'tip':<12}{'n':>6}{'medyan hata':>13}{'ort. hata':>11}"
-               f"{'kapsama':>9}{'band/P50':>10}")
+    typer.echo(f"  {'tip':<11}{'n':>6}{'medyan':>8}{'ort.':>7}"
+               f"{'dar band':>10}{'kaps.':>7}{'geniş band':>12}{'kaps.':>7}")
     for pt, s in sorted(meta["metrics_by_type"].items(), key=lambda kv: -kv[1]["n"]):
-        typer.echo(f"  {pt:<12}{s['n']:>6}{s['mdape'] * 100:>12.1f}%"
-                   f"{s['mape'] * 100:>10.1f}%{s['coverage'] * 100:>8.1f}%"
-                   f"{s['band_rel_median'] * 100:>9.1f}%")
-    # Kalite kapısı hatırlatması (Faz 0 çıkış kriteri: gerçek veride MAPE < %12)
-    if not synthetic and m["mape_p50"] > 0.12:
-        typer.echo("⚠ MAPE eşiği aşıldı — model prod'a alınmadan incelenmeli")
+        typer.echo(
+            f"  {pt:<11}{s['n']:>6}{s['mdape'] * 100:>7.1f}%{s['mape'] * 100:>6.1f}%"
+            f"{s['band_azn_median_narrow']:>10,}{s['coverage_narrow'] * 100:>6.0f}%"
+            f"{s['band_azn_median']:>12,}{s['coverage'] * 100:>6.0f}%"
+        )
+    # Kalite kapısı YAYINLANAN tiplere bakar. Toplam MAPE'ye bakmak yanıltıcı:
+    # torpaq kendi başına %180+ hata veriyor ve tek sayıyı ele geçirip mənzilin
+    # %10'unu görünmez kılıyor. Torpaq zaten ürüne kapalı (bkz. SERVED_TYPES),
+    # kapının onun yüzünden ötmesi gerçek bir gerilemeyi fark etmemize engel olur.
+    if not synthetic:
+        for pt in SERVED_TYPES:
+            s = meta["metrics_by_type"].get(pt)
+            if s and s["mdape"] > MDAPE_GATE:
+                typer.echo(
+                    f"⚠ {pt}: medyan hata %{s['mdape'] * 100:.1f} — "
+                    f"eşik %{MDAPE_GATE * 100:.0f}, model incelenmeden yayınlanmamalı")
 
 
 if __name__ == "__main__":

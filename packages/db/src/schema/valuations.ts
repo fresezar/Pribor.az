@@ -55,8 +55,16 @@ export const valuations = pgTable(
     modelVersionId: uuid("model_version_id")
       .notNull()
       .references(() => modelVersions.id),
+    /**
+     * İki aralık saklanır: P25–P75 kullanıcıya "ehtimal olunan" olarak,
+     * P10–P90 "geniş" olarak gösterilir. Dar aralık nullable — eski
+     * değerlemeler üç quantile ile üretilmişti, geriye dönük doldurulamaz
+     * (o modeller artık yok). Okuyan taraf boşluğu tolere etmeli.
+     */
     p10Azn: integer("p10_azn").notNull(),
+    p25Azn: integer("p25_azn"),
     p50Azn: integer("p50_azn").notNull(),
+    p75Azn: integer("p75_azn"),
     p90Azn: integer("p90_azn").notNull(),
     confidence: numeric("confidence", { precision: 4, scale: 3 }),
     /** SHAP top-N: [{feature, label, contribution_azn}] — "Qiymət DNT-si". */
