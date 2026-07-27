@@ -31,7 +31,23 @@ Normalized = NormalizedRealEstate | NormalizedVehicle
 
 
 def connect() -> psycopg.Connection:
-    return psycopg.connect(settings.database_url)
+    """Yönetilen Postgres'e (Neon vb.) dayanıklı bağlantı.
+
+    TCP keepalive OLMADAN uzun ingest koşuları "connection is lost" ile
+    düşüyordu: 30.000 kayıtlık bir koşuda normalize/parse işi sürerken soket
+    sessiz kalıyor, bulut havuzu da boşta sandığı bağlantıyı kapatıyor.
+    Keepalive paketleri bağlantıyı canlı tutar.
+
+    Koşu yine de yarıda kesilirse tekrar çalıştırmak güvenlidir — tüm
+    yazımlar ON CONFLICT korumalıdır (bkz. modül başlığı).
+    """
+    return psycopg.connect(
+        settings.database_url,
+        keepalives=1,
+        keepalives_idle=30,     # 30 sn sessizlikten sonra yokla
+        keepalives_interval=10,  # yanıt yoksa 10 sn'de bir tekrar
+        keepalives_count=5,      # 5 denemede yanıt yoksa kopmuş say
+    )
 
 
 # ---------------------------------------------------------------- scrape_runs
