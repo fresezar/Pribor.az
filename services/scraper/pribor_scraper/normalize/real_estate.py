@@ -139,8 +139,7 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
         out.rooms = int(rooms_raw)
     else:
         out.rooms = d.parse_rooms(rooms_raw or haystack) or d.parse_rooms(haystack)
-    if floor := d.parse_floor(_prop(props, PROP_KEYS_FLOOR) or haystack):
-        out.floor, out.total_floors = floor
+    out.floor, out.total_floors = d.parse_floor(_prop(props, PROP_KEYS_FLOOR) or haystack)
 
     # --- Bakü'ye özgü sözlük alanları ---
     out.building_type = d.parse_building_type(haystack)

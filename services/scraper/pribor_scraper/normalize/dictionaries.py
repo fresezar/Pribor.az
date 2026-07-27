@@ -410,15 +410,66 @@ def parse_rooms(text: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-_FLOOR_RE = re.compile(r"(\d{1,2})\s*/\s*(\d{1,2})")  # "4/9" = 4. kat, 9 katlı
+# Mərtəbə — ilanların çoğu "4/9" yazmaz, cümle kurar:
+#   "11 mərtəbəli binanın 4-cü mərtəbəsində"   "16-nın 10-cu mərtəbəsi"
+#   "14-cü mərtəbədə"                          "5 mərtəbəli bina"
+# Yalnız "4/9" arayan eski sürüm mənzillərin %17'sini yakalıyordu; metinde
+# mərtəbədən söz eden ilanların oranı %81. Mərtəbə mənzil fiyatında gerçek bir
+# etken (birinci/son kat ucuzdur), bu kayıp doğrudan tahmine yansıyordu.
+#
+# AZ sıra eki serbest yazılır: "4-cü", "4 cu", "4cü", "4-ci" — ve şapkasız
+# transliterasyon da yaygın ("mertebeli"). Kalıplar buna göre gevşek.
+_ORD = r"[-\s]?[cç][ıiuü]?[-\s]?"          # sıra eki: "-cü", " cu", "ci"
+_MRT = r"m[əe]rt[əe]b"                      # mərtəbə / mertebe
+
+# 1) "11 mərtəbəli binanın 4-cü mərtəbəsində" → (4, 11)
+_FLOOR_TOTAL_FIRST = re.compile(
+    rf"(\d{{1,2}})\s*{_MRT}[əe]li\b(?:[^.\d]{{0,40}}?)(\d{{1,2}})\s*{_ORD}\s*{_MRT}",
+    re.IGNORECASE,
+)
+# 2) "16-nın 10-cu mərtəbəsi" → (10, 16)
+_FLOOR_OF_TOTAL = re.compile(
+    rf"(\d{{1,2}})\s*[-]?n[ıi]n\s*(\d{{1,2}})\s*{_ORD}\s*{_MRT}", re.IGNORECASE
+)
+# 3) "4/9" — kaynağın özellik tablosundaki biçim
+_FLOOR_SLASH = re.compile(r"(\d{1,2})\s*/\s*(\d{1,2})")
+# 4) yalnız mərtəbə: "14-cü mərtəbədə"
+_FLOOR_ONLY = re.compile(rf"(\d{{1,2}})\s*{_ORD}\s*{_MRT}", re.IGNORECASE)
+# 5) yalnız bina yüksekliği. "bina/tikili/ev" şartı bilinçli: "2 mərtəbəli
+#    yeraltı qaraj" gibi cümleler binanın katı sanılıp yanlış veri üretiyordu.
+_TOTAL_ONLY = re.compile(
+    rf"(\d{{1,2}})\s*{_MRT}[əe]li\s+(?:\w+\s+){{0,2}}?(bina|tikili|ev)", re.IGNORECASE
+)
 
 
-def parse_floor(text: str) -> tuple[int, int] | None:
-    m = _FLOOR_RE.search(text)
-    if not m:
-        return None
-    floor, total = int(m.group(1)), int(m.group(2))
-    return (floor, total) if floor <= total else None
+def parse_floor(text: str) -> tuple[int | None, int | None]:
+    """'11 mərtəbəli binanın 4-cü mərtəbəsində' → (4, 11).
+
+    Yalnız biri bulunursa diğeri None döner — eksik bilgi, yanlış bilgiden
+    iyidir; CatBoost NaN'ı zaten kendi işler.
+    """
+    for rx, order in ((_FLOOR_TOTAL_FIRST, "tf"), (_FLOOR_OF_TOTAL, "tf"),
+                      (_FLOOR_SLASH, "ft")):
+        m = rx.search(text)
+        if not m:
+            continue
+        a, b = int(m.group(1)), int(m.group(2))
+        floor, total = (b, a) if order == "tf" else (a, b)
+        if 1 <= floor <= total <= 60:
+            return floor, total
+
+    floor = total = None
+    if m := _FLOOR_ONLY.search(text):
+        v = int(m.group(1))
+        if 1 <= v <= 60:
+            floor = v
+    if m := _TOTAL_ONLY.search(text):
+        v = int(m.group(1))
+        if 1 <= v <= 60:
+            total = v
+    if floor and total and floor > total:
+        return None, total  # tutarsız — mərtəbəyi atıyoruz, bina yüksekliği kalsın
+    return floor, total
 
 
 _MILEAGE_RE = re.compile(r"([\d\s.,]+)\s*(min|тыс)?\.?\s*km", re.IGNORECASE)
