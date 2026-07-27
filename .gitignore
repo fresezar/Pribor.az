@@ -21,8 +21,19 @@ __pycache__/
 # Scraper raw data (immutable dumps live in R2/MinIO, not in git)
 services/scraper/data/
 
-# ML artifacts
-services/ml/artifacts/
+# ML artifacts — .cbm ve metadata.json BİLİNÇLİ OLARAK TAKİP EDİLİYOR.
+#
+# Render'ın ücretsiz planında kalıcı disk yok; Dockerfile'ın beklediği volume
+# hiçbir zaman bağlanamıyor ve servis sessizce heuristik stub'a düşüyordu —
+# yani eğitilmiş model canlıya hiç çıkmıyordu. Modeli imaja gömmek bunu tek
+# adıma indiriyor: `git push` → Render yeniden kurar → yeni model canlıda.
+#
+# Boyut bu kadence için önemsiz: beş quantile toplam ~9 MB ve model yılda bir
+# güncelleniyor. Alternatif (açılışta R2'den indirmek) ML servisine ayrıca
+# kimlik bilgisi ve açılışta ağ bağımlılığı ekliyordu.
+services/ml/artifacts/*
+!services/ml/artifacts/*.cbm
+!services/ml/artifacts/metadata.json
 
 # OS / IDE
 .DS_Store

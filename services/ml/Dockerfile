@@ -12,10 +12,12 @@ COPY pyproject.toml ./
 COPY pribor_ml ./pribor_ml
 RUN pip install .
 
-# Model artifact'leri: imaja gömülü DEĞİL (gitignore). Prod'da eğitilmiş
-# artifacts/ bir volume ile /app/artifacts'e bağlanır; yoksa servis
-# deterministik heuristik stub'a düşer (sözleşme aynı kalır).
-VOLUME ["/app/artifacts"]
+# Model artifact'leri imaja GÖMÜLÜ. Önceden volume bekleniyordu ama Render'ın
+# ücretsiz planında kalıcı disk yok — volume hiç bağlanmıyor, servis sessizce
+# heuristik stub'a düşüyor ve eğitilmiş model canlıya hiç çıkmıyordu.
+# Artifact yoksa build kırılmasın: klasör boşsa servis yine stub'a düşer
+# (API sözleşmesi model olsun olmasın aynı kalır).
+COPY artifacts ./artifacts
 # Render/PaaS $PORT enjekte eder; yoksa lokal 8100. Env genişlemesi için shell-form.
 EXPOSE 8100
 CMD ["sh", "-c", "uvicorn pribor_ml.main:app --host 0.0.0.0 --port ${PORT:-8100}"]
