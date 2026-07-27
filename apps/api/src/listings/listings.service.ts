@@ -38,6 +38,26 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 /**
+ * scraped_listings okuyan HER sorguya eklenmesi gereken sağlık filtresi.
+ *
+ * listing_kind: kaynak siteler kiralık ve satılık ilanları aynı kategoride
+ * döndürüyor. Bir koşuda mənzillərin %36'sı kiralıktı — bazar sayfası 550 ₼'lik
+ * kira ilanlarını satılık gibi listeliyor, fırsat skoru ve semt medyanı da
+ * onlarla hesaplanıyordu. Toplama artık kaynakta filtreliyor ama bu filtre
+ * ikinci savunma hattı: yeni bir kaynak eklendiğinde ya da filtresi olmayan
+ * bir kategoride (qaraj) sızıntı olduğunda ürünü koruyor.
+ *
+ * delisted_at: satılmış/kaldırılmış ilan bazarda görünmemeli. Değeri model
+ * eğitimi için saklanır (gerçekleşmiş piyasa sinyali), gösterimde elenir.
+ *
+ * Not: alias'lı sorgularda `sl.` öneki gerektiği için iki sürüm var.
+ */
+const SCRAPED_OK = sql`delisted_at is null
+  and coalesce(normalized->>'listing_kind', 'sale') <> 'rent'`;
+const SCRAPED_OK_SL = sql`sl.delisted_at is null
+  and coalesce(sl.normalized->>'listing_kind', 'sale') <> 'rent'`;
+
+/**
  * Piyasa (Elanlar) görünümü — scraped_listings üzerinden okur.
  *
  * Fırsat Skoru (dealPct): bir ilanın ₼/m² fiyatının, KENDİ (semt × emlak tipi)
@@ -93,6 +113,7 @@ export class ListingsService {
         from scraped_listings
         where vertical = 'real_estate' and price_azn is not null
           and (normalized->>'area_m2') is not null
+          and ${SCRAPED_OK}
         group by 1, 2
       ),
       base as (
@@ -117,6 +138,7 @@ export class ListingsService {
           null::text                       as cover_photo
         from scraped_listings sl
         where sl.vertical = 'real_estate' and sl.price_azn is not null
+          and ${SCRAPED_OK_SL}
         union all
         select
           l.id,
@@ -251,6 +273,7 @@ export class ListingsService {
       where vertical = 'real_estate'
         and price_azn is not null
         and (normalized->>'area_m2') is not null
+        and ${SCRAPED_OK}
         and normalized->>'property_type' = ${params.propertyType}
         and (${sameDistrict} = false or normalized->>'district' = ${params.district})
         and (${params.excludeId ?? null}::uuid is null or id <> ${params.excludeId ?? null}::uuid)
@@ -295,6 +318,7 @@ export class ListingsService {
       from scraped_listings
       where vertical = 'real_estate' and price_azn is not null
         and (normalized->>'area_m2') is not null
+        and ${SCRAPED_OK}
         and normalized->>'district' = ${district}
         and normalized->>'property_type' = ${propertyType}
     `);
