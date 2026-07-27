@@ -25,6 +25,8 @@ import re
 from collections.abc import Iterator
 from typing import Any
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from ..base import BaseScraper
 from ..models import RawListing
 
@@ -84,9 +86,19 @@ class TapAzScraper(BaseScraper):
 
     # ---- GraphQL ----
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=2, max=20),
+        reraise=True,
+    )
     def _search(self, category_id: str, after: str | None) -> dict[str, Any] | None:
         """Tek sayfa çeker. Hız limiti ve robots kontrolü fetch ile aynı olsun
-        diye throttle burada da uygulanır."""
+        diye throttle burada da uygulanır.
+
+        Retry şart: geçici bir ağ hatası (DNS, timeout) ilk sayfada gelirse
+        kategori komple atlanıyordu — bir koşuda həyət evi ve torpaq böyle
+        kaybedilmişti (16.000+ ilan).
+        """
         if not self._robots.can_fetch(self.client.headers["User-Agent"], GRAPHQL_URL):
             raise PermissionError(f"robots.txt izin vermiyor: {GRAPHQL_URL}")
         self._throttle()
