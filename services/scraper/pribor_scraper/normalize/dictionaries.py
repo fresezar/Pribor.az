@@ -182,6 +182,61 @@ def parse_metro(text: str) -> str | None:
     return None
 
 
+# Metro istasyonu → rayon. Kaynak konumu yalnız istasyonla verdiğinde
+# ("Gənclik m.") rayonu buradan türetiriz; yoksa kayıt rayonsuz kalır ve
+# semt bazlı medyan/model hesaplarının dışına düşer.
+METRO_DISTRICT: dict[str, str] = {
+    "İçərişəhər": "Səbail", "Sahil": "Səbail",
+    "28 May": "Nəsimi", "Gənclik": "Nəsimi", "Nəsimi": "Nəsimi",
+    "Cəfər Cabbarlı": "Nəsimi",
+    "Nəriman Nərimanov": "Nərimanov", "Ulduz": "Nərimanov", "Koroğlu": "Nərimanov",
+    "Qara Qarayev": "Nizami", "Neftçilər": "Nizami", "Xalqlar Dostluğu": "Nizami",
+    "Nizami": "Nizami",
+    "Əhmədli": "Xətai", "Həzi Aslanov": "Xətai", "Şah İsmayıl Xətai": "Xətai",
+    "Elmlər Akademiyası": "Yasamal", "İnşaatçılar": "Yasamal",
+    "20 Yanvar": "Yasamal", "Memar Əcəmi": "Yasamal", "8 Noyabr": "Yasamal",
+    "Azadlıq prospekti": "Binəqədi", "Dərnəgül": "Binəqədi", "Avtovağzal": "Binəqədi",
+}
+
+
+def district_of_metro(station: str | None) -> str | None:
+    return METRO_DISTRICT.get(station) if station else None
+
+
+# ---------------------------------------------------------------
+# Konum eki ayrıştırıcı — kaynak başlıkları konumu ekle nitelendirir:
+#   "Badamdar qəs."  → qəsəbə   "Gənclik m."    → metro
+#   "Yasamal r."     → rayon    "Xırdalan ş."   → şəhər
+#   "9-cu mkr."      → mikrorayon
+# Ek, hangi granülerlikte veri geldiğini söyler; qəsəbə en değerlisidir
+# çünkü rayon içi fiyat uçurumunu (Xəzər: Mərdəkan ↔ Türkan) ancak o açıklar.
+# ---------------------------------------------------------------
+_PLACE_RE = re.compile(
+    r"([^,]+?)\s+(qəs|q|mkr|m|r|ş|k)\.\s*(?:,|$)",
+    re.IGNORECASE,
+)
+
+_SUFFIX_KIND = {
+    "qəs": "settlement", "q": "settlement", "mkr": "settlement",
+    "m": "metro", "r": "district", "ş": "city", "k": "village",
+}
+
+
+def parse_place(text: str) -> tuple[str, str] | None:
+    """'…, Badamdar qəs., 53 m²' → ('Badamdar', 'settlement').
+
+    Eşleşme yoksa None. Ek yoksa konum belirsizdir; çağıran taraf
+    serbest metin taramasına (parse_district/parse_metro) düşer.
+    """
+    for m in _PLACE_RE.finditer(text):
+        name, suffix = m.group(1).strip(), m.group(2).lower()
+        kind = _SUFFIX_KIND.get(suffix)
+        # "86 m²" içindeki "m" ile karışmasın: ad sayıyla bitmemeli
+        if kind and name and not name[-1].isdigit():
+            return name, kind
+    return None
+
+
 # ---------------------------------------------------------------
 # Sayısal ayrıştırıcılar
 # ---------------------------------------------------------------
@@ -220,7 +275,9 @@ def parse_area_sot(text: str) -> float | None:
     return float(m.group(1).replace(",", ".")) if m else None
 
 
-_ROOMS_RE = re.compile(r"(\d{1,2})\s*(?:otaq|otaqlı|otaqli|комнат|комн|-х\s*комн)", re.IGNORECASE)
+# Kaynak başlıkları "2-otaqlı" biçimini kullanır — sayı ile kelime arasında
+# tire var; yalnız \s* aranırsa oda sayısı hiç yakalanmaz.
+_ROOMS_RE = re.compile(r"(\d{1,2})\s*[-–]?\s*(?:otaq|otaqlı|otaqli|комнат|комн|-х\s*комн)", re.IGNORECASE)
 
 
 def parse_rooms(text: str) -> int | None:

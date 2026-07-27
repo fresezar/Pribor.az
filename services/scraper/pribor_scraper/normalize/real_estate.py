@@ -12,6 +12,7 @@ from typing import Any
 
 from ..models import NormalizedRealEstate, RawListing
 from . import dictionaries as d
+from . import settlements as st
 
 # Kaynak sitelerin özellik tablosu anahtarları → bakılacak alan
 # ("Sahə" AZ, "Площадь" RU vb. — yeni kaynak eklendikçe genişler)
@@ -53,7 +54,12 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     warn = out.parse_warnings.append
 
     # --- fiyat ---
-    if price := d.parse_price(p.get("price_text", "") or ""):
+    # Bazı kaynaklar fiyatı hazır sayı verir (tap.az: price=250000); metin
+    # ayrıştırmaya gerek yok ve hata payı sıfırdır.
+    if isinstance(p.get("price_raw"), (int, float)) and p["price_raw"] > 0:
+        out.price_azn = int(p["price_raw"])
+        out.price_currency_raw = "AZN"
+    elif price := d.parse_price(p.get("price_text", "") or ""):
         amount, currency = price
         out.price_currency_raw = currency
         # USD ilanlar işaretlenir; AZN çevrimi günlük kurla işleme katmanında
@@ -94,9 +100,34 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     out.repair_state = d.parse_repair_state(haystack)
     out.title_deed = d.parse_title_deed(haystack)
     out.mortgage_eligible = d.parse_mortgage(haystack)
-    out.district = d.parse_district(haystack)
     out.metro_station = d.parse_metro(haystack)
-    out.contact_phone = d.parse_phone(p.get("phone_text") or haystack)
+    # İletişim bilgisi bilinçli olarak toplanmaz: modele girmeyen kişisel
+    # veriyi saklamak gereksiz sorumluluktur (bkz. sources/tap_az.py).
+
+    # --- konum: qəsəbə > rayon ---
+    # Kaynak başlıkları konumu ekle nitelendirir ("Badamdar qəs.", "Yasamal r.").
+    # Qəsəbə en değerli sinyaldir: rayon içi fiyat uçurumunu ancak o açıklar.
+    place = d.parse_place(title)
+    if place:
+        name, kind = place
+        if kind == "settlement":
+            canonical, prof = st.resolve(name)
+            if canonical:
+                out.settlement = canonical
+                out.district = prof.district if prof else None
+            else:
+                # Tanınmayan qəsəbə: adı sakla (sözlük zamanla genişler), ama
+                # rayonu uydurma — serbest metin taraması aşağıda dener.
+                out.settlement = name
+                warn(f"settlement_unknown: {name}")
+        elif kind == "district":
+            out.district = d.parse_district(name)
+        elif kind == "metro" and out.metro_station is None:
+            out.metro_station = d.parse_metro(name)
+
+    # Rayon hâlâ boşsa: önce metro istasyonundan türet, sonra serbest metin
+    if out.district is None:
+        out.district = d.district_of_metro(out.metro_station) or d.parse_district(haystack)
 
     if out.area_m2 is None and out.land_area_sot is None:
         warn("area_unparsed")

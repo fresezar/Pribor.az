@@ -13,6 +13,9 @@ dependencies = [
     "tenacity>=9.0",
     "boto3>=1.35",
     "psycopg[binary]>=3.2",
+    # TLS kökünü işletim sisteminin deposundan okur — Windows/kurumsal ağlarda
+    # certifi zinciri tanımayınca bağlantı reddediliyordu (bkz. base.py)
+    "truststore>=0.10",
 ]
 
 [project.optional-dependencies]

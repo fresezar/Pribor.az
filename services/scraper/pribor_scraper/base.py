@@ -19,6 +19,17 @@ from typing import Literal
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+# TLS doğrulaması işletim sisteminin sertifika deposundan yapılır. Kurumsal
+# ağlarda/Windows'ta certifi paketi kök sertifikayı tanımayıp bağlantıyı
+# reddedebiliyor; truststore aynı zinciri sistemden okur, böylece doğrulamayı
+# kapatmak (güvensiz) gerekmez. Paket yoksa httpx varsayılanına düşülür.
+try:
+    import truststore
+
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 from .models import RawListing
 from .settings import settings
 from .storage import make_sink
@@ -40,7 +51,9 @@ class BaseScraper(ABC):
         self.run_id = uuid.uuid4().hex[:12]
         self.stats = RunStats()
         self._last_request_at = 0.0
-        self._robots = self._load_robots()
+        # Client ÖNCE kurulur: robots.txt de aynı User-Agent ile çekilmeli.
+        # urllib'in varsayılan ajanını bot sanıp 403 dönen siteler var; o
+        # durumda parser "her şey yasak" varsayar ve koşu hiç başlamaz.
         self.client = httpx.Client(
             timeout=settings.request_timeout_sec,
             headers={
@@ -49,6 +62,7 @@ class BaseScraper(ABC):
             },
             follow_redirects=True,
         )
+        self._robots = self._load_robots()
 
     # ---------- kaynak sitenin uygulayacağı kısım ----------
 
@@ -65,14 +79,29 @@ class BaseScraper(ABC):
     # ---------- ortak makine ----------
 
     def _load_robots(self) -> urllib.robotparser.RobotFileParser:
+        """robots.txt'i kendi HTTP client'ımızla çeker ve ayrıştırır.
+
+        urllib'in kendi `read()`'i varsayılan ajanla gider; bazı siteler onu
+        bot sayıp 403 döner, RobotFileParser da 403'ü "her şey yasak" olarak
+        yorumlar — sonuç: kuralları aslında izin verse bile koşu hiç başlamaz.
+        Kendi ajanımızla çekince site bize ne diyorsa onu okumuş oluruz.
+        """
+        url = f"{self.base_url.rstrip('/')}/robots.txt"
         rp = urllib.robotparser.RobotFileParser()
-        rp.set_url(f"{self.base_url.rstrip('/')}/robots.txt")
+        rp.set_url(url)
         try:
-            rp.read()
-        except Exception:
-            # robots okunamadıysa muhafazakâr davran: her şeye izin varsayma,
-            # ama koşuyu da durdurma — operatör loglardan görür
-            pass
+            res = self.client.get(url)
+            if res.status_code == 200:
+                rp.parse(res.text.splitlines())
+            elif res.status_code in (401, 403):
+                rp.disallow_all = True  # site açıkça kapatmış
+            else:
+                rp.allow_all = True     # 404 vb. → kural yok
+        except Exception as err:
+            # Ağ hatası: kuralları bilmiyoruz. Taramayı durdurmak yerine
+            # operatörü uyarıp devam ediyoruz (hız limiti yine geçerli).
+            rp.allow_all = True
+            print(f"[{self.source_site}] UYARI: robots.txt okunamadı ({err}) — dikkatli devam")
         return rp
 
     def _throttle(self) -> None:
