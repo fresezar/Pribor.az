@@ -227,6 +227,14 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
     mape = float(np.mean(np.abs(p50 - y) / y))
     coverage = float(np.mean((y >= p10) & (y <= p90)))
 
+    # --- aralık genişliği: ürün hedefi P10–P90 bandının dar olması ---
+    # Bandı zorla daraltmıyoruz (kalibrasyon bozulur, coverage düşer); ne kadar
+    # dar OLDUĞUNU ölçüp raporluyoruz. Hedef: bandın P50'ye oranı ≤ %10 —
+    # yaygın segmentlerde ulaşılabilir, nadir segmentlerde dürüstçe genişler.
+    rel_width = (p90 - p10) / np.maximum(p50, 1)
+    band_within_10pct = float(np.mean(rel_width <= 0.10))
+    band_azn = p90 - p10
+
     tag = f"re-catboost-q-{datetime.now(timezone.utc).strftime('%Y.%m.%d')}"
     metadata = {
         "tag": tag,
@@ -238,6 +246,10 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
         "metrics": {
             "mape_p50": round(mape, 4),
             "coverage_p10_p90": round(coverage, 4),
+            # Ürün hedefi: aralık P50'nin %10'unu aşmasın (bkz. yukarıdaki not)
+            "band_rel_median": round(float(np.median(rel_width)), 4),
+            "band_within_10pct": round(band_within_10pct, 4),
+            "band_azn_median": int(np.median(band_azn)),
             "n_train": int(mask.sum()),
             "n_valid": int((~mask).sum()),
         },
