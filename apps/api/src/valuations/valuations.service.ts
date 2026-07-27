@@ -54,27 +54,13 @@ export class ValuationsService {
       this.logger.error(`Değerleme kalıcı yazılamadı: ${String(err)}`);
     }
 
-    // DB'den zenginleştir: emsal ilanlar + semt medyanı. Bu da best-effort'tur.
-    let comps: ValuationResponse["comps"] = [];
-    let marketMedianPricePerM2: number | null = null;
-    if (dto.input.vertical === "real_estate") {
-      try {
-        const inp = dto.input;
-        const subjectPricePerM2 = inp.areaM2 > 0 ? Math.round(result.p50Azn / inp.areaM2) : null;
-        [comps, marketMedianPricePerM2] = await Promise.all([
-          this.listingsService.comps({
-            district: inp.district,
-            propertyType: inp.propertyType,
-            areaM2: inp.areaM2,
-            rooms: inp.rooms ?? null,
-            subjectPricePerM2,
-          }),
-          this.listingsService.medianPricePerM2(inp.district, inp.propertyType),
-        ]);
-      } catch (err) {
-        this.logger.warn(`Comps zenginleştirme atlandı: ${String(err)}`);
-      }
-    }
+    // EMSAL İLAN KARTLARI KALDIRILDI. Kart olarak gösterilen kayıtlar başka
+    // sitelerin ilanlarıydı; toplanan veri motoru eğitmek içindir, pribor.az'da
+    // içerik olarak yayınlanmak için değil. Semt medyanı da aynı kaynaktan
+    // geldiği için birlikte kaldırıldı — geri gelecekse ilan seviyesinde değil,
+    // önceden hesaplanmış toplu istatistik olarak gelmeli.
+    const comps: ValuationResponse["comps"] = [];
+    const marketMedianPricePerM2: number | null = null;
 
     return ValuationResponse.parse({ ...result, comps, marketMedianPricePerM2 });
   }

@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
-  CompListing,
   CreateListingDto,
   formatRefNo,
   ListingCard,
@@ -38,33 +37,17 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 /**
- * scraped_listings okuyan HER sorguya eklenmesi gereken sağlık filtresi.
+ * Bazar görünümü — YALNIZCA pribor.az'da verilen kullanıcı ilanları.
  *
- * listing_kind: kaynak siteler kiralık ve satılık ilanları aynı kategoride
- * döndürüyor. Bir koşuda mənzillərin %36'sı kiralıktı — bazar sayfası 550 ₼'lik
- * kira ilanlarını satılık gibi listeliyor, fırsat skoru ve semt medyanı da
- * onlarla hesaplanıyordu. Toplama artık kaynakta filtreliyor ama bu filtre
- * ikinci savunma hattı: yeni bir kaynak eklendiğinde ya da filtresi olmayan
- * bir kategoride (qaraj) sızıntı olduğunda ürünü koruyor.
+ * Toplanan piyasa verisi (scraped_listings) buradan bilinçli olarak çıkarıldı:
+ * o kayıtlar başka sitelerin ilanlarıdır ve pribor.az'da içerik olarak
+ * yayınlanmaları için toplanmadılar — amaç qiymətləndirmə motorunu eğitmek.
+ * (İletişim bilgisinin hiç toplanmaması da bunun göstergesiydi: numarasız bir
+ * ilan ziyaretçiye zaten hiçbir işe yaramaz.)
  *
- * delisted_at: satılmış/kaldırılmış ilan bazarda görünmemeli. Değeri model
- * eğitimi için saklanır (gerçekleşmiş piyasa sinyali), gösterimde elenir.
- *
- * Not: alias'lı sorgularda `sl.` öneki gerektiği için iki sürüm var.
- */
-const SCRAPED_OK = sql`delisted_at is null
-  and coalesce(normalized->>'listing_kind', 'sale') <> 'rent'`;
-const SCRAPED_OK_SL = sql`sl.delisted_at is null
-  and coalesce(sl.normalized->>'listing_kind', 'sale') <> 'rent'`;
-
-/**
- * Piyasa (Elanlar) görünümü — scraped_listings üzerinden okur.
- *
- * Fırsat Skoru (dealPct): bir ilanın ₼/m² fiyatının, KENDİ (semt × emlak tipi)
- * medyan ₼/m²'sine göre yüzde sapmasıdır. Negatif = medyanın altında = fırsat.
- * Medyan bilinçli olarak filtreden bağımsız TÜM real_estate seti üzerinden
- * (semt × tip) gruplu hesaplanır; böylece kullanıcı filtre daralttıkça skor
- * kaymaz. Torpaq ve mənzil ₼/m²'si çok farklı olduğundan tip kırılımı şarttır.
+ * Fırsat Skoru (dealPct) şimdilik null: piyasa çıpası aynı kaynaktan
+ * geliyordu. Geri gelecekse ilan seviyesinde değil, önceden hesaplanmış
+ * semt × tip medyanı olarak gelmeli.
  */
 @Injectable()
 export class ListingsService {
@@ -89,11 +72,7 @@ export class ListingsService {
     }
   }
 
-  /**
-   * Bazar listesi — platformda verilen ilanlar (listings, PRB no'lu) ile
-   * piyasa verisi (scraped_listings) tek akışta birleştirilir. Fırsat skoru
-   * her iki kaynak için de scraped medyanına göre hesaplanır (piyasa çıpası).
-   */
+  /** Bazar listesi — platformda verilen ilanlar (listings, PRB no'lu). */
   async list(q: ListingQuery): Promise<{ items: ListingCard[]; total: number }> {
     // Filtreler birleşik sonuç üzerinde, düz kolonlarda (parametreli)
     const filters = [sql`true`];
@@ -104,63 +83,28 @@ export class ListingsService {
     const where = sql.join(filters, sql` and `);
 
     const rows = await db.execute(sql`
-      with med as (
-        select normalized->>'district'      as district,
-               normalized->>'property_type' as property_type,
-               percentile_cont(0.5) within group (
-                 order by price_azn::numeric / nullif((normalized->>'area_m2')::numeric, 0)
-               ) as median_ppm2
-        from scraped_listings
-        where vertical = 'real_estate' and price_azn is not null
-          and (normalized->>'area_m2') is not null
-          and ${SCRAPED_OK}
-        group by 1, 2
-      ),
-      base as (
-        select
-          sl.id,
-          'scraped'::text                  as kind,
-          null::int                        as ref_no,
-          'active'::text                   as status,
-          'sale'::text                     as deal_type,
-          sl.normalized->>'raw_title'      as raw_title,
-          sl.normalized->>'district'       as district,
-          sl.normalized->>'settlement'     as settlement,
-          sl.normalized->>'property_type'  as property_type,
-          (sl.normalized->>'rooms')::int   as rooms,
-          (sl.normalized->>'area_m2')::numeric as area_m2,
-          (sl.normalized->>'repair_state')::int as repair_state,
-          sl.normalized->>'building_type'  as building_type,
-          (sl.normalized->>'title_deed')::boolean as title_deed,
-          sl.normalized->>'metro_station'  as metro_station,
-          sl.price_azn                     as price_azn,
-          sl.first_seen_at                 as sort_at,
-          null::text                       as cover_photo
-        from scraped_listings sl
-        where sl.vertical = 'real_estate' and sl.price_azn is not null
-          and ${SCRAPED_OK_SL}
-        union all
+      with base as (
         select
           l.id,
-          'user'::text,
-          l.ref_no,
-          l.status::text,
-          l.deal_type::text,
-          l.title,
-          loc.district,
-          loc.settlement,
-          ra.property_type::text,
-          ra.rooms::int,
-          ra.area_m2::numeric,
-          ra.repair_state::int,
-          ra.building_type::text,
-          ra.title_deed,
-          null::text,
-          l.price_azn,
-          l.created_at,
+          'user'::text                     as kind,
+          l.ref_no                         as ref_no,
+          l.status::text                   as status,
+          l.deal_type::text                as deal_type,
+          l.title                          as raw_title,
+          loc.district                     as district,
+          loc.settlement                   as settlement,
+          ra.property_type::text           as property_type,
+          ra.rooms::int                    as rooms,
+          ra.area_m2::numeric              as area_m2,
+          ra.repair_state::int             as repair_state,
+          ra.building_type::text           as building_type,
+          ra.title_deed                    as title_deed,
+          null::text                       as metro_station,
+          l.price_azn                      as price_azn,
+          l.created_at                     as sort_at,
           case when jsonb_array_length(l.photos) > 0
                then l.photos->>(least(l.cover_photo_idx, jsonb_array_length(l.photos) - 1))
-          end
+          end                              as cover_photo
         from listings l
         left join listing_re_attrs ra on ra.listing_id = l.id
         left join locations loc on loc.id = l.location_id
@@ -169,18 +113,13 @@ export class ListingsService {
       ),
       joined as (
         select b.*,
-          med.median_ppm2,
           case when b.area_m2 > 0
                then round(b.price_azn::numeric / b.area_m2)::int
           end as price_per_m2
         from base b
-        left join med
-          on med.district = b.district and med.property_type = b.property_type
       )
       select *,
-        case when median_ppm2 > 0 and price_per_m2 is not null
-             then round(((price_per_m2 - median_ppm2) / median_ppm2 * 100)::numeric, 1)
-        end as deal_pct,
+        null::numeric as deal_pct,
         count(*) over() as total_count
       from joined
       where ${where}
@@ -234,97 +173,6 @@ export class ListingsService {
     return parts.join(" · ");
   }
 
-  /**
-   * Emsal ilanlar (comps) — değerleme sonucu için "kanıt" kartları.
-   * Öznitelik yakınlığı: aynı semt + aynı emlak tipi, sahə (ve otaq) farkına
-   * göre en yakın ilanlar. deltaPct, emsalin ₼/m²'sinin kullanıcının değerleme
-   * ₼/m²'sine (subjectPricePerM2) göre farkıdır (negatif = emsal daha ucuz).
-   *
-   * Not: scraped ilanlarda geocoded nokta henüz doldurulmadığından PostGIS kNN
-   * yerine öznitelik-yakınlığı kullanılıyor; noktalar dolunca ORDER BY'a
-   * `point <-> subject_point` mesafe terimi eklenerek gerçek kNN'e geçilir.
-   */
-  async comps(params: {
-    district: string;
-    propertyType: string;
-    areaM2: number;
-    rooms?: number | null;
-    subjectPricePerM2: number | null;
-    excludeId?: string | null;
-    limit?: number;
-  }): Promise<CompListing[]> {
-    const limit = params.limit ?? 4;
-    const rooms = params.rooms ?? null;
-
-    // Öznitelik-yakınlığı sorgusu; sameDistrict=false ise semt kısıtı gevşetilir.
-    const query = (sameDistrict: boolean) => db.execute(sql`
-      select
-        id,
-        normalized->>'raw_title'     as raw_title,
-        normalized->>'district'      as district,
-        normalized->>'property_type' as property_type,
-        (normalized->>'rooms')::int  as rooms,
-        (normalized->>'area_m2')::numeric as area_m2,
-        price_azn,
-        case when (normalized->>'area_m2')::numeric > 0
-             then round(price_azn::numeric / (normalized->>'area_m2')::numeric)::int
-        end as price_per_m2
-      from scraped_listings
-      where vertical = 'real_estate'
-        and price_azn is not null
-        and (normalized->>'area_m2') is not null
-        and ${SCRAPED_OK}
-        and normalized->>'property_type' = ${params.propertyType}
-        and (${sameDistrict} = false or normalized->>'district' = ${params.district})
-        and (${params.excludeId ?? null}::uuid is null or id <> ${params.excludeId ?? null}::uuid)
-      order by
-        abs((normalized->>'area_m2')::numeric - ${params.areaM2})
-        + coalesce(abs((normalized->>'rooms')::int - ${rooms}), 0) * 8
-      limit ${limit}
-    `);
-
-    // Önce aynı semt; 2'den az emsal varsa tip-geneli (herhangi semt) fallback.
-    let rows = await query(true);
-    if (rows.rows.length < 2) rows = await query(false);
-
-    const subj = params.subjectPricePerM2;
-    return (rows.rows as Array<Record<string, unknown>>).map((r) => {
-      const ppm2 = r.price_per_m2 == null ? null : Number(r.price_per_m2);
-      const deltaPct =
-        subj && subj > 0 && ppm2 != null
-          ? Math.round(((ppm2 - subj) / subj) * 1000) / 10
-          : null;
-      return CompListing.parse({
-        id: r.id,
-        title: (r.raw_title as string) || this.fallbackTitle(r),
-        district: (r.district as string) ?? null,
-        propertyType: (r.property_type as string) ?? null,
-        rooms: r.rooms == null ? null : Number(r.rooms),
-        areaM2: r.area_m2 == null ? null : Number(r.area_m2),
-        priceAzn: Number(r.price_azn),
-        pricePerM2: ppm2,
-        deltaPct,
-        sourceSite: "seed-baku",
-      });
-    });
-  }
-
-  /** Semt × emlak tipi medyan ₼/m² — değerleme ekranındaki "bazar" çıpası. */
-  async medianPricePerM2(district: string, propertyType: string): Promise<number | null> {
-    const rows = await db.execute(sql`
-      select percentile_cont(0.5) within group (
-               order by price_azn::numeric / nullif((normalized->>'area_m2')::numeric, 0)
-             ) as median_ppm2
-      from scraped_listings
-      where vertical = 'real_estate' and price_azn is not null
-        and (normalized->>'area_m2') is not null
-        and ${SCRAPED_OK}
-        and normalized->>'district' = ${district}
-        and normalized->>'property_type' = ${propertyType}
-    `);
-    const v = (rows.rows[0] as Record<string, unknown> | undefined)?.median_ppm2;
-    return v == null ? null : Math.round(Number(v));
-  }
 
   // -------------------------------------------------------------- kullanıcı ilanı
 
@@ -538,48 +386,13 @@ export class ListingsService {
       });
     }
 
-    // Kullanıcı ilanı değilse piyasa (scraped) kaydına bak
-    const sRows = await db.execute(sql`
-      select id, normalized, price_azn, first_seen_at
-      from scraped_listings where id = ${id}::uuid limit 1
-    `);
-    const s = sRows.rows[0] as Record<string, unknown> | undefined;
-    if (!s) throw new NotFoundException("Elan tapılmadı");
-
-    const n = s.normalized as Record<string, unknown>;
-    const numOrNull = (v: unknown) => (v == null ? null : Number(v));
-    const area = numOrNull(n.area_m2);
-    return ListingDetail.parse({
-      id: s.id,
-      kind: "scraped",
-      refNo: null,
-      title: (n.raw_title as string) || this.fallbackTitle({
-        property_type: n.property_type, area_m2: n.area_m2, district: n.district,
-      }),
-      status: "active",
-      dealType: "sale",
-      propertyType: (n.property_type as string) ?? null,
-      district: (n.district as string) ?? null,
-      settlement: (n.settlement as string) ?? null,
-      rooms: numOrNull(n.rooms),
-      areaM2: area,
-      landAreaSot: numOrNull(n.land_area_sot),
-      buildingType: (n.building_type as string) ?? null,
-      repairState: numOrNull(n.repair_state),
-      titleDeed: n.title_deed == null ? null : Boolean(n.title_deed),
-      metroStation: (n.metro_station as string) ?? null,
-      priceAzn: Number(s.price_azn),
-      pricePerM2: area && area > 0 ? Math.round(Number(s.price_azn) / area) : null,
-      description: (n.raw_title as string) ?? null,
-      photos: [],
-      coverPhotoIdx: 0,
-      contactName: null,
-      contactPhone: (n.contact_phone as string) ?? null,
-      createdAt: new Date(s.first_seen_at as string).toISOString(),
-      sourceSite: (n.source_site as string) ?? "seed-baku",
-      canManage: isAdmin,
-      priceHistory: await this.priceHistory("scraped", s.id as string),
-    });
+    // Toplanan piyasa verisi KULLANICIYA GÖSTERİLMEZ. Bu kayıtlar başka
+    // sitelerin ilanlarıdır; pribor.az'da içerik olarak yayınlanmaları hem
+    // hukuki bir sorumluluk hem de siteyi bir aynaya çevirir. Veri yalnızca
+    // motoru eğitmek ve semt medyanı gibi TOPLU istatistikler için tutulur —
+    // tek tek ilan ne listelenir ne de açılır. (İletişim bilgisi de bu yüzden
+    // hiç toplanmıyor: bkz. scraper/sources/tap_az.py.)
+    throw new NotFoundException("Elan tapılmadı");
   }
 
   /** PRB numarasıyla ilan bulma (header/bazar araması). */

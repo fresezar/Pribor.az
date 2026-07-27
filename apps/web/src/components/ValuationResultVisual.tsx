@@ -19,7 +19,6 @@ import {
   useTransform,
 } from "framer-motion";
 import type { ValuationResponse } from "@pribor/contracts";
-import CompsCards from "./CompsCards";
 
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -179,7 +178,6 @@ export default function ValuationResultVisual(props: {
         </div>
       )}
 
-      {result.comps.length > 0 && <CompsCards comps={result.comps} />}
 
       {!posted ? (
         <div className="convert">
