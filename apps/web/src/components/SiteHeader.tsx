@@ -57,7 +57,7 @@ export default function SiteHeader() {
 
   return (
     <header className="topbar">
-      <a href="/" className="brand" style={{ textDecoration: "none" }} aria-label="Pribor.az ana səhifə">
+      <a href="/" className="brand" style={{ textDecoration: "none" }} aria-label="PriborƏmlak ana səhifə">
         <BrandLogo size={30} />
       </a>
 

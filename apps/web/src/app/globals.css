@@ -154,6 +154,28 @@ html, body {
   overflow-x: hidden;
 }
 
+/* ---------- kaydırma çubuğu: temaya bağlı, sistem görünümü değil ----------
+   Firefox `scrollbar-*`, WebKit/Blink `::-webkit-scrollbar` kullanır; ikisi de
+   token'lardan beslendiği için açık/koyu temada kendiliğinden uyum sağlar.
+   Şeffaf kenarlık + background-clip: ince, yüzen bir çubuk görünümü verir. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--faint) transparent;
+}
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--faint);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* Aurora mesh + mikro nokta ızgarası — sabit, en arka katman */
 body::before {
   content: "";
@@ -749,7 +771,13 @@ footer.note {
 .field textarea:focus { border-color: var(--teal); outline: none; }
 
 /* ---------- ilan formu ---------- */
-.modal.listing-form, .modal.my-listings { max-width: 520px; max-height: 88vh; overflow-y: auto; }
+.modal.listing-form, .modal.my-listings {
+  max-width: 520px;
+  max-height: calc(100dvh - 2 * max(24px, 4vh));
+  overflow-y: auto;
+  padding-right: 18px;
+  overscroll-behavior: contain;
+}
 .lf-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 20px; }
 .photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .photo-thumb {
@@ -967,8 +995,18 @@ footer.note {
   border-radius: 8px; padding: 8px 12px;
 }
 
-/* ---------- ilan detay modalı ---------- */
-.modal.listing-detail { max-width: 560px; max-height: 90vh; overflow-y: auto; }
+/* ---------- ilan detay modalı ----------
+   Kaydırma çubuğu modalın yuvarlak köşesini kesmesin diye içerik kutunun
+   iç kenarından biraz uzakta durur (padding-right) ve çubuk temaya uyar. */
+.modal.listing-detail {
+  max-width: 560px;
+  /* overlay'in üst+alt boşluğu düşülür: modal hiçbir zaman ekranı aşmaz */
+  max-height: calc(100dvh - 2 * max(24px, 4vh));
+  overflow-y: auto;
+  padding-right: 18px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain; /* modal sonuna gelince sayfa kaymasın */
+}
 .ld-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .ld-head .ref-no {
   font-family: var(--mono); font-size: 0.7rem; color: var(--muted);

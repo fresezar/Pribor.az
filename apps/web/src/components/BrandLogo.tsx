@@ -3,8 +3,8 @@
  * Zümrüt→gold gradient logonun kimliğini taşır; lens "AI değerleme gözü" olarak
  * yumuşakça nabız atar. Vektörel olduğundan her ölçekte keskin, iki temada da net.
  *
- * withWord=false → yalnız işaret (favicon/kompakt). Wordmark logodaki gibi
- * küçük harf "pribor.az", gradient.
+ * withWord=false → yalnız işaret (favicon/kompakt). Wordmark "PriborƏmlak",
+ * gradient; aria-label ile birlikte markayı taşır.
  */
 export default function BrandLogo({
   size = 30,
@@ -21,7 +21,7 @@ export default function BrandLogo({
         viewBox="0 0 48 48"
         fill="none"
         role="img"
-        aria-label="Pribor.az"
+        aria-label="PriborƏmlak"
         className="brand-mark"
       >
         <defs>
@@ -58,7 +58,7 @@ export default function BrandLogo({
         <circle cx="24" cy="25" r="1" fill="#ffffff" />
       </svg>
       {withWord && (
-        <span className="brand-word">pribor<b>.az</b></span>
+        <span className="brand-word">Pribor<b>Əmlak</b></span>
       )}
     </span>
   );
