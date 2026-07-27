@@ -22,6 +22,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 # Windows konsolu cp1252 açılabilir — Türkçe/AZ karakterler için UTF-8'e zorla
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
@@ -160,9 +161,84 @@ def _dirichlet_weights(k: int, rng: np.random.Generator) -> np.ndarray:
 
 # ------------------------------------------------------------------- gerçek veri
 
+# Motorun değerlediği tipler: mənzil, torpaq, həyət evi. Obyekt/ofis ve qaraj
+# ayrı bir piyasadır (getiriye göre fiyatlanır, m² ile değil) — aynı modele
+# konursa ikisini de bozar.
+TRAINABLE_TYPES = ("apartment", "house", "land")
+
+# Eğitim seti sağlık filtreleri. Kaynakta 3 AZN'lik "torpaq" ve 37 milyonluk
+# ilanlar var: ilki dikkat çekmek için konmuş sahte fiyat, ikincisi tek örneklik
+# lüks. İkisi de birer kayıttan fazlasını bozar çünkü quantile kaybı uçlara
+# duyarlıdır. Sınırlar geniş tutuldu — amaç veri giriş hatasını elemek,
+# piyasayı kırpmak değil.
+MIN_PRICE_AZN, MAX_PRICE_AZN = 5_000, 5_000_000
+MIN_AREA_M2, MAX_AREA_M2 = 15, 20_000
+
+
+def _frame_from_records(records: list[dict[str, Any]]) -> pd.DataFrame:
+    if not records:
+        return pd.DataFrame()
+    df = build_frame(records)
+    df["price_azn"] = [r["price_azn"] for r in records]
+    return df
+
+
+def _keep(rec: dict[str, Any]) -> bool:
+    """Eğitim seti sağlık filtresi — load_from_db'deki SQL koşullarının aynısı.
+
+    Tek yerde tanımlı olması şart: dosyadan ve DB'den eğitim aynı evreni
+    görmezse iki model karşılaştırılamaz hale gelir.
+    """
+    price, area = rec.get("price_azn"), rec.get("area_m2")
+    if price is None or area is None:
+        return False
+    if not (MIN_PRICE_AZN <= price <= MAX_PRICE_AZN):
+        return False
+    if not (MIN_AREA_M2 <= area <= MAX_AREA_M2):
+        return False
+    if rec.get("district") is None:
+        return False
+    if rec.get("property_type") not in TRAINABLE_TYPES:
+        return False
+    return (rec.get("listing_kind") or "sale") != "rent"
+
+
+def load_from_files(paths: list[Path]) -> pd.DataFrame:
+    """Scraper'ın normalize çıktısından (.normalized.jsonl) eğitim seti kurar.
+
+    DB'siz eğitim yolu: veri kümesi dosyada durduğu için koşu tekrarlanabilir
+    ve model, ingest'ten bağımsız olarak yeniden üretilebilir. Aynı ilan birden
+    çok dosyada geçerse SONRA gelen kazanır — zenginleştirilmiş kayıtlar
+    (sahə/otaq dolu) liste kayıtlarının üzerine yazsın diye.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for path in paths:
+        with path.open(encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                key = f"{rec.get('source_site')}:{rec.get('source_ext_id')}"
+                merged[key] = rec
+    return _frame_from_records([r for r in merged.values() if _keep(r)])
+
+
 def load_from_db() -> pd.DataFrame:
     """scraped_listings'ten eğitim seti çeker (aktif + delist edilmiş hepsi —
-    delist edilmiş kayıtların son fiyatı 'gerçekleşmiş piyasa' sinyalidir)."""
+    delist edilmiş kayıtların son fiyatı 'gerçekleşmiş piyasa' sinyalidir).
+
+    Filtreler, her biri gerçek veride ölçülmüş bir bozulmayı önler:
+
+    listing_kind <> 'rent'  Kategoriler kiralık ilanları da döndürüyordu;
+        mənzillərin %36'sı kiralıktı (medyan 550 ₼ / 140.000 ₼). Kaynakta
+        filtreleniyor ama eski kayıtlar da bu tablodan geçiyor.
+    district IS NOT NULL    Rayon sözlüğü yalnız Bakı rayonlarını tanır;
+        boş olması ilanın Bakı dışı olduğu (Qusar, Şəki) ya da konumun
+        okunamadığı anlamına gelir. İkisi de Bakı modelini kirletir.
+    property_type           Yalnız değerlediğimiz üç tip.
+    fiyat/sahə aralığı      Veri giriş hatalarını eler.
+    """
     import psycopg
 
     from .settings_db import database_url
@@ -173,15 +249,25 @@ def load_from_db() -> pd.DataFrame:
             SELECT normalized, price_azn
             FROM scraped_listings
             WHERE vertical = 'real_estate'
-              AND price_azn IS NOT NULL
-              AND (normalized->>'area_m2') IS NOT NULL
-            """
+              AND price_azn BETWEEN %(pmin)s AND %(pmax)s
+              AND (normalized->>'area_m2')::float BETWEEN %(amin)s AND %(amax)s
+              AND normalized->>'district' IS NOT NULL
+              AND normalized->>'property_type' = ANY(%(types)s)
+              AND coalesce(normalized->>'listing_kind', 'sale') <> 'rent'
+            """,
+            {
+                "pmin": MIN_PRICE_AZN, "pmax": MAX_PRICE_AZN,
+                "amin": MIN_AREA_M2, "amax": MAX_AREA_M2,
+                "types": list(TRAINABLE_TYPES),
+            },
         ).fetchall()
     records = []
     for normalized, price in rows:
         rec = dict(normalized)
         rec["price_azn"] = price
         records.append(rec)
+    if not records:
+        return pd.DataFrame()
     df = build_frame(records)
     df["price_azn"] = [r["price_azn"] for r in records]
     return df
@@ -235,6 +321,27 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
     band_within_10pct = float(np.mean(rel_width <= 0.10))
     band_azn = p90 - p10
 
+    # --- tip bazında doğruluk ---
+    # Toplam MAPE yanıltıcıdır: üç emlak tipi tek sayıya karıştığında zayıf
+    # segment güçlüsünü gizler ya da tersi. Torpaq ₼/m²'si mənzilin 1/20'si
+    # ve kendi içinde 400 kat yayılıyor; ortalama mutlak yüzde hata birkaç
+    # ucuz arsada patlayıp toplamı ele geçiriyor. O yüzden hem ORTALAMA hem
+    # MEDYAN yüzde hata, tip kırılımıyla birlikte raporlanıyor — hangi
+    # segmentin ürüne konulabilir olduğuna bakarak karar veriyoruz.
+    ape = np.abs(p50 - y) / y
+    types = df.loc[~mask, "property_type"].to_numpy()
+    per_type: dict[str, dict[str, float]] = {}
+    for pt in np.unique(types):
+        i = types == pt
+        per_type[str(pt)] = {
+            "n": int(i.sum()),
+            "mape": round(float(np.mean(ape[i])), 4),
+            "mdape": round(float(np.median(ape[i])), 4),
+            "coverage": round(float(np.mean((y[i] >= p10[i]) & (y[i] <= p90[i]))), 4),
+            "band_rel_median": round(float(np.median(rel_width[i])), 4),
+            "band_azn_median": int(np.median(band_azn[i])),
+        }
+
     tag = f"re-catboost-q-{datetime.now(timezone.utc).strftime('%Y.%m.%d')}"
     metadata = {
         "tag": tag,
@@ -250,9 +357,11 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
             "band_rel_median": round(float(np.median(rel_width)), 4),
             "band_within_10pct": round(band_within_10pct, 4),
             "band_azn_median": int(np.median(band_azn)),
+            "mdape_p50": round(float(np.median(ape)), 4),
             "n_train": int(mask.sum()),
             "n_valid": int((~mask).sum()),
         },
+        "metrics_by_type": per_type,
         "trained_at": datetime.now(timezone.utc).isoformat(),
     }
     (out_dir / "metadata.json").write_text(
@@ -262,23 +371,40 @@ def train(df: pd.DataFrame, out_dir: Path, iterations: int, seed: int = 42) -> d
 
 def main(
     synthetic: bool = typer.Option(True, help="Sentetik veri (DB'siz) / --no-synthetic: DB'den"),
+    files: list[Path] = typer.Option(
+        [], "--file",
+        help="Normalize JSONL (.normalized.jsonl) — DB yerine dosyadan eğit. "
+             "Birden çok verilebilir; sonraki dosya öncekini ezer."),
     n: int = typer.Option(20_000, help="Sentetik örnek sayısı"),
     iterations: int = typer.Option(600, help="CatBoost iterasyon üst sınırı"),
     out: Path = typer.Option(ARTIFACTS_DIR, help="Artifact çıktı klasörü"),
 ) -> None:
-    df = make_synthetic(n) if synthetic else load_from_db()
+    if files:
+        df, source = load_from_files(files), f"dosya ({len(files)})"
+    elif synthetic:
+        df, source = make_synthetic(n), "sentetik"
+    else:
+        df, source = load_from_db(), "DB"
+    synthetic = source == "sentetik"
     if len(df) < 500:
         typer.echo(f"Yetersiz eğitim verisi: {len(df)} satır (min 500)")
         raise typer.Exit(1)
-    typer.echo(f"Eğitim seti: {len(df)} satır · kaynak: {'sentetik' if synthetic else 'DB'}")
+    typer.echo(f"Eğitim seti: {len(df)} satır · kaynak: {source}")
     meta = train(df, out, iterations)
     m = meta["metrics"]
     typer.echo(
         f"✔ {meta['tag']} → {out}\n"
         f"  MAPE(P50): %{m['mape_p50'] * 100:.1f} · "
+        f"medyan hata: %{m['mdape_p50'] * 100:.1f} · "
         f"P10–P90 kapsama: %{m['coverage_p10_p90'] * 100:.1f} · "
         f"n_train: {m['n_train']}"
     )
+    typer.echo(f"  {'tip':<12}{'n':>6}{'medyan hata':>13}{'ort. hata':>11}"
+               f"{'kapsama':>9}{'band/P50':>10}")
+    for pt, s in sorted(meta["metrics_by_type"].items(), key=lambda kv: -kv[1]["n"]):
+        typer.echo(f"  {pt:<12}{s['n']:>6}{s['mdape'] * 100:>12.1f}%"
+                   f"{s['mape'] * 100:>10.1f}%{s['coverage'] * 100:>8.1f}%"
+                   f"{s['band_rel_median'] * 100:>9.1f}%")
     # Kalite kapısı hatırlatması (Faz 0 çıkış kriteri: gerçek veride MAPE < %12)
     if not synthetic and m["mape_p50"] > 0.12:
         typer.echo("⚠ MAPE eşiği aşıldı — model prod'a alınmadan incelenmeli")

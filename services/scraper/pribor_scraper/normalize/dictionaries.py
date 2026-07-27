@@ -83,12 +83,65 @@ TITLE_DEED_TRUE = ("kupçalı", "kupcali", "kupça var", "kupca var", "çıxarı
                    "купчая есть", "есть купчая", "с купчей", "документы в порядке")
 
 
+# Sabit ifade listesi Azerbaycan çekim eklerini kaldıramıyordu: metinde
+# "kupçadır", "kupçadı", "kupçalıdır", "çıxarışı var", "sənəd kupçadı" gibi
+# onlarca biçim geçiyor. Ölçüm: ilanların %68'i kupça/çıxarış'tan söz ederken
+# normalize yalnız %15'ini yakalıyordu. Kök + serbest ek eşlemesi gerekiyor.
+#
+# Kupça, özellikle TORPAQ ilanlarında en güçlü fiyat sinyallerinden biridir
+# (sənədsiz arsa belirgin şekilde ucuzdur), o yüzden kaybı pahalıya mal olur.
+_DEED_FALSE_RE = re.compile(
+    r"s[əe]n[əe]dsiz"
+    r"|(kup[çc]a|[çc][ıi]xar[ıi][şs]|s[əe]n[əe]d)\w*\s*(yox|olmayan)"
+    r"|m[üu]qavil[əe]\s*il[əe]"
+    r"|без\s*купч|нет\s*купч|купчая\s*отсутств",
+    re.IGNORECASE,
+)
+_DEED_TRUE_RE = re.compile(
+    r"kup[çc]a\w*"
+    r"|[çc][ıi]xar[ıi][şs]\w*"
+    r"|s[əe]n[əe]dli"
+    r"|[şs][əe]had[əe]tnam\w*"
+    r"|x[üu]susi\s*m[üu]lkiyy?[əe]t"
+    r"|s[əe]n[əe]dl[əe]r\w*\s*qaydas[ıi]nda"
+    r"|купч|документы\s*в\s*порядке",
+    re.IGNORECASE,
+)
+
+
 def parse_title_deed(text: str) -> bool | None:
+    """Kupça (tapu) var mı. Olumsuz ifade önce aranır — "kupça yoxdur"
+    olumlu kökü de içerir, sıra tersine dönerse hepsi True okunur."""
     t = az_lower(text)
-    if _contains_any(t, TITLE_DEED_FALSE):
+    if _DEED_FALSE_RE.search(t):
         return False
-    if _contains_any(t, TITLE_DEED_TRUE):
+    if _DEED_TRUE_RE.search(t):
         return True
+    return None
+
+
+# Torpağın təyinatı — aynı qəsəbədə aynı büyüklükteki iki arsanın fiyatını
+# ayıran şey çoğu zaman budur: kənd təsərrüfatı torpağına ev tikilemez,
+# kommersiya təyinatlı olan ise en pahalısıdır. Ölçüm (₼/sot medyan):
+#   kommersiya 30.159 · bağ 12.000 · tikinti 11.493 · yaşayış 8.000
+#   kənd təsərrüfatı 5.000
+# Sıra önemli: en spesifik olan önce eşleşmeli.
+LAND_USE_PATTERNS: list[tuple[str, str]] = [
+    ("kommersiya", r"kommersiya|ticar[əe]t\s*t[əe]yinat"),
+    ("kend_teserrufati", r"k[əe]nd\s*t[əe]s[əe]rr[üu]fat"),
+    ("tikinti", r"tikinti\s*t[əe]yinat|[çc][ıi]xar[ıi][şs]l[ıi]\s*tikinti"),
+    ("yasayis", r"ya[şs]ay[ıi][şs]\s*t[əe]yinat"),
+    ("bag", r"ba[ğg]\s*(sah[əe]si|torpa[ğg])|ba[ğg]lar[ıi]nda"),
+]
+_LAND_USE_RE = [(name, re.compile(p, re.IGNORECASE)) for name, p in LAND_USE_PATTERNS]
+
+
+def parse_land_use(text: str) -> str | None:
+    """Torpağın təyinatı: kommersiya | kend_teserrufati | tikinti | yasayis | bag."""
+    t = az_lower(text)
+    for name, rx in _LAND_USE_RE:
+        if rx.search(t):
+            return name
     return None
 
 
@@ -324,6 +377,16 @@ def _to_number(raw: str) -> float | None:
         return float(s)
     except ValueError:
         return None
+
+
+def parse_number(raw: str) -> float | None:
+    """Çıplak sayı değeri float'a çevirir; birim/harf varsa None döner.
+
+    Yapılandırılmış alanlar için: kaynağın özellik tablosunda birim ANAHTARDA
+    durur ({"Sahə, м²": "110"}), değer çıplaktır. None dönmesi "bu değer
+    serbest metin, normal ayrıştırıcıya ver" demektir.
+    """
+    return _to_number(raw)
 
 
 def parse_area_m2(text: str) -> float | None:

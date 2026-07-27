@@ -1,7 +1,7 @@
-﻿"""Qəsəbə coğrafi profilleri — OTOMATİK ÜRETİLDİ, elle düzenleme.
+"""Qəsəbə coğrafi profilleri — OTOMATİK ÜRETİLDİ, elle düzenleme.
 
-Kaynak: services/scraper/pribor_scraper/normalize/settlements.py
-Üretim: scripts/sync_settlements.py
+Kaynak : services/scraper/pribor_scraper/normalize/settlements.py
+Üretim : python scripts/sync_settlements.py
 
 ML servisi ile scraper ayrı deploy edilir; tablo ikisinde de bulunmalı.
 Eğitim ve servis aynı değerleri üretmezse model sessizce saçmalar.
@@ -30,12 +30,14 @@ SETTLEMENT_PROFILES: dict[str, tuple[str, float, float, str]] = {
     '8-ci kilometr': ('Nizami', 8.0, 4.0, 'residential'),
     'Qara Qarayev': ('Nizami', 7.0, 3.5, 'residential'),
     'Xətai': ('Xətai', 4.0, 1.0, 'residential'),
+    'Ağ Şəhər': ('Xətai', 5.0, 0.8, 'residential'),
     'Əhmədli': ('Xətai', 8.5, 2.5, 'residential'),
     'Həzi Aslanov': ('Xətai', 10.0, 2.0, 'residential'),
     'Günəşli': ('Xətai', 11.0, 3.0, 'suburb'),
     'NZS': ('Xətai', 9.5, 1.5, 'industrial'),
     'Binəqədi': ('Binəqədi', 12.0, 8.0, 'suburb'),
     'Biləcəri': ('Binəqədi', 11.0, 8.5, 'industrial'),
+    'Dərnəgül': ('Binəqədi', 10.0, 7.0, 'residential'),
     'Xocəsən': ('Binəqədi', 13.0, 9.0, 'suburb'),
     'M.Ə.Rəsulzadə': ('Binəqədi', 10.5, 7.5, 'suburb'),
     'Sulutəpə': ('Binəqədi', 12.5, 8.5, 'suburb'),
@@ -52,6 +54,7 @@ SETTLEMENT_PROFILES: dict[str, tuple[str, float, float, str]] = {
     'Bakıxanov': ('Sabunçu', 10.0, 4.0, 'residential'),
     'Ramana': ('Sabunçu', 13.5, 5.5, 'suburb'),
     'Zabrat': ('Sabunçu', 14.0, 5.0, 'suburb'),
+    'Məmmədli': ('Sabunçu', 15.0, 5.5, 'suburb'),
     'Maştağa': ('Sabunçu', 22.0, 3.0, 'suburb'),
     'Nardaran': ('Sabunçu', 25.0, 1.0, 'suburb'),
     'Bilgəh': ('Sabunçu', 28.0, 0.4, 'villa_coast'),
@@ -98,6 +101,17 @@ SETTLEMENT_PROFILES: dict[str, tuple[str, float, float, str]] = {
     'Güzdək': ('Abşeron', 26.0, 7.0, 'rural'),
     'Hökməli': ('Abşeron', 15.0, 8.5, 'suburb'),
     'Məhəmmədi': ('Abşeron', 19.0, 7.5, 'rural'),
+    'Mehdiabad': ('Abşeron', 18.0, 7.0, 'suburb'),
+    'Corat': ('Abşeron', 28.0, 3.0, 'suburb'),
+    'Atyalı': ('Abşeron', 20.0, 6.0, 'rural'),
+    'Albalılıq': ('Abşeron', 17.0, 8.0, 'rural'),
+    'Aşağı Güzdək': ('Abşeron', 25.0, 7.5, 'rural'),
+    'Yeni Günəşli': ('Xətai', 11.5, 3.0, 'suburb'),
+    'Köhnə Günəşli': ('Xətai', 11.0, 3.0, 'suburb'),
+    'Savalan': ('Sabunçu', 11.0, 5.5, 'suburb'),
+    'Razin': ('Nizami', 9.0, 4.5, 'residential'),
+    'Avtozavod': ('Nizami', 9.5, 4.5, 'industrial'),
+    'Gülüstan': ('Abşeron', 18.0, 7.0, 'suburb'),
 }
 
 ALIASES: dict[str, str] = {
@@ -116,5 +130,46 @@ ALIASES: dict[str, str] = {
     '20 ci sahə': '20-ci sahə',
     'içəri şəhər': 'İçərişəhər',
     'xırdalan': 'Xırdalan',
+    'goradil': 'Görədil',
+    'goredil': 'Görədil',
+    'məhəmmədli': 'Məhəmmədi',
+    'albalı': 'Albalılıq',
+    'müşviqabad': 'Müşfiqabad',
+    'müşviq': 'Müşfiqabad',
+    'xocasən': 'Xocəsən',
+    'mərdakan': 'Mərdəkan',
+    'mərdəkən': 'Mərdəkan',
+    'şuvəlan': 'Şüvəlan',
+    'maşdağa': 'Maştağa',
+    'şagan': 'Şağan',
+    'bilqəh': 'Bilgəh',
+    'fatmai': 'Fatmayi',
+    'yeni ramanı': 'Yeni Ramana',
+    'm. ə. rəsulzadə': 'M.Ə.Rəsulzadə',
+    'm.rəsulzadə': 'M.Ə.Rəsulzadə',
+    'm. rəsulzadə': 'M.Ə.Rəsulzadə',
+    'y. günəşli': 'Yeni Günəşli',
+    'y.günəşli': 'Yeni Günəşli',
+    'k. günəşli': 'Köhnə Günəşli',
+    'k.günəşli': 'Köhnə Günəşli',
+    'köhnə suraxanı': 'Suraxanı',
+    'yeni zığ': 'Zığ',
+    'yeni saray': 'Saray',
+    'binə sovxoz': 'Binə',
+    'binə atçılıq': 'Binə',
+    'zabrat 1': 'Zabrat',
+    'zabrat 2': 'Zabrat',
+    'zabrat-1': 'Zabrat',
+    'zabrat-2': 'Zabrat',
+    'güzdək 1': 'Güzdək',
+    'güzdək 2': 'Güzdək',
+    '1-ci': '1-ci mikrorayon',
+    '2-ci': '2-ci mikrorayon',
+    '3-cü': '3-cü mikrorayon',
+    '4-cü': '4-cü mikrorayon',
+    '5-ci': '5-ci mikrorayon',
+    '6-cı': '6-cı mikrorayon',
+    '7-ci': '7-ci mikrorayon',
+    '8-ci': '8-ci mikrorayon',
+    '9-cu': '9-cu mikrorayon',
 }
-

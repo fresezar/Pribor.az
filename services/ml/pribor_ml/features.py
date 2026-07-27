@@ -39,10 +39,15 @@ FEATURE_ORDER: list[str] = [
     "center_km",       # sayısal — şəhər mərkəzinə təxmini məsafə
     "sea_km",          # sayısal — dənizə təxmini məsafə
     "area_character",  # kategorik — central|residential|suburb|villa_coast|industrial|rural
+    # Torpağın təyinatı — aynı yerdeki iki arsayı ayıran ana etken. Ölçülen
+    # ₼/sot medyanı: kommersiya 30.159 ↔ kənd təsərrüfatı 5.000 (6 kat).
+    # Mənzildə boştur (unknown) — model tipe göre zaten ayrışıyor.
+    "land_use",        # kategorik — kommersiya|tikinti|yasayis|bag|kend_teserrufati
 ]
 
 CAT_FEATURES: list[str] = [
     "district", "property_type", "building_type", "settlement", "area_character",
+    "land_use",
 ]
 
 # SHAP çıktısını kullanıcı diline çeviren etiketler (AZ) — "Qiymət DNT-si"
@@ -62,6 +67,7 @@ LABELS_AZ: dict[str, str] = {
     "center_km": "Mərkəzə məsafə",
     "sea_km": "Dənizə yaxınlıq",
     "area_character": "Ərazinin xarakteri",
+    "land_use": "Torpağın təyinatı",
 }
 
 _CAT_UNKNOWN = "unknown"
@@ -138,5 +144,6 @@ def build_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
                                 else (prof[1] if prof else None)),
             "area_character": str(r.get("area_character")
                                   or (prof[2] if prof else None) or _CAT_UNKNOWN),
+            "land_use": str(r.get("land_use") or _CAT_UNKNOWN),
         })
     return pd.DataFrame(rows, columns=FEATURE_ORDER)

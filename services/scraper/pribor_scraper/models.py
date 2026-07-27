@@ -68,6 +68,9 @@ class NormalizedRealEstate(BaseModel):
     repair_state: int | None = None        # 0..5 ordinal
     title_deed: bool | None = None         # kupça
     mortgage_eligible: bool | None = None
+    # Torpağın təyinatı — arsa fiyatını ayıran en güçlü ikinci sinyal
+    # (kommersiya ₼/sot medyanı kənd təsərrüfatının 6 katı). Bkz. dictionaries.
+    land_use: str | None = None
 
     contact_phone: str | None = None
     raw_title: str | None = None

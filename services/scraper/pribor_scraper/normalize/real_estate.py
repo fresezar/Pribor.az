@@ -38,10 +38,17 @@ CATEGORY_MAP: dict[str, tuple[str, ...]] = {
 
 
 def _prop(props: dict[str, str], keys: tuple[str, ...]) -> str | None:
+    return _prop_kv(props, keys)[1]
+
+
+def _prop_kv(
+    props: dict[str, str], keys: tuple[str, ...]
+) -> tuple[str | None, str | None]:
+    """Anahtarı da döndürür — birim anahtarda saklı olabilir ("Sahə, sot")."""
     for raw_key, value in props.items():
         if any(k in d.az_lower(raw_key) for k in keys):
-            return value
-    return None
+            return raw_key, value
+    return None, None
 
 
 def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
@@ -102,8 +109,26 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     out.listing_kind = "rent" if RENT_TITLE_RE.search(title) else "sale"
 
     # --- alan / oda / kat: önce yapılandırılmış alan, sonra serbest metin ---
-    out.area_m2 = d.parse_area_m2(_prop(props, PROP_KEYS_AREA) or haystack)
-    out.land_area_sot = d.parse_area_sot(haystack)
+    # Yapılandırılmış sahə BİRİMİ DEĞERDE DEĞİL ANAHTARDA taşır:
+    #   {"Sahə, м²": "110"}   → 110 m²
+    #   {"Sahə, sot": "6"}    → 6 sot
+    # Değer çıplak sayı olduğu için parse_area_m2 (birim arar) bunu göremiyordu
+    # ve zenginleştirilen ev kayıtlarında sahə %0 kalıyordu.
+    area_key, area_val = _prop_kv(props, PROP_KEYS_AREA)
+    struct_m2 = struct_sot = None
+    if area_val is not None:
+        num = d.parse_number(area_val)
+        if num is not None:
+            if "sot" in d.az_lower(area_key or ""):
+                struct_sot = num
+            else:
+                struct_m2 = num
+        else:  # birim değerin içindeyse ("110 m²") normal ayrıştırıcıya düşer
+            struct_m2 = d.parse_area_m2(area_val)
+            struct_sot = d.parse_area_sot(area_val)
+
+    out.area_m2 = struct_m2 if struct_m2 is not None else d.parse_area_m2(haystack)
+    out.land_area_sot = struct_sot if struct_sot is not None else d.parse_area_sot(haystack)
     # Torpaq (arsa) ilanlarında m² sahə yazılmaz, yalnızca sot verilir. Model ve
     # comps/deal hesabı m² üzerinden çalıştığı için sot'tan türetiyoruz (1 sot = 100 m²).
     if out.area_m2 is None and out.property_type == "land" and out.land_area_sot:
@@ -122,6 +147,9 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     out.repair_state = d.parse_repair_state(haystack)
     out.title_deed = d.parse_title_deed(haystack)
     out.mortgage_eligible = d.parse_mortgage(haystack)
+    if out.property_type in ("land", "house"):
+        # Ev ilanlarında da geçerli: bağ evi ile yaşayış təyinatlı ev farklıdır
+        out.land_use = d.parse_land_use(haystack)
     out.metro_station = d.parse_metro(haystack)
     # İletişim bilgisi bilinçli olarak toplanmaz: modele girmeyen kişisel
     # veriyi saklamak gereksiz sorumluluktur (bkz. sources/tap_az.py).
