@@ -82,6 +82,11 @@ export const CreateListingDto = z.object({
   /** İlan növü — satış / kirayə. */
   dealType: DealType.default("sale"),
   district: BakuDistrict,
+  /**
+   * Qəsəbə/mikrorayon (Ramana, Binə, Bakıxanov…) — yalnız elanda toplanır.
+   * Qiymətləndirmə modeli bu kırılımı bilmediği için değerleme formunda yoktur.
+   */
+  settlement: z.string().max(80).optional(),
   areaM2: z.number().positive().max(100_000).optional(),
   landAreaSot: z.number().positive().max(10_000).optional(),
   rooms: z.number().int().min(1).max(20).optional(),

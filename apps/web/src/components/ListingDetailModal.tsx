@@ -117,6 +117,7 @@ export default function ListingDetailModal(props: {
         ["Əmlak növü", categoryLabel(data.propertyType, data.buildingType)],
         ["İlan növü", DEAL_TYPE_LABEL[data.dealType]],
         ["Rayon", data.district ?? "—"],
+        data.settlement ? ["Qəsəbə", data.settlement] : null,
         data.rooms != null ? ["Otaq sayı", String(data.rooms)] : null,
         data.areaM2 != null ? ["Sahə", `${Math.round(data.areaM2)} m²`] : null,
         data.landAreaSot != null ? ["Torpaq sahəsi", `${data.landAreaSot} sot`] : null,

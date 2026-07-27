@@ -23,6 +23,7 @@ import {
   db,
   desc,
   eq,
+  isNull,
   listingReAttrs,
   listings,
   locations,
@@ -335,7 +336,7 @@ export class ListingsService {
     const title = this.buildListingTitle(dto);
     const areaText = dto.areaM2 != null ? String(dto.areaM2) : null;
     const landText = dto.landAreaSot != null ? String(dto.landAreaSot) : null;
-    const locationId = await this.ensureLocation(dto.district);
+    const locationId = await this.ensureLocation(dto.district, dto.settlement);
     // R2 yapılandırılıysa data URI'lar herkese açık URL'e dönüşür; yoksa no-op.
     const photos = await this.media.uploadPhotos(dto.photos, dto.userId);
     // Kapak indeksi foto sayısını aşmasın (istemci silme sonrası göndermiş olabilir)
@@ -624,22 +625,22 @@ export class ListingsService {
       Math.max(0, photos.length - 1),
     );
 
-    // Rayon değiştiyse locations köprüsünü de taşı
-    const locationId = dto.district
-      ? await this.ensureLocation(dto.district)
-      : current.locationId;
+    // Mevcut konum (rayon + qəsəbə) — gönderilmeyen alan korunur
+    const currentLoc = current.locationId
+      ? await db.query.locations.findFirst({
+          where: eq(locations.id, current.locationId),
+          columns: { district: true, settlement: true },
+        })
+      : null;
+    const district = dto.district ?? currentLoc?.district ?? "Bakı";
+    const settlement = dto.settlement !== undefined ? dto.settlement : currentLoc?.settlement;
 
-    // Başlık, güncel rayon + özniteliklerden yeniden kurulur
-    const district =
-      dto.district ??
-      (current.locationId
-        ? (
-            await db.query.locations.findFirst({
-              where: eq(locations.id, current.locationId),
-              columns: { district: true },
-            })
-          )?.district ?? "Bakı"
-        : "Bakı");
+    // Rayon ya da qəsəbə değiştiyse locations köprüsünü taşı
+    const locationChanged =
+      dto.district !== undefined || dto.settlement !== undefined;
+    const locationId = locationChanged
+      ? await this.ensureLocation(district, settlement)
+      : current.locationId;
     const title = this.buildListingTitle({
       ...merged,
       district,
@@ -729,17 +730,27 @@ export class ListingsService {
     return { id: row.id, status: row.status };
   }
 
-  /** Bakı rayonu için locations satırını bulur/oluşturur (district'i kalıcı kılar). */
-  private async ensureLocation(district: string): Promise<string> {
+  /**
+   * Bakı rayonu (+ varsa qəsəbə) için locations satırını bulur/oluşturur.
+   * Qəsəbə ayrı bir satırdır: "Sabunçu" ile "Sabunçu · Ramana" farklı yerlerdir.
+   */
+  private async ensureLocation(district: string, settlement?: string | null): Promise<string> {
+    const s = settlement?.trim() || null;
     const found = await db
       .select({ id: locations.id })
       .from(locations)
-      .where(and(eq(locations.city, "Bakı"), eq(locations.district, district)))
+      .where(
+        and(
+          eq(locations.city, "Bakı"),
+          eq(locations.district, district),
+          s == null ? isNull(locations.settlement) : eq(locations.settlement, s),
+        ),
+      )
       .limit(1);
     if (found[0]) return found[0].id;
     const [row] = await db
       .insert(locations)
-      .values({ city: "Bakı", district })
+      .values({ city: "Bakı", district, settlement: s })
       .returning({ id: locations.id });
     if (!row) throw new Error("Location oluşturulamadı");
     return row.id;

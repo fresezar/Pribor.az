@@ -17,7 +17,7 @@ import type {
   ReCategory,
   UpdateListingDto,
 } from "@pribor/contracts";
-import { categoryToType, DEAL_TYPE_LABEL, typeToCategory } from "@pribor/contracts";
+import { categoryToType, DEAL_TYPE_LABEL, settlementsOf, typeToCategory } from "@pribor/contracts";
 import NumberField from "./NumberField";
 import Portal from "./Portal";
 import { useAuth } from "./AuthContext";
@@ -65,6 +65,7 @@ export default function ListingForm(props: {
   const [category, setCategory] = useState<ReCategory>("yeni_tikili");
   const [dealType, setDealType] = useState<DealType>("sale");
   const [district, setDistrict] = useState(DISTRICTS[0]!);
+  const [settlement, setSettlement] = useState("");
   const [areaM2, setAreaM2] = useState<number>(0);
   const [landAreaSot, setLandAreaSot] = useState<number>(0);
   const [rooms, setRooms] = useState<number>(2);
@@ -84,6 +85,7 @@ export default function ListingForm(props: {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const cfg = CATEGORY_BY_KEY[category];
+  const settlementOptions = settlementsOf(district);
   const digits = (s: string) => s.replace(/\D/g, "");
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function ListingForm(props: {
       setCategory(typeToCategory(editing.propertyType, editing.buildingType));
       setDealType(editing.dealType);
       setDistrict(editing.district ?? DISTRICTS[0]!);
+      setSettlement(editing.settlement ?? "");
       setAreaM2(editing.areaM2 ?? 0);
       setLandAreaSot(editing.landAreaSot ?? 0);
       setRooms(editing.rooms ?? 2);
@@ -110,13 +113,13 @@ export default function ListingForm(props: {
     setError(null);
     if (!prefill) {
       setCategory("yeni_tikili");
-      setDistrict(DISTRICTS[0]!);
+      setDistrict(DISTRICTS[0]!); setSettlement("");
       setAreaM2(0); setLandAreaSot(0); setRooms(2); setRepairState(3);
       setTitleDeed(true); setPrice(0); setDescription(""); setPhotos([]); setCoverIdx(0);
       return;
     }
     setCategory(typeToCategory(prefill.propertyType, prefill.buildingType));
-    setDistrict(prefill.district);
+    setDistrict(prefill.district); setSettlement("");
     setAreaM2(prefill.areaM2 ?? 0);
     setLandAreaSot(prefill.landAreaSot ?? 0);
     setRooms(prefill.rooms ?? 2);
@@ -171,6 +174,7 @@ export default function ListingForm(props: {
       dealType,
       buildingType: buildingType as CreateListingDto["buildingType"],
       district: district as CreateListingDto["district"],
+      settlement: settlement || undefined,
       areaM2: effArea,
       landAreaSot: cfg.landSot ? landAreaSot : undefined,
       rooms: cfg.rooms ? rooms : undefined,
@@ -214,7 +218,7 @@ export default function ListingForm(props: {
     } finally {
       setBusy(false);
     }
-  }, [user, prefill, editing, isEdit, category, cfg, dealType, district, areaM2,
+  }, [user, prefill, editing, isEdit, category, cfg, dealType, district, settlement, areaM2,
       landAreaSot, rooms, repairState, titleDeed, price, description, contactName,
       contactPhone, photos, coverIdx, props]);
 
@@ -258,10 +262,22 @@ export default function ListingForm(props: {
           </div>
           <div className="field">
             <label htmlFor="lf-district">Rayon</label>
-            <select id="lf-district" value={district} onChange={(e) => setDistrict(e.target.value)}>
+            <select id="lf-district" value={district}
+              onChange={(e) => { setDistrict(e.target.value); setSettlement(""); }}>
               {DISTRICTS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
+          {settlementOptions.length > 0 && (
+            <div className="field">
+              <label htmlFor="lf-settlement">Qəsəbə</label>
+              <select id="lf-settlement" value={settlement}
+                onChange={(e) => setSettlement(e.target.value)}>
+                <option value="">Seçilməyib</option>
+                {settlementOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <span className="hint">Elanda «{district}{settlement ? ` · ${settlement}` : ""}» görünəcək.</span>
+            </div>
+          )}
 
           {cfg.areaM2 && (
             <div className="field">
