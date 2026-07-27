@@ -70,12 +70,20 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
         warn("price_unparsed")
 
     # --- kategori ---
-    cat_text = _prop(props, PROP_KEYS_CATEGORY) or haystack
-    t = d.az_lower(cat_text)
-    for canonical, needles in CATEGORY_MAP.items():
-        if any(n in t for n in needles):
-            out.property_type = canonical
-            break
+    # Kaynak kategori sayfasından geldiyse tip KESİNDİR (scraper hangi
+    # kategoriyi taradığını bilir); metinden tahmin etmeye gerek yok.
+    # Metin tahmini yanılabiliyordu: "Torpaq sahəsi olan həyət evi" ilanı
+    # land sanılıp sot→m² dönüşümüne giriyordu.
+    hint = p.get("property_type_hint")
+    if hint:
+        out.property_type = str(hint)
+    else:
+        cat_text = _prop(props, PROP_KEYS_CATEGORY) or haystack
+        t = d.az_lower(cat_text)
+        for canonical, needles in CATEGORY_MAP.items():
+            if any(n in t for n in needles):
+                out.property_type = canonical
+                break
     if out.property_type is None:
         warn("property_type_unparsed")
 

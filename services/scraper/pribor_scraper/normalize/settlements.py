@@ -132,6 +132,18 @@ SETTLEMENTS: dict[str, SettlementProfile] = {
     "Güzdək": SettlementProfile("Abşeron", 26.0, 7.0, _RU),
     "Hökməli": SettlementProfile("Abşeron", 15.0, 8.5, _S),
     "Məhəmmədi": SettlementProfile("Abşeron", 19.0, 7.5, _RU),
+    # Gerçek veride sık görülüp tabloda olmayanlar (ilk taramadan eklendi)
+    "Mehdiabad": SettlementProfile("Abşeron", 18.0, 7.0, _S),
+    "Corat": SettlementProfile("Abşeron", 28.0, 3.0, _S),
+    "Atyalı": SettlementProfile("Abşeron", 20.0, 6.0, _RU),
+    "Albalılıq": SettlementProfile("Abşeron", 17.0, 8.0, _RU),
+    "Aşağı Güzdək": SettlementProfile("Abşeron", 25.0, 7.5, _RU),
+    "Yeni Günəşli": SettlementProfile("Xətai", 11.5, 3.0, _S),
+    "Köhnə Günəşli": SettlementProfile("Xətai", 11.0, 3.0, _S),
+    "Savalan": SettlementProfile("Sabunçu", 11.0, 5.5, _S),
+    "Razin": SettlementProfile("Nizami", 9.0, 4.5, _R),
+    "Avtozavod": SettlementProfile("Nizami", 9.5, 4.5, _I),
+    "Gülüstan": SettlementProfile("Abşeron", 18.0, 7.0, _S),
 }
 
 # İlan başlıklarında sık geçen kısaltma/yazım varyantları. Kaynak metni
@@ -153,7 +165,19 @@ ALIASES: dict[str, str] = {
     "20 ci sahə": "20-ci sahə",
     "içəri şəhər": "İçərişəhər",
     "xırdalan": "Xırdalan",
+    "goradil": "Görədil",
+    "gorediL".lower(): "Görədil",
+    "məhəmmədli": "Məhəmmədi",
+    "albalı": "Albalılıq",
 }
+
+# "9-cu mkr." başlıkta yalnız sıra adıyla geçiyor; tabloda tam ad var.
+# Bu eşleme olmadan mikrorayon ilanları rayonsuz kalıyordu (ilk taramada
+# 9-cu/7-ci/8-ci... toplam ~400 kayıt).
+for _i, _suffix in enumerate(
+    ["1-ci", "2-ci", "3-cü", "4-cü", "5-ci", "6-cı", "7-ci", "8-ci", "9-cu"], start=1
+):
+    ALIASES[_suffix] = f"{_suffix} mikrorayon"
 
 # Arama için normalize edilmiş dizin: "badamdar" → "Badamdar"
 _INDEX: dict[str, str] = {}

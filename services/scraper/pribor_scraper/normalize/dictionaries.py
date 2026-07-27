@@ -260,19 +260,49 @@ def parse_price(text: str) -> tuple[int, str] | None:
     return int(digits), currency
 
 
-_AREA_M2_RE = re.compile(r"([\d.,]+)\s*(?:m²|m2|kv\.?\s*m|кв\.?\s*м)", re.IGNORECASE)
+# DİKKAT: "м²" (Kiril м) ile "m²" (Latin m) FARKLI karakterlerdir. Rusça
+# ilanlar Kiril yazıyor ("71 м²"); yalnız Latin aranırsa o ilanların sahəsi
+# hiç okunmaz ve kayıt modele girmez.
+_AREA_M2_RE = re.compile(r"([\d.,]+)\s*(?:m²|m2|м²|м2|kv\.?\s*m|кв\.?\s*м)", re.IGNORECASE)
 _AREA_SOT_RE = re.compile(r"([\d.,]+)\s*(?:sot|сот)", re.IGNORECASE)
+
+
+def _to_number(raw: str) -> float | None:
+    """İlan metnindeki serbest yazılmış sayıyı float'a çevirir.
+
+    Gerçek ilanlar temiz değildir: "Ev..131 m²" gibi yazımlar regex'e
+    "..131" olarak takılıp float() çağrısını patlatıyordu — tek bozuk ilan
+    tüm normalize koşusunu düşürüyor.
+
+    Ayırıcı belirsizliği: "1.250" hem 1250 (binlik) hem 1.25 (ondalık)
+    olabilir. Nokta sonrası tam 3 hane varsa binlik kabul edilir (emlakta
+    "1.250 m²" yaygın; "72.26 m²" ondalıktır).
+    """
+    s = raw.replace(",", ".").strip(" .")
+    if not s or not any(ch.isdigit() for ch in s):
+        return None
+    if s.count(".") > 1:  # "1.2.3" / "..131" → son parça ondalık sayılır
+        head, _, tail = s.rpartition(".")
+        s = head.replace(".", "") + "." + tail
+    if s.count(".") == 1:
+        head, tail = s.split(".")
+        if len(tail) == 3:  # binlik ayırıcı: "1.250" → 1250
+            s = head + tail
+    try:
+        return float(s)
+    except ValueError:
+        return None
 
 
 def parse_area_m2(text: str) -> float | None:
     m = _AREA_M2_RE.search(text)
-    return float(m.group(1).replace(",", ".")) if m else None
+    return _to_number(m.group(1)) if m else None
 
 
 def parse_area_sot(text: str) -> float | None:
     """Torpaq sahəsi 'sot' ile ölçülür (1 sot = 100 m²)."""
     m = _AREA_SOT_RE.search(text)
-    return float(m.group(1).replace(",", ".")) if m else None
+    return _to_number(m.group(1)) if m else None
 
 
 # Kaynak başlıkları "2-otaqlı" biçimini kullanır — sayı ile kelime arasında
