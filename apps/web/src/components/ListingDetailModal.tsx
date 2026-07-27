@@ -2,8 +2,9 @@
 
 /**
  * İlan detay modalı — fotoğraf galerisi, tüm özellikler, açıqlama ve
- * əlaqə nömrəsi. Yalnızca oturum açmış kullanıcı açabilir (auth gate hem
- * burada hem sunucuda). Sahip/admin için "Satıldı" ve "Sil" aksiyonları.
+ * əlaqə nömrəsi. HERKESE AÇIK: alıcının ilana bakmak için hesap açması
+ * gereksiz sürtünmedir. Giriş yalnızca ilan sahibinin/admin'in yönetim
+ * aksiyonları ("Satıldı", "Sil", "Redaktə") için gerekir.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -44,12 +45,14 @@ export default function ListingDetailModal(props: {
   const open = props.listingId != null || props.preloaded != null;
 
   const fetchDetail = useCallback(async (id: string) => {
-    if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`${API}/v1/listings/${id}?userId=${user.id}`);
-      if (!r.ok) throw new Error(r.status === 401 ? "Daxil olun" : "Elan tapılmadı");
+      // Giriş şart değil — ilanı herkes açabilir. Kimlik varsa gönderilir,
+      // sunucu yalnız "bu ilan benim mi / admin miyim" hesabında kullanır.
+      const q = user ? `?userId=${user.id}` : "";
+      const r = await fetch(`${API}/v1/listings/${id}${q}`);
+      if (!r.ok) throw new Error("Elan tapılmadı");
       const d = (await r.json()) as ListingDetail;
       setData(d);
       setActivePhoto(d.coverPhotoIdx ?? 0);

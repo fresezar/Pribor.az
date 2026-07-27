@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * Bazar / Elanlar görünümü — platformda verilen ilanlar (PRB no'lu) ile
- * piyasa verisi tek listede. Grid/List görünümü + sıralama + filtre + PRB
- * numarasıyla arama. Kartlar emlak tipine göre renk kodlu.
+ * Bazar / Elanlar görünümü — platformda verilen ilanlar (nömrəli) ile
+ * piyasa verisi tek listede. Grid/List görünümü + sıralama + filtre + elan
+ * nömrəsiyle arama. Kartlar emlak tipine göre renk kodlu.
  *
- * Auth gate: giriş yapmamış kullanıcı karta tıklayınca detay yerine
- * AuthModal açılır (sunucu da detay ucunu 401 ile korur).
+ * İlanlar herkese açıktır: alıcı hesap açmadan ilanı görebilir, arayabilir
+ * ve əlaqə nömrəsinə ulaşabilir. Giriş yalnızca ilan VERMEK ve kendi ilanını
+ * yönetmek için gerekir.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import type { ListingCard, ListingDetail, ListingSort } from "@pribor/contracts";
 import { categoryLabel, DEAL_TYPE_LABEL } from "@pribor/contracts";
-import AuthModal from "./AuthModal";
 import ListingDetailModal from "./ListingDetailModal";
 import { useAuth } from "./AuthContext";
 import { LISTINGS_CHANGED, requestNewListing } from "./listingEvents";
@@ -69,7 +69,6 @@ export default function MarketView() {
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailPreloaded, setDetailPreloaded] = useState<ListingDetail | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
 
   /** offset=0 → listeyi değiştir; offset>0 → sona ekle (Daha çox göstər). */
   const load = useCallback(async (offset = 0) => {
@@ -106,22 +105,20 @@ export default function MarketView() {
 
   const hasMore = items.length < total;
 
-  /** Karta tıklama — giriş yoksa AuthModal, varsa detay. */
+  /** Karta tıklama — giriş gerekmez, ilanı herkes açabilir. */
   const openDetail = useCallback((id: string) => {
-    if (!user) { setAuthOpen(true); return; }
     setDetailPreloaded(null);
     setDetailId(id);
-  }, [user]);
+  }, []);
 
-  /** PRB numarasıyla arama. */
+  /** Elan nömrəsi ile arama — giriş gerekmez. */
   const runSearch = useCallback(async () => {
     const q = search.trim();
     if (!q) return;
-    if (!user) { setAuthOpen(true); return; }
     setSearchMsg(null);
     try {
       const res = await fetch(
-        `${API}/v1/listings/by-ref/${encodeURIComponent(q)}?userId=${user.id}`,
+        `${API}/v1/listings/by-ref/${encodeURIComponent(q)}${user ? `?userId=${user.id}` : ""}`,
       );
       if (res.status === 404) {
         setSearchMsg(`“${q}” nömrəli elan tapılmadı`);
@@ -217,7 +214,6 @@ export default function MarketView() {
         onClose={() => { setDetailId(null); setDetailPreloaded(null); }}
         onChanged={() => void load()}
       />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </section>
   );
 }

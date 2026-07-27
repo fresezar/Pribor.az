@@ -455,12 +455,13 @@ export class ListingsService {
   // ------------------------------------------------------------------ detay
 
   /**
-   * İlan detayı — kullanıcı ilanı veya scraped piyasa kaydı.
-   * Auth gate uygulama katmanında (controller) zorunlu kılınır: giriş yapmamış
-   * kullanıcı bu uca erişemez, dolayısıyla əlaqə nömrəsini de göremez.
+   * İlan detayı — kullanıcı ilanı veya scraped piyasa kaydı. Herkese açıktır:
+   * alıcının ilana bakmak için hesap açması gereksiz sürtünmedir. viewerId
+   * yalnızca yönetim yetkisini (canManage) hesaplamak için kullanılır; giriş
+   * yoksa null gelir ve ilan salt-okunur görünür.
    */
-  async detail(id: string, viewerId: string): Promise<ListingDetail> {
-    const isAdmin = await this.auth.isAdmin(viewerId);
+  async detail(id: string, viewerId: string | null): Promise<ListingDetail> {
+    const isAdmin = viewerId ? await this.auth.isAdmin(viewerId) : false;
 
     const userRows = await db.execute(sql`
       select
@@ -508,7 +509,7 @@ export class ListingsService {
         contactPhone: (u.contact_phone as string) ?? null,
         createdAt: new Date(u.created_at as string).toISOString(),
         sourceSite: "pribor",
-        canManage: isAdmin || u.user_id === viewerId,
+        canManage: isAdmin || (viewerId != null && u.user_id === viewerId),
         priceHistory: await this.priceHistory("listing", u.id as string),
       });
     }
@@ -558,7 +559,7 @@ export class ListingsService {
   }
 
   /** PRB numarasıyla ilan bulma (header/bazar araması). */
-  async findByRefNo(refNo: number, viewerId: string): Promise<ListingDetail> {
+  async findByRefNo(refNo: number, viewerId: string | null): Promise<ListingDetail> {
     const rows = await db
       .select({ id: listings.id })
       .from(listings)

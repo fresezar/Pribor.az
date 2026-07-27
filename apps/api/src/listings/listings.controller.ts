@@ -29,18 +29,29 @@ export class ListingsController {
   ) {}
 
   /**
-   * Auth gate: detay/arama/yönetim uçları oturum ister. Giriş yapmamış
-   * kullanıcı ilan detayını ve əlaqə nömrəsini göremez.
+   * Yönetim uçları (sil / redaktə / satıldı) oturum ister — bir ilanı yalnız
+   * sahibi ya da admin değiştirebilir.
    * (MVP: kimlik query param'ı; Faz 3'te JWT guard'ı bunun yerini alır.)
    */
   private async requireUser(userId?: string): Promise<string> {
     if (!userId || !UUID_RE.test(userId)) {
-      throw new UnauthorizedException("Elan detallarını görmək üçün daxil olun");
+      throw new UnauthorizedException("Bu əməliyyat üçün daxil olun");
     }
     if (!(await this.auth.exists(userId))) {
       throw new UnauthorizedException("Sessiya etibarsızdır — yenidən daxil olun");
     }
     return userId;
+  }
+
+  /**
+   * İzleyici kimliği — VARSA doğrular, yoksa null döner (hata atmaz).
+   * İlan detayı herkese açıktır: alıcının ilana bakmak için hesap açması
+   * gereksiz sürtünmedir. Kimlik yalnızca "bu ilan benim mi / admin miyim"
+   * (canManage) hesabı için kullanılır.
+   */
+  private async optionalUser(userId?: string): Promise<string | null> {
+    if (!userId || !UUID_RE.test(userId)) return null;
+    return (await this.auth.exists(userId)) ? userId : null;
   }
 
   /** GET /v1/listings?sort=deal&district=Yasamal&rooms=2&limit=12&offset=0 */
@@ -64,19 +75,19 @@ export class ListingsController {
     return this.listings.myListings(userId);
   }
 
-  /** İlan numarasıyla arama: /v1/listings/by-ref/10042?userId=… (eski "PRB-10042" de kabul) */
+  /** İlan numarasıyla arama — herkese açık. */
   @Get("by-ref/:ref")
   async byRef(@Param("ref") ref: string, @Query("userId") userId?: string) {
-    const viewer = await this.requireUser(userId);
+    const viewer = await this.optionalUser(userId);
     const refNo = parseRefNo(ref);
     if (refNo == null) throw new BadRequestException("Elan nömrəsi düzgün deyil");
     return this.listings.findByRefNo(refNo, viewer);
   }
 
-  /** İlan detayı — yalnızca oturum açmış kullanıcı. */
+  /** İlan detayı — herkese açık (giriş yalnız yönetim aksiyonları için). */
   @Get(":id")
   async detail(@Param("id") id: string, @Query("userId") userId?: string) {
-    const viewer = await this.requireUser(userId);
+    const viewer = await this.optionalUser(userId);
     if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz elan kimliği");
     return this.listings.detail(id, viewer);
   }
