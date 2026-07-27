@@ -17,13 +17,21 @@ TASARIM KARARLARI
 
 4) NAZİK TARAMA: BaseScraper'ın robots.txt kontrolü ve dakika başına istek
    limiti (settings.requests_per_minute) aynen geçerlidir.
+
+5) FİLTRE KAYNAKTA UYGULANIR (regionId + "Elan növü"). Kategoriler satılık ve
+   KİRALIK ilanları birlikte döndürür: ilk koşuda mənzillərin %36'sı, həyət
+   evlərinin %32'si kiralıktı (medyan 550 AZN'e karşı 140.000 AZN). Bu veri
+   modele girseydi fiyat tahmini tamamen bozulurdu. Başlıktaki "kirayə
+   verilir" ifadesiyle sonradan elemek mümkün ama kaynağın kendi bayrağı daha
+   güvenilir — ve istek de harcanmamış olur. Aynı gerekçeyle regionId=Bakı:
+   ürün Bakı'ya özgü, Qusar/Şəki ilanları modeli kirletir.
 """
 
 from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, NamedTuple
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -32,14 +40,30 @@ from ..models import RawListing
 
 GRAPHQL_URL = "https://tap.az/graphql"
 
-# Kategori kimlikleri GraphQL'den alındı (category(path:…){children{id}}).
-# (kategori_id, kanonik property_type)
-CATEGORIES: tuple[tuple[str, str, str], ...] = (
-    ("Z2lkOi8vdGFwL0NhdGVnb3J5LzYzNQ", "menziller", "apartment"),
-    ("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMQ", "heyet-evleri", "house"),
-    ("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMg", "torpaq-sahesi", "land"),
-    ("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwNQ", "obyektler-ve-ofisler", "commercial"),
-    ("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMw", "qarajlar", "garage"),
+# Bakı — regions{} sorgusundan. Ürün Bakı'ya özgü olduğu için tarama da öyle.
+BAKU_REGION_ID = "Z2lkOi8vdGFwL1JlZ2lvbi80MjA"
+
+
+class Category(NamedTuple):
+    """Bir tarama hedefi.
+
+    sale_filter: ("Elan növü" özellik id'si, "Satılır" seçenek id'si). Kimlikler
+    category(path:…){properties{…options{…}}} sorgusundan alındı. Torpaq ve
+    qarajda böyle bir özellik yok — o kategoriler zaten yalnız satılık.
+    """
+
+    id: str
+    slug: str
+    property_type: str
+    sale_filter: tuple[int, str] | None = None
+
+
+CATEGORIES: tuple[Category, ...] = (
+    Category("Z2lkOi8vdGFwL0NhdGVnb3J5LzYzNQ", "menziller", "apartment", (740, "3722")),
+    Category("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMQ", "heyet-evleri", "house", (750, "3869")),
+    Category("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMg", "torpaq-sahesi", "land"),
+    Category("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwNQ", "obyektler-ve-ofisler", "commercial", (818, "4162")),
+    Category("Z2lkOi8vdGFwL0NhdGVnb3J5LzYwMw", "qarajlar", "garage"),
 )
 
 # Yalnız modele lazım olan alanlar istenir (kişisel veri yok).
@@ -91,7 +115,7 @@ class TapAzScraper(BaseScraper):
         wait=wait_exponential(multiplier=2, min=2, max=20),
         reraise=True,
     )
-    def _search(self, category_id: str, after: str | None) -> dict[str, Any] | None:
+    def _search(self, cat: Category, after: str | None) -> dict[str, Any] | None:
         """Tek sayfa çeker. Hız limiti ve robots kontrolü fetch ile aynı olsun
         diye throttle burada da uygulanır.
 
@@ -101,13 +125,16 @@ class TapAzScraper(BaseScraper):
         """
         if not self._robots.can_fetch(self.client.headers["User-Agent"], GRAPHQL_URL):
             raise PermissionError(f"robots.txt izin vermiyor: {GRAPHQL_URL}")
+        filters: dict[str, Any] = {"categoryId": cat.id, "regionId": BAKU_REGION_ID}
+        if cat.sale_filter:
+            prop_id, option_id = cat.sale_filter
+            filters["propertyOptions"] = {
+                "collection": [{"legacyId": prop_id, "value": option_id}]
+            }
         self._throttle()
         res = self.client.post(
             GRAPHQL_URL,
-            json={
-                "query": SEARCH_QUERY,
-                "variables": {"f": {"categoryId": category_id}, "after": after},
-            },
+            json={"query": SEARCH_QUERY, "variables": {"f": filters, "after": after}},
         )
         res.raise_for_status()
         body = res.json()
@@ -145,11 +172,12 @@ class TapAzScraper(BaseScraper):
         sink = make_sink(self.source_site, self.run_id)
         seen: set[str] = set()  # koşu içi tekilleştirme (kategoriler örtüşebilir)
         try:
-            for cat_id, slug, ptype in CATEGORIES:
+            for cat in CATEGORIES:
+                slug, ptype = cat.slug, cat.property_type
                 after: str | None = None
                 for page in range(pages_limit):
                     try:
-                        ads = self._search(cat_id, after)
+                        ads = self._search(cat, after)
                     except Exception as err:
                         self.stats.bump("errors")
                         print(f"[{self.source_site}] HATA {slug} s.{page + 1}: {err}")

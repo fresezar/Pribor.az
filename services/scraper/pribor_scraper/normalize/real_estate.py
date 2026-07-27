@@ -8,11 +8,15 @@ uyarı oranı, sözlüğün nerede zayıf kaldığını gösteren metriktir.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..models import NormalizedRealEstate, RawListing
 from . import dictionaries as d
 from . import settlements as st
+
+# "kirayə verilir" (mənzil/həyət evi), "icarəyə verilir" (obyekt) — bkz. normalize
+RENT_TITLE_RE = re.compile(r"\b(kiray[əe]|icar[əe]y[əe]|аренд|сда[её]тся)", re.I)
 
 # Kaynak sitelerin özellik tablosu anahtarları → bakılacak alan
 # ("Sahə" AZ, "Площадь" RU vb. — yeni kaynak eklendikçe genişler)
@@ -86,6 +90,14 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
                 break
     if out.property_type is None:
         warn("property_type_unparsed")
+
+    # --- satılık mı kiralık mı ---
+    # tap.az kategorileri ikisini birlikte döndürür; artık kaynakta filtreliyoruz
+    # ama eski dosyalar ve filtresi olmayan kaynaklar için burada da bakıyoruz.
+    # Başlık kaynak tarafından üretildiği için ifade tutarlıdır ("kirayə verilir",
+    # obyektlerde "icarəyə verilir"). Metne değil YALNIZ başlığa bakılır: elan
+    # metninde "kirayə verilməz" gibi cümleler geçebiliyor.
+    out.listing_kind = "rent" if RENT_TITLE_RE.search(title) else "sale"
 
     # --- alan / oda / kat: önce yapılandırılmış alan, sonra serbest metin ---
     out.area_m2 = d.parse_area_m2(_prop(props, PROP_KEYS_AREA) or haystack)

@@ -50,6 +50,10 @@ class NormalizedRealEstate(BaseModel):
     vertical: Literal["real_estate"] = "real_estate"
 
     property_type: str | None = None       # apartment | house | land | ...
+    # sale | rent — kiralık ilan satılık fiyat modeline GİRMEMELİDİR (kira
+    # medyanı 550 AZN, satış medyanı 140.000 AZN). Kaynakta filtreleniyor;
+    # bu alan ikinci savunma hattı ve eski verinin yeniden işlenmesi içindir.
+    listing_kind: str | None = None
     district: str | None = None            # kanonik rayon adı
     settlement: str | None = None
     metro_station: str | None = None       # metinden yakalanan istasyon (geocode değil)
