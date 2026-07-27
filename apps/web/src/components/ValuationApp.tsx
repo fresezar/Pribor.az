@@ -17,7 +17,7 @@ import type {
   RealEstateValuationInput,
   ValuationResponse,
 } from "@pribor/contracts";
-import { categoryToType, settlementsOf } from "@pribor/contracts";
+import { categoryToType, metroStationsOf, settlementsOf } from "@pribor/contracts";
 import AuthModal from "./AuthModal";
 import ListingForm, { type ListingPrefill } from "./ListingForm";
 import NumberField from "./NumberField";
@@ -34,13 +34,6 @@ const DISTRICTS = [
 ];
 const REPAIR_LABELS = ["Qara tikili", "Təmirsiz", "Köhnə", "Orta", "Yaxşı", "Əla"];
 
-/** Metro varsayılanı bilinçli olarak "Uzaq" — yakınlık pozitif çarpan olarak eklenir. */
-const METRO_OPTIONS = [
-  { label: "Yaxın · ≤800 m", value: 500 },
-  { label: "Orta · ~1.5 km", value: 1500 },
-  { label: "Uzaq · 3 km+", value: 3000 },
-] as const;
-const METRO_DEFAULT = 3000;
 
 const COMPUTE_STEPS = [
   "Bazar məlumatları yüklənir…",
@@ -77,7 +70,7 @@ export default function ValuationApp() {
   const [landAreaSot, setLandAreaSot] = useState(4);
   const [rooms, setRooms] = useState(2);
   const [repairState, setRepairState] = useState(4);
-  const [metroDistM, setMetroDistM] = useState<number>(METRO_DEFAULT);
+  const [metroStation, setMetroStation] = useState("");
   const [titleDeed, setTitleDeed] = useState(true);
   const [askingPrice, setAskingPrice] = useState<string>("");
 
@@ -86,6 +79,7 @@ export default function ValuationApp() {
 
   const cfg = CATEGORY_BY_KEY[category];
   const settlementOptions = settlementsOf(district);
+  const metroOptions = metroStationsOf(district);
 
   const submit = useCallback(async () => {
     setError(null);
@@ -108,9 +102,9 @@ export default function ValuationApp() {
       propertyType,
       district: district as RealEstateValuationInput["district"],
       areaM2: effectiveArea,
-      metroDistM,
       titleDeed,
       ...(settlement && { settlement }),
+      ...(metroStation && { metroStation }),
       ...(cfg.rooms && { rooms }),
       ...(buildingType && { buildingType }),
       ...(cfg.repair && { repairState }),
@@ -148,7 +142,8 @@ export default function ValuationApp() {
     } finally {
       if (stepTimer.current) clearInterval(stepTimer.current);
     }
-  }, [category, cfg, district, areaM2, landAreaSot, rooms, repairState, metroDistM, titleDeed]);
+  }, [category, cfg, district, settlement, metroStation, areaM2, landAreaSot,
+      rooms, repairState, titleDeed]);
 
   /** Değerleme sonuç alanlarından ilan formu ön-dolgusunu üretir. */
   const buildPrefill = useCallback((): ListingPrefill | null => {
@@ -158,16 +153,17 @@ export default function ValuationApp() {
       valuationId: result.valuationId,
       propertyType,
       district,
+      settlement: settlement || undefined,
       areaM2: cfg.areaM2 ? areaM2 : cfg.landSot ? landAreaSot * 100 : areaM2,
       landAreaSot: cfg.landSot ? landAreaSot : undefined,
       rooms: cfg.rooms ? rooms : undefined,
       buildingType,
       repairState: cfg.repair ? repairState : undefined,
       titleDeed,
-      metroDistM,
       priceAzn: result.p50Azn,
     };
-  }, [result, category, cfg, district, areaM2, landAreaSot, rooms, repairState, titleDeed, metroDistM]);
+  }, [result, category, cfg, district, settlement, areaM2, landAreaSot, rooms,
+      repairState, titleDeed]);
 
   /** "Elan yerləşdir" — giriş yoksa AuthModal, sonra ön-dolu ilan formu. */
   const postListing = useCallback(() => {
@@ -248,14 +244,20 @@ export default function ValuationApp() {
               </div>
             )}
 
-            {cfg.metro && (
+            {/*
+              Metro İSTASYONU soruluyor, mesafe değil. Eski "metroya məsafə"
+              alanının modeldeki önemi 0.0'dı ve gerçek veride hiç dolmuyordu
+              (mesafe geocoding ister, motor dışa bağımlı olmayacak) — yani
+              kullanıcı o kutuyu değiştirdiğinde fiyat hiç oynamıyordu.
+              Metrosu olmayan rayonlarda alan hiç görünmez.
+            */}
+            {cfg.metro && metroOptions.length > 0 && (
               <div className="field">
-                <label htmlFor="metro">Metroya məsafə</label>
-                <select id="metro" value={String(metroDistM)}
-                  onChange={(e) => setMetroDistM(Number(e.target.value))}>
-                  {METRO_OPTIONS.map((o) => (
-                    <option key={o.label} value={String(o.value)}>{o.label}</option>
-                  ))}
+                <label htmlFor="metro">Metro stansiyası</label>
+                <select id="metro" value={metroStation}
+                  onChange={(e) => setMetroStation(e.target.value)}>
+                  <option value="">Yaxında metro yoxdur</option>
+                  {metroOptions.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             )}

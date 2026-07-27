@@ -40,13 +40,13 @@ export type ListingPrefill = {
   /** Tam emlak tipi (7 kategoriyi kapsar); kategori typeToCategory ile türetilir. */
   propertyType: string;
   district: string;
+  settlement?: string;
   areaM2?: number;
   landAreaSot?: number;
   rooms?: number;
   buildingType?: string;
   repairState?: number;
   titleDeed?: boolean;
-  metroDistM?: number;
   priceAzn: number;
 };
 
@@ -119,7 +119,7 @@ export default function ListingForm(props: {
       return;
     }
     setCategory(typeToCategory(prefill.propertyType, prefill.buildingType));
-    setDistrict(prefill.district); setSettlement("");
+    setDistrict(prefill.district); setSettlement(prefill.settlement ?? "");
     setAreaM2(prefill.areaM2 ?? 0);
     setLandAreaSot(prefill.landAreaSot ?? 0);
     setRooms(prefill.rooms ?? 2);
@@ -198,7 +198,7 @@ export default function ListingForm(props: {
           body: JSON.stringify(dto),
         });
       } else {
-        const dto: CreateListingDto = { ...fields, valuationId: prefill?.valuationId, metroDistM: prefill?.metroDistM };
+        const dto: CreateListingDto = { ...fields, valuationId: prefill?.valuationId };
         res = await fetch(`${API}/v1/listings`, {
           method: "POST",
           headers: { "content-type": "application/json" },
