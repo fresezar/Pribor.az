@@ -693,6 +693,10 @@ export class ListingsService {
       return row;
     });
 
+    // Düzenlemede çıkarılan fotoğraflar R2'de sahipsiz kalmasın (best-effort)
+    const removed = (current.photos as string[]).filter((p) => !photos.includes(p));
+    await this.media.deletePhotos(removed);
+
     return { id: result.id, title, refNo: formatRefNo(result.refNo) };
   }
 
@@ -714,7 +718,14 @@ export class ListingsService {
 
   async deleteListing(listingId: string, userId: string): Promise<{ deleted: true }> {
     await this.assertCanManage(listingId, userId);
+    // Fotoğraf adreslerini silmeden ÖNCE oku — sonra R2'deki dosyalar sahipsiz
+    // kalmasın diye temizle (best-effort; başarısızlığı silmeyi engellemez).
+    const row = await db.query.listings.findFirst({
+      where: eq(listings.id, listingId),
+      columns: { photos: true },
+    });
     await db.delete(listings).where(eq(listings.id, listingId));
+    await this.media.deletePhotos((row?.photos as string[]) ?? []);
     return { deleted: true };
   }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const DATA_URI_RE = /^data:(image\/\w+);base64,(.+)$/;
 
@@ -58,5 +58,38 @@ export class MediaService {
         }
       }),
     );
+  }
+
+  /**
+   * Verilen URL'lerin R2 nesnelerini siler (ilan silinince / düzenlemede foto
+   * çıkarılınca). Best-effort: hata yalnız loglanır — çağıran akış (ilan silme)
+   * bundan etkilenmez. Bizim public URL'imizle başlamayan girişler (data URI,
+   * yabancı adres) atlanır; her yükleme benzersiz anahtar ürettiği için bir
+   * nesne yalnız tek ilana aittir, paylaşımlı silme riski yoktur.
+   */
+  async deletePhotos(photos: string[]): Promise<void> {
+    const bucket = process.env.R2_BUCKET;
+    const publicBase = process.env.R2_PUBLIC_URL;
+    if (!bucket || !publicBase || !process.env.R2_ENDPOINT || photos.length === 0) return;
+
+    const base = `${publicBase.replace(/\/$/, "")}/`;
+    const keys = photos
+      .filter((p) => p.startsWith(base))
+      .map((p) => decodeURIComponent(p.slice(base.length)))
+      .filter(Boolean);
+    if (keys.length === 0) return;
+
+    try {
+      // DeleteObjects tek çağrıda 1000 anahtara kadar alır; ilan başına max 5.
+      await this.s3().send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+      this.logger.log(`R2-dən ${keys.length} foto silindi`);
+    } catch (err) {
+      this.logger.error(`R2 silmə uğursuz oldu: ${String(err)}`);
+    }
   }
 }
