@@ -38,50 +38,50 @@
     "metro_station"
   ],
   "metrics": {
-    "mape_p50": 0.5709,
-    "coverage_p10_p90": 0.7702,
-    "coverage_p25_p75": 0.4584,
-    "band_rel_median": 0.5735,
-    "band_azn_median": 98780,
-    "band_rel_median_narrow": 0.2518,
-    "band_azn_median_narrow": 45285,
-    "mdape_p50": 0.1363,
-    "n_train": 10088,
-    "n_valid": 1732
+    "mape_p50": 0.4142,
+    "coverage_p10_p90": 0.7725,
+    "coverage_p25_p75": 0.4858,
+    "band_rel_median": 0.6347,
+    "band_azn_median": 86925,
+    "band_rel_median_narrow": 0.2875,
+    "band_azn_median_narrow": 41636,
+    "mdape_p50": 0.1443,
+    "n_train": 12850,
+    "n_valid": 2211
   },
   "metrics_by_type": {
     "apartment": {
-      "n": 1093,
-      "mape": 0.1569,
-      "mdape": 0.0974,
-      "coverage": 0.7722,
-      "coverage_narrow": 0.4657,
-      "band_rel_median": 0.4407,
-      "band_azn_median": 78755,
-      "band_rel_median_narrow": 0.198,
-      "band_azn_median_narrow": 36367
+      "n": 1092,
+      "mape": 0.1663,
+      "mdape": 0.0903,
+      "coverage": 0.7701,
+      "coverage_narrow": 0.4899,
+      "band_rel_median": 0.4271,
+      "band_azn_median": 74407,
+      "band_rel_median_narrow": 0.2041,
+      "band_azn_median_narrow": 35458
     },
     "house": {
-      "n": 237,
-      "mape": 0.2722,
-      "mdape": 0.1792,
-      "coverage": 0.7764,
-      "coverage_narrow": 0.4641,
-      "band_rel_median": 0.8041,
-      "band_azn_median": 145503,
-      "band_rel_median_narrow": 0.375,
-      "band_azn_median_narrow": 78110
+      "n": 705,
+      "mape": 0.2923,
+      "mdape": 0.1819,
+      "coverage": 0.7816,
+      "coverage_narrow": 0.5064,
+      "band_rel_median": 0.781,
+      "band_azn_median": 85228,
+      "band_rel_median_narrow": 0.3685,
+      "band_azn_median_narrow": 40917
     },
     "land": {
-      "n": 402,
-      "mape": 1.8726,
-      "mdape": 0.3641,
-      "coverage": 0.7612,
-      "coverage_narrow": 0.4353,
-      "band_rel_median": 1.6917,
-      "band_azn_median": 142998,
-      "band_rel_median_narrow": 0.8415,
-      "band_azn_median_narrow": 71588
+      "n": 414,
+      "mape": 1.2757,
+      "mdape": 0.358,
+      "coverage": 0.7633,
+      "coverage_narrow": 0.4396,
+      "band_rel_median": 1.7363,
+      "band_azn_median": 135304,
+      "band_rel_median_narrow": 0.8147,
+      "band_azn_median_narrow": 67740
     }
   },
   "reference_records": {
@@ -108,18 +108,18 @@
       "district": "Xəzər",
       "property_type": "house",
       "building_type": "unknown",
-      "area_m2": 155.0,
-      "land_area_sot": 4.0,
+      "area_m2": 127.0,
+      "land_area_sot": 3.0,
       "rooms": 4.0,
       "floor": 1.0,
       "total_floors": 2.0,
       "repair_state": 4.0,
       "title_deed": 1.0,
       "metro_dist_m": null,
-      "settlement": "Mərdəkan",
-      "center_km": 22.0,
-      "sea_km": 1.0,
-      "area_character": "villa_coast",
+      "settlement": "Binə",
+      "center_km": 18.0,
+      "sea_km": 3.0,
+      "area_character": "suburb",
       "land_use": "unknown",
       "metro_station": "unknown"
     },
@@ -143,5 +143,5 @@
       "metro_station": "unknown"
     }
   },
-  "trained_at": "2026-07-27T15:58:26.996883+00:00"
+  "trained_at": "2026-07-27T21:12:50.078338+00:00"
 }
