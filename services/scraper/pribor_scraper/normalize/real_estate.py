@@ -24,6 +24,8 @@ PROP_KEYS_AREA = ("sahə", "sahe", "площадь", "ümumi sahə")
 PROP_KEYS_ROOMS = ("otaq sayı", "otaq sayi", "otaqların sayı", "комнат")
 PROP_KEYS_FLOOR = ("mərtəbə", "mertebe", "этаж")
 PROP_KEYS_CATEGORY = ("kateqoriya", "əmlakın növü", "категория", "тип")
+# Detay sorgusundan gelen yapılandırılmış konum ("Yerləşmə yeri": "Mehdiabad qəs.")
+PROP_KEYS_PLACE = ("yerləşmə yeri", "yerləşdirmə yeri", "местоположение")
 
 CATEGORY_MAP: dict[str, tuple[str, ...]] = {
     "apartment": ("mənzil", "menzil", "квартира"),
@@ -127,7 +129,9 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
     # --- konum: qəsəbə > rayon ---
     # Kaynak başlıkları konumu ekle nitelendirir ("Badamdar qəs.", "Yasamal r.").
     # Qəsəbə en değerli sinyaldir: rayon içi fiyat uçurumunu ancak o açıklar.
-    place = d.parse_place(title)
+    # Detay sorgusunun "Yerləşmə yeri" alanı başlıkla aynı biçimdedir ama
+    # kaynağın kendi yapılandırılmış değeri olduğu için önce ona bakılır.
+    place = d.parse_place(_prop(props, PROP_KEYS_PLACE) or "") or d.parse_place(title)
     if place:
         name, kind = place
         if kind == "settlement":
@@ -142,12 +146,17 @@ def normalize_real_estate(raw: RawListing) -> NormalizedRealEstate:
                 warn(f"settlement_unknown: {name}")
         elif kind == "district":
             out.district = d.parse_district(name)
-        elif kind == "metro" and out.metro_station is None:
-            out.metro_station = d.parse_metro(name)
+        elif kind == "metro":
+            # Başlıktaki açık metro bağlamı serbest metin tahmininden üstündür
+            # ve kısaltmayı da çözer ("E.Akademiyası" → "Elmlər Akademiyası").
+            out.metro_station = d.resolve_metro(name) or out.metro_station
 
-    # Rayon hâlâ boşsa: önce metro istasyonundan türet, sonra serbest metin
+    # Rayon hâlâ boşsa: önce serbest metinde geçen rayon adı, sonra metro.
+    # Sıra önemli: parse_metro tüm metni tarar ve cadde adına takılabiliyor
+    # ("Nizami küç." → Nizami metrosu → Nizami rayonu), oysa ilan Sumqayıt'ta
+    # olabilir. Metinde açıkça yazan rayon daha güvenilir bir kanıttır.
     if out.district is None:
-        out.district = d.district_of_metro(out.metro_station) or d.parse_district(haystack)
+        out.district = d.parse_district(haystack) or d.district_of_metro(out.metro_station)
 
     if out.area_m2 is None and out.land_area_sot is None:
         warn("area_unparsed")

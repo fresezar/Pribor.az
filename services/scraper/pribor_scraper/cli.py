@@ -67,6 +67,31 @@ def ingest(
 
 
 @app.command()
+def enrich(
+    raw_file: Path = typer.Argument(help="Ham JSONL koşu dosyası"),
+    source: str = typer.Option("tap.az", help="Kaynak adı"),
+    types: str = typer.Option("house", help="Zenginleştirilecek tipler (virgüllü)"),
+) -> None:
+    """Seçili tipleri detay sorgusuyla zenginleştirir (sahə, otaq sayı).
+
+    İlan başına BİR istek atar — yalnız liste görünümünün yetersiz kaldığı
+    kategoriler için kullanın (varsayılan: həyət evi). Çıktı yeni bir ham
+    dosyadır; onu da ingest edin (bkz. enrich.py).
+    """
+    from .enrich import enrich_run_file
+
+    if not raw_file.exists():
+        typer.echo(f"Dosya yok: {raw_file}")
+        raise typer.Exit(1)
+    if source not in REGISTRY:
+        typer.echo(f"Bilinmeyen kaynak: {source}. Mevcutlar: {', '.join(REGISTRY)}")
+        raise typer.Exit(1)
+    wanted = tuple(t.strip() for t in types.split(",") if t.strip())
+    stats = enrich_run_file(raw_file, source=source, types=wanted)
+    typer.echo(f"Zenginleştirme bitti: {stats}")
+
+
+@app.command()
 def seed(
     n: int = typer.Option(150, help="Üretilecek sentetik ilan sayısı"),
     price_drift: float = typer.Option(0.25, help="2. koşuda fiyatı değişen kayıt oranı"),

@@ -143,6 +143,44 @@ class TapAzScraper(BaseScraper):
             return None
         return body.get("data", {}).get("adSearch", {}).get("ads")
 
+    # ---- detay zenginleştirme (bkz. enrich.py) ----
+
+    # `properties` yalnız burada dolu gelir; arama sonucunda hep boştur.
+    DETAIL_QUERY = """
+    query PriborDetail($id: ID!) {
+      ad(legacyId: $id) { properties { name value } }
+    }
+    """
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=2, min=2, max=20),
+        reraise=True,
+    )
+    def fetch_properties(self, ext_id: str) -> dict[str, str]:
+        """İlanın yapılandırılmış özellik tablosu: {"Sahə, м²": "150", …}.
+
+        Yalnız həyət evi gibi başlığı sahə taşımayan kategoriler için çağrılır
+        — istek başına tek ilan, pahalı bir işlemdir (bkz. enrich.py).
+        """
+        if not self._robots.can_fetch(self.client.headers["User-Agent"], GRAPHQL_URL):
+            raise PermissionError(f"robots.txt izin vermiyor: {GRAPHQL_URL}")
+        self._throttle()
+        res = self.client.post(
+            GRAPHQL_URL,
+            json={"query": self.DETAIL_QUERY, "variables": {"id": str(ext_id)}},
+        )
+        res.raise_for_status()
+        body = res.json()
+        if "errors" in body:
+            raise RuntimeError(body["errors"][0].get("message", "GraphQL hatası"))
+        ad = (body.get("data") or {}).get("ad") or {}
+        return {
+            p["name"]: p["value"]
+            for p in (ad.get("properties") or [])
+            if p.get("name") and p.get("value")
+        }
+
     @staticmethod
     def _to_raw(node: dict[str, Any], property_type: str) -> RawListing | None:
         ext_id, title = node.get("legacyResourceId"), node.get("title")

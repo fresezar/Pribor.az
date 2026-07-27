@@ -199,6 +199,38 @@ METRO_DISTRICT: dict[str, str] = {
 }
 
 
+# İlan başlıkları istasyon adını neredeyse hep kısaltır: "E.Akademiyası m.",
+# "H.Aslanov m.", "X.Dostluğu m.". Yalnız tam adları arayan parse_metro bunları
+# kaçırıyordu — Bakı ilanlarının 721'i bu yüzden rayonsuz kalmıştı.
+#
+# Bu kısaltmalar YALNIZ "… m." ekiyle gelen açık metro bağlamında (resolve_metro)
+# kullanılır, serbest metin taramasında DEĞİL: "Xətai", "Nizami", "Nərimanov"
+# aynı zamanda rayon ve cadde adıdır; metinde geçince yanlış istasyon çıkarırdı.
+METRO_ALIASES: dict[str, str] = {
+    "e.akademiyası": "Elmlər Akademiyası", "elmlər": "Elmlər Akademiyası",
+    "h.aslanov": "Həzi Aslanov",
+    "n.nərimanov": "Nəriman Nərimanov", "nərimanov": "Nəriman Nərimanov",
+    "m.əcəmi": "Memar Əcəmi", "əcəmi": "Memar Əcəmi",
+    "q.qarayev": "Qara Qarayev",
+    "x.dostluğu": "Xalqlar Dostluğu", "xalqlar": "Xalqlar Dostluğu",
+    "xətai": "Şah İsmayıl Xətai",
+    "azadlıq": "Azadlıq prospekti",
+    "içəri şəhər": "İçərişəhər",
+    "c.cabbarlı": "Cəfər Cabbarlı",
+    "ş.i.xətai": "Şah İsmayıl Xətai",
+}
+
+
+def resolve_metro(name: str) -> str | None:
+    """'E. Akademiyası' → 'Elmlər Akademiyası'. Açık metro bağlamı için.
+
+    Kısaltmadaki nokta sonrası boşluk serbesttir ("N. Nərimanov" ≡
+    "N.Nərimanov"); ilanlarda iki biçim de geçiyor.
+    """
+    key = az_lower(name).replace(". ", ".").strip()
+    return METRO_ALIASES.get(key) or parse_metro(name)
+
+
 def district_of_metro(station: str | None) -> str | None:
     return METRO_DISTRICT.get(station) if station else None
 

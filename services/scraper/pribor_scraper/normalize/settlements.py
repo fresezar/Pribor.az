@@ -57,6 +57,7 @@ SETTLEMENTS: dict[str, SettlementProfile] = {
     "Qara Qarayev": SettlementProfile("Nizami", 7.0, 3.5, _R),
     # ---- Xətai ----
     "Xətai": SettlementProfile("Xətai", 4.0, 1.0, _R),
+    "Ağ Şəhər": SettlementProfile("Xətai", 5.0, 0.8, _R),
     "Əhmədli": SettlementProfile("Xətai", 8.5, 2.5, _R),
     "Həzi Aslanov": SettlementProfile("Xətai", 10.0, 2.0, _R),
     "Günəşli": SettlementProfile("Xətai", 11.0, 3.0, _S),
@@ -64,6 +65,7 @@ SETTLEMENTS: dict[str, SettlementProfile] = {
     # ---- Binəqədi (mikrorayonlar) ----
     "Binəqədi": SettlementProfile("Binəqədi", 12.0, 8.0, _S),
     "Biləcəri": SettlementProfile("Binəqədi", 11.0, 8.5, _I),
+    "Dərnəgül": SettlementProfile("Binəqədi", 10.0, 7.0, _R),
     "Xocəsən": SettlementProfile("Binəqədi", 13.0, 9.0, _S),
     "M.Ə.Rəsulzadə": SettlementProfile("Binəqədi", 10.5, 7.5, _S),
     "Sulutəpə": SettlementProfile("Binəqədi", 12.5, 8.5, _S),
@@ -81,6 +83,7 @@ SETTLEMENTS: dict[str, SettlementProfile] = {
     "Bakıxanov": SettlementProfile("Sabunçu", 10.0, 4.0, _R),
     "Ramana": SettlementProfile("Sabunçu", 13.5, 5.5, _S),
     "Zabrat": SettlementProfile("Sabunçu", 14.0, 5.0, _S),
+    "Məmmədli": SettlementProfile("Sabunçu", 15.0, 5.5, _S),
     "Maştağa": SettlementProfile("Sabunçu", 22.0, 3.0, _S),
     "Nardaran": SettlementProfile("Sabunçu", 25.0, 1.0, _S),
     "Bilgəh": SettlementProfile("Sabunçu", 28.0, 0.4, _V),
@@ -169,6 +172,39 @@ ALIASES: dict[str, str] = {
     "gorediL".lower(): "Görədil",
     "məhəmmədli": "Məhəmmədi",
     "albalı": "Albalılıq",
+    # Gerçek veride görülen yazım varyantları. Hepsi aynı yerin farklı
+    # yazılışıdır — yeni bir coğrafi iddia içermezler, yalnız eşleşmeyi
+    # kurtarırlar (ilk taramada bu varyantlar yüzünden ~60 ilan rayonsuz kaldı).
+    "müşviqabad": "Müşfiqabad",
+    "müşviq": "Müşfiqabad",
+    "xocasən": "Xocəsən",
+    "mərdakan": "Mərdəkan",
+    "mərdəkən": "Mərdəkan",
+    "şuvəlan": "Şüvəlan",
+    "maşdağa": "Maştağa",
+    "şagan": "Şağan",
+    "bilqəh": "Bilgəh",
+    "fatmai": "Fatmayi",
+    "yeni ramanı": "Yeni Ramana",
+    "m. ə. rəsulzadə": "M.Ə.Rəsulzadə",
+    "m.rəsulzadə": "M.Ə.Rəsulzadə",
+    "m. rəsulzadə": "M.Ə.Rəsulzadə",
+    "y. günəşli": "Yeni Günəşli",
+    "y.günəşli": "Yeni Günəşli",
+    "k. günəşli": "Köhnə Günəşli",
+    "k.günəşli": "Köhnə Günəşli",
+    "köhnə suraxanı": "Suraxanı",
+    "yeni zığ": "Zığ",
+    "yeni saray": "Saray",
+    "binə sovxoz": "Binə",
+    "binə atçılıq": "Binə",
+    # Numaralı alt-mahalleler ayrı qəsəbə değil, aynı yerin bölümleridir.
+    "zabrat 1": "Zabrat",
+    "zabrat 2": "Zabrat",
+    "zabrat-1": "Zabrat",
+    "zabrat-2": "Zabrat",
+    "güzdək 1": "Güzdək",
+    "güzdək 2": "Güzdək",
 }
 
 # "9-cu mkr." başlıkta yalnız sıra adıyla geçiyor; tabloda tam ad var.
