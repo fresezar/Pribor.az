@@ -21,6 +21,7 @@ TASARIM KARARLARI
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -40,16 +41,28 @@ CATEGORIES: tuple[tuple[str, str, str], ...] = (
 )
 
 # Yalnız modele lazım olan alanlar istenir (kişisel veri yok).
+#
+# `body` (elan mətni) neden alınıyor: həyət evi / obyekt / qaraj ilanlarında
+# sahə BAŞLIKTA yazmaz ("Həyət evi, Xırdalan ş."), yalnız mətndə geçer. Ölçü
+# oradan okunuyor — aksi halde bu kategorilerin sahəsi hiç bilinmez ve modele
+# giremezler. Mətn ayrıca mərtəbə ("5/4"), kupça ve təmir sinyali de taşır.
+# Detay sayfası çekmeye gerek kalmıyor: 9.500+ ek istek yerine sıfır.
 SEARCH_QUERY = """
 query PriborSearch($f: AdFilterInput, $after: String) {
   adSearch(filters: $f, source: DESKTOP) {
     ads(first: 24, after: $after) {
-      nodes { legacyResourceId title price region path updatedAt }
+      nodes { legacyResourceId title price region path updatedAt body }
       pageInfo { endCursor hasNextPage }
     }
   }
 }
 """
+
+# Elan mətnində satıcı telefonu geçebilir. Kişisel veri saklamamak için ham
+# katmana yazmadan ÖNCE maskelenir — modele girmeyecek veriyi tutmuyoruz.
+_PHONE_RE = re.compile(
+    r"\b(?:\+?994[\s-]?)?\(?0?\d{2}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}\b"
+)
 
 
 class TapAzScraper(BaseScraper):
@@ -96,6 +109,7 @@ class TapAzScraper(BaseScraper):
         ext_id, title = node.get("legacyResourceId"), node.get("title")
         if ext_id is None or not title:
             return None
+        body = node.get("body") or ""
         return RawListing(
             source_site="tap.az",
             source_ext_id=str(ext_id),
@@ -103,6 +117,8 @@ class TapAzScraper(BaseScraper):
             vertical_hint="real_estate",
             payload={
                 "title": title,
+                # normalize hattı serbest metni "description" alanında arar
+                "description": _PHONE_RE.sub("[nömrə]", body),
                 "price_raw": node.get("price"),
                 "region": node.get("region"),
                 "updated_at": node.get("updatedAt"),
