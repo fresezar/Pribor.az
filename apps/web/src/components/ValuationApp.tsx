@@ -43,7 +43,10 @@ const COMPUTE_STEPS = [
 
 type Phase = "form" | "computing" | "result";
 
-export default function ValuationApp() {
+export default function ValuationApp(props: {
+  /** Hesaplama animasyonuna kaydırmak için dış panelin referansı (bkz. ToolsPanel) */
+  scrollTargetRef?: React.RefObject<HTMLDivElement | null>;
+}) {
   const { user } = useAuth();
   const [category, setCategory] = useState<ReCategory>("yeni_tikili");
   const [phase, setPhase] = useState<Phase>("form");
@@ -75,7 +78,7 @@ export default function ValuationApp() {
   const [askingPrice, setAskingPrice] = useState<string>("");
 
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = props.scrollTargetRef;
 
   const cfg = CATEGORY_BY_KEY[category];
   const settlementOptions = settlementsOf(district);
@@ -88,7 +91,7 @@ export default function ValuationApp() {
     setStepIdx(0);
     // Form (uzun) yerini hesaplama animasyonuna (kısa) bırakınca panel yukarıda
     // kalıyordu; kullanıcı sayfanın altında olduğu için anı kaçırıyordu.
-    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    panelRef?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     stepTimer.current = setInterval(
       () => setStepIdx((i) => Math.min(i + 1, COMPUTE_STEPS.length - 1)),
       420,
@@ -176,7 +179,7 @@ export default function ValuationApp() {
   }, [user]);
 
   return (
-    <div className="panel" id="qiymetlendir" ref={panelRef}>
+    <>
       {phase === "form" && (
         <>
           <div className="grid">
@@ -331,6 +334,6 @@ export default function ValuationApp() {
         onClose={() => setListingOpen(false)}
         onCreated={(l) => { setListingOpen(false); setPosted(l); notifyListingsChanged(); }}
       />
-    </div>
+    </>
   );
 }

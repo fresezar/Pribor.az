@@ -1,5 +1,5 @@
 import SiteHeader from "@/components/SiteHeader";
-import ValuationApp from "@/components/ValuationApp";
+import ToolsPanel from "@/components/ToolsPanel";
 import MarketView from "@/components/MarketView";
 import BrandLogo from "@/components/BrandLogo";
 import { SupportFab, SupportLine } from "@/components/SupportCorner";
@@ -21,7 +21,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <ValuationApp />
+      <ToolsPanel />
 
       <MarketView />
 

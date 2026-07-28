@@ -1470,3 +1470,166 @@ footer.note {
   .post-btn { padding: 7px 10px; font-size: 0.76rem; }
   .login-btn { padding: 7px 10px; font-size: 0.76rem; }
 }
+
+/* ============================================================
+   ALƏTLƏR — Qiymətləndirmə · Nə ala bilərəm? · Kirayə gəlirliliyi
+   Üçü aynı panelde sekmeyle değişir (bkz. ToolsPanel.tsx).
+   ============================================================ */
+
+.tools-panel { overflow: hidden; }
+
+/* --- sekme çubuğu: kayan gösterge layoutId ile --- */
+.tool-tabs {
+  display: flex; gap: 4px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 13px; margin-bottom: 14px;
+}
+.tool-tab {
+  position: relative; flex: 1 1 0; min-width: 0;
+  padding: 10px 8px; border: 0; background: none; cursor: pointer;
+  border-radius: 9px; color: var(--muted);
+  font-size: 0.86rem; font-weight: 600; letter-spacing: -0.01em;
+  transition: color 0.2s ease;
+}
+.tool-tab:hover { color: var(--ink); }
+.tool-tab.on { color: var(--ink); }
+.tool-tab:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.tool-tab-pill {
+  position: absolute; inset: 0; border-radius: 9px;
+  background: var(--teal-soft); border: 1px solid var(--teal-line);
+}
+.tool-tab-label { position: relative; z-index: 1; }
+/* Dar ekranda üç başlık yan yana sığmıyor — alt alta değil, kaydırmalı kalsın:
+   sekmelerin aynı hizada durması hangi alətte olduğunu okumayı kolaylaştırıyor */
+@media (max-width: 520px) {
+  .tool-tabs { overflow-x: auto; scrollbar-width: none; }
+  .tool-tabs::-webkit-scrollbar { display: none; }
+  .tool-tab { flex: 0 0 auto; padding: 10px 12px; font-size: 0.8rem; }
+}
+
+.tool-hint {
+  margin: 0 0 18px; font-size: 0.84rem; color: var(--faint);
+  font-family: var(--mono); letter-spacing: 0.02em;
+}
+.tool-body { position: relative; }
+
+/* --- alət gövdesi --- */
+.tool { display: flex; flex-direction: column; gap: 18px; }
+.tool-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 640px) { .tool-controls { grid-template-columns: 1fr; } }
+
+/* hazır büdcə düymələri */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--muted); font-size: 0.75rem; font-family: var(--mono);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.chip:hover { border-color: var(--faint); color: var(--ink); }
+.chip.on { border-color: var(--teal-line); background: var(--teal-soft); color: var(--ink); }
+
+/* iki durumlu seçici */
+.seg { display: flex; gap: 4px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.seg button {
+  flex: 1; padding: 8px 6px; border: 0; border-radius: 7px; cursor: pointer;
+  background: none; color: var(--muted); font-size: 0.83rem; font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--teal-soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--teal-line); }
+
+/* --- baş rakam --- */
+.tool-headline {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 16px 18px; border-radius: 13px;
+  background: var(--gold-soft); border: 1px solid var(--gold-line);
+}
+.tool-headline.teal { background: var(--teal-soft); border-color: var(--teal-line); }
+.th-num {
+  font-family: var(--mono); font-size: 2.5rem; font-weight: 700;
+  line-height: 1; letter-spacing: -0.03em; color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
+}
+.tool-headline.teal .th-num { color: var(--good-text); }
+.th-unit { font-size: 1.1rem; font-weight: 600; opacity: 0.8; }
+.th-cap { font-size: 0.86rem; color: var(--muted); line-height: 1.55; flex: 1 1 170px; }
+.th-cap b { color: var(--ink); font-weight: 650; }
+
+/* --- sıralı karşılaştırma --- */
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.rank-row {
+  display: grid; grid-template-columns: minmax(78px, 1fr) minmax(60px, 2.1fr) auto;
+  gap: 12px; align-items: center; padding: 7px 9px; border-radius: 8px;
+}
+.rank-row.on { background: var(--teal-soft); box-shadow: inset 0 0 0 1px var(--teal-line); }
+.rank-name { font-size: 0.86rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-rail { display: block; height: 7px; border-radius: 4px; background: var(--line-soft); position: relative; overflow: hidden; }
+.rank-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.rank-fill.teal { background: linear-gradient(90deg, var(--teal) 0%, var(--cyan) 100%); }
+.rank-fill.gold { background: linear-gradient(90deg, var(--gold) 0%, var(--flame) 100%); }
+.rank-val {
+  font-family: var(--mono); font-size: 0.85rem; font-variant-numeric: tabular-nums;
+  text-align: right; white-space: nowrap; color: var(--ink);
+}
+.rank-val em { display: block; font-style: normal; font-size: 0.68rem; color: var(--faint); }
+@media (max-width: 460px) {
+  .rank-row { grid-template-columns: minmax(64px, 1fr) minmax(40px, 1.4fr) auto; gap: 8px; padding: 6px 6px; }
+  .rank-name, .rank-val { font-size: 0.78rem; }
+}
+
+/* alış/kirayə küçük özet */
+.tool-mini { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.tool-mini div { display: flex; flex-direction: column; gap: 2px; }
+.tool-mini span { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.tool-mini b { font-family: var(--mono); font-size: 0.95rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.tool-foot { margin: 0; font-size: 0.76rem; color: var(--faint); line-height: 1.6; }
+.tool-nodata {
+  padding: 22px; border-radius: 12px; text-align: center;
+  border: 1px dashed var(--line); color: var(--muted); font-size: 0.9rem;
+}
+.tool-nodata b { color: var(--ink); }
+
+/* --- büdcə sürgüsü — sürüklerken sıralama canlı dizilir --- */
+.budget-value {
+  font-family: var(--mono); font-size: 1.7rem; font-weight: 700;
+  color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.budget-value span { font-size: 1rem; color: var(--muted); font-weight: 600; }
+
+.slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; background: none; cursor: pointer; margin: 2px 0 0;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: var(--line-soft); border: 1px solid var(--line);
+}
+.slider::-moz-range-track {
+  height: 6px; border-radius: 3px;
+  background: var(--line-soft); border: 1px solid var(--line);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;
+  background: var(--ai-grad); border: 2px solid var(--bg-raise);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  transition: transform 0.14s ease;
+}
+.slider::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--teal); border: 2px solid var(--bg-raise);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+.slider:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.slider:active::-webkit-slider-thumb { transform: scale(0.96); }
+.slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+/* dört hazır büdcə tek sıraya sığsın — alt satıra taşan tek düyme dağınık durur */
+.chip-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chip { padding: 6px 4px; text-align: center; }
+
+/* alış / aylıq kirayə özeti — sıkışık durmasın */
+.tool-mini { gap: 22px; margin-top: 14px; }
