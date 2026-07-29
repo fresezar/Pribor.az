@@ -1758,3 +1758,39 @@ footer.note {
     font-size: 0.8rem; color: var(--faint);
   }
 }
+
+/*
+  Təmir vəziyyəti — mobildə 2 sıra × 3 düymə.
+
+  Ölçüldü (390px): kapsayıcı 308px, altı düymə 46,7'şər pay alıyordu.
+  "Təmirsiz" kutusuna sığmıyordu (metin kırpılıyordu), "Qara tikili" iki
+  satıra düşüp kapsayıcıyı 65px'e şişiriyordu.
+
+  Açılır menü YAPILMADI: bu bir ÖLÇEK (Qara tikili → Əla). Menüye saklanırsa
+  kullanıcı aralığı göremez ve nereye denk düştüğünü kestiremez; üstelik bir
+  dokunuş daha ister. İki sıraya bölmek altı seçeneği de görünür tutuyor.
+
+  Yalnız bu kontrole uygulanır: aynı `.seg` sınıfı otaq sayısı (1-6, tek
+  karakter, rahat sığıyor) ve iki seçenekli anahtarlar için de kullanılıyor.
+*/
+@media (max-width: 640px) {
+  .seg.seg-grid3,
+  .seg.seg-grid6 {
+    display: grid;
+    gap: 4px;
+  }
+  .seg.seg-grid3 { grid-template-columns: repeat(3, 1fr); }
+  /*
+    Otaq sayısı (1-6): tek karakter olduğu için dar ekranda da tek sıra sığar.
+    Grid ŞART çünkü .seg sarmalanıyor: 320px'te 1-2-3-4 üstte 55'er px, 5-6
+    altta 113'er px oluyordu — flex-grow son satırın boşluğunu ikiye bölüyor
+    ve düğmeler iki katı büyüyordu. Grid'de her hücre eşit.
+  */
+  .seg.seg-grid6 { grid-template-columns: repeat(6, 1fr); }
+  .seg.seg-grid3 button,
+  .seg.seg-grid6 button {
+    padding: 9px 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}

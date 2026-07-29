@@ -238,7 +238,7 @@ export default function ValuationApp(props: {
             {cfg.rooms && (
               <div className="field full">
                 <label>Otaq sayı</label>
-                <div className="seg">
+                <div className="seg seg-grid6">
                   {[1, 2, 3, 4, 5, 6].map((n) => (
                     <button key={n} className={rooms === n ? "on" : ""}
                       onClick={() => setRooms(n)}>{n}</button>
@@ -268,7 +268,7 @@ export default function ValuationApp(props: {
             {cfg.repair && (
               <div className="field full">
                 <label>Təmir vəziyyəti</label>
-                <div className="seg">
+                <div className="seg seg-grid3">
                   {REPAIR_LABELS.map((label, i) => (
                     <button key={label} className={repairState === i ? "on" : ""}
                       onClick={() => setRepairState(i)}>{label}</button>
