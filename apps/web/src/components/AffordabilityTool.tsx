@@ -38,8 +38,15 @@ export default function AffordabilityTool() {
       .sort((a, b) => b.area - a.area);
   }, [budget, kind, scope]);
 
-  const best = rows.at(0);
-  const worst = rows.at(-1);
+  /*
+    `.at()` KULLANILMIYOR: Array.prototype.at yalnız Safari 15.4+ və Chrome 92+
+    ilə gəlir. iOS 15.3 və daha köhnə telefonda `rows.at is not a function`
+    atılır, React render çöküb səhifə tamamilə ağarır ("istemci tarafında bir
+    hata oluştu"). Azərbaycanda köhnə cihaz payı yüksəkdir — bir neçə hərflik
+    rahatlıq üçün ödəniləcək bədəl deyil.
+  */
+  const best = rows.length > 0 ? rows[0] : undefined;
+  const worst = rows.length > 0 ? rows[rows.length - 1] : undefined;
   const maxArea = best?.area ?? 1;
 
   const rankRows: RankRow[] = rows.map((r) => ({
