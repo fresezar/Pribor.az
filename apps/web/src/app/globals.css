@@ -1794,3 +1794,36 @@ footer.note {
     white-space: nowrap;
   }
 }
+
+/* ============================================================
+   ALƏT SEKMELERİ — dar ekranda kısa etiket + belirgin ayrım
+   ============================================================ */
+
+/*
+  Sekme çubuğu sayfanın en önemli kontrolü: üç alət arasında geçiş.
+  Form alanlarıyla aynı tonda durursa göz onu "bir input daha" sanıyor.
+  Kendi yüzeyi, daha kalın çerçevesi ve biraz daha iri/koyu yazısıyla
+  ayrı bir KATMAN olarak okunuyor.
+*/
+.tool-tabs {
+  background: var(--surface-2, var(--surface));
+  border-width: 1.5px;
+  box-shadow: inset 0 1px 0 var(--line-soft);
+}
+.tool-tab { font-size: 0.9rem; letter-spacing: -0.012em; }
+.tool-tab.on { font-weight: 700; }
+.tool-tab-pill { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10); }
+
+/* İpucu satırı sekmelerle içerik arasında nefes payı bırakır */
+.tool-hint { padding-left: 2px; }
+
+.tt-short { display: none; }
+
+@media (max-width: 640px) {
+  /* Tam adlar 355px ister, çubuk 238–308px — kısa ada geçiliyor.
+     Anlamı altındaki ipucu satırı taşıyor. */
+  .tt-full { display: none; }
+  .tt-short { display: inline; }
+  .tool-tabs { overflow-x: visible; }
+  .tool-tab { flex: 1 1 0; padding: 11px 6px; font-size: 0.86rem; }
+}

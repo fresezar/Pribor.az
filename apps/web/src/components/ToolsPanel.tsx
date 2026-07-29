@@ -3,7 +3,7 @@
 /**
  * ToolsPanel — üç alətin ortak kabuğu.
  *
- *   Qiymətləndirmə · Nə ala bilərəm? · Kirayə gəlirliliyi
+ *   Qiymətləndirmə · Nə ala bilərəm? · Kirayə gəliri
  *
  * NEDEN TEK PANEL: üçü de aynı soruyu farklı yönlerden soruyor ("bu əmlak nə
  * qədər edər / bu pula nə düşər / bu əmlak nə qazandırar"). Ayrı sayfalara
@@ -25,10 +25,21 @@ import ValuationApp from "./ValuationApp";
 import AffordabilityTool from "./AffordabilityTool";
 import YieldTool from "./YieldTool";
 
+/**
+ * `short` — dar ekranda görünen etiket.
+ *
+ * Ölçüldü: tam adlar 355px yer istiyor, 320px telefonda çubuk 238px. Fark
+ * kaydırma çubuğuyla kapatılıyordu; kullanıcı üçüncü aləti görmek için yana
+ * kaydırmak zorundaydı, yani var olduğunu bilmiyorsa hiç bulamıyordu.
+ *
+ * Kısaltma anlam kaybettirmiyor çünkü altındaki ipucu satırı zaten alətin ne
+ * yaptığını tam cümleyle söylüyor ("Büdcənizə nə düşür?"). Sekme adı etiket,
+ * ipucu açıklamadır — ikisi birlikte tam bilgi verir.
+ */
 const TOOLS = [
-  { key: "valuation", label: "Qiymətləndirmə", hint: "Əmlakınız nə qədər edər?" },
-  { key: "afford", label: "Nə ala bilərəm?", hint: "Büdcənizə nə düşür?" },
-  { key: "yield", label: "Kirayə gəlirliliyi", hint: "Kirayə versəniz nə qazanarsınız?" },
+  { key: "valuation", label: "Qiymətləndirmə", short: "Qiymət", hint: "Əmlakınız nə qədər edər?" },
+  { key: "afford", label: "Nə ala bilərəm?", short: "Büdcə", hint: "Büdcənizə nə düşür?" },
+  { key: "yield", label: "Kirayə gəliri", short: "Kirayə", hint: "Kirayə versəniz nə qazanarsınız?" },
 ] as const;
 
 type ToolKey = (typeof TOOLS)[number]["key"];
@@ -94,7 +105,10 @@ export default function ToolsPanel() {
                   transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 34 }}
                 />
               )}
-              <span className="tool-tab-label">{t.label}</span>
+              <span className="tool-tab-label">
+                <span className="tt-full">{t.label}</span>
+                <span className="tt-short">{t.short}</span>
+              </span>
             </button>
           );
         })}

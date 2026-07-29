@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Kirayə gəlirliliyi" — alsam, kirayə versəm nə qazanaram?
+ * "Kirayə gəliri" — alsam, kirayə versəm nə qazanaram?
  *
  * İllik gəlirlilik = (aylıq kirayə × 12) ÷ alış qiyməti. Sayının kendisi basit;
  * değerli olan Bakı'da satış ve kira medyanlarının aynı yerde birleştirilmiş
