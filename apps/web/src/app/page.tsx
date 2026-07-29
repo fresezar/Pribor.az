@@ -1,5 +1,6 @@
 import SiteHeader from "@/components/SiteHeader";
 import ToolsPanel from "@/components/ToolsPanel";
+import ApiWarmup from "@/components/ApiWarmup";
 import MarketView from "@/components/MarketView";
 import BrandLogo from "@/components/BrandLogo";
 import BakuSkyline from "@/components/BakuSkyline";
@@ -10,6 +11,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 export default function HomePage() {
   return (
     <div className="shell">
+      {/* Kullanıcı formu doldururken servisler uyansın — bkz. ApiWarmup.tsx */}
+      <ApiWarmup />
       <SiteHeader />
 
       <section className="hero">
