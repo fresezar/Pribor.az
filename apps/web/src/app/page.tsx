@@ -5,6 +5,7 @@ import BrandLogo from "@/components/BrandLogo";
 import BakuSkyline from "@/components/BakuSkyline";
 import AzFlag from "@/components/AzFlag";
 import { SupportFab, SupportLine } from "@/components/SupportCorner";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function HomePage() {
   return (
@@ -34,6 +35,8 @@ export default function HomePage() {
         Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil
         {/* Bayraq bir yerdə, mənşə işarəsi kimi — bozulmadan, tək nüsxə */}
         <span className="origin"><AzFlag height={13} /> Bakı, Azərbaycan · 2026</span>
+        {/* Tema seçimi mobilde buraya iner — üst çubuqda yer qazanır (bax: globals.css) */}
+        <span className="footer-theme">Görünüş <ThemeToggle /></span>
       </footer>
 
       <SupportFab />

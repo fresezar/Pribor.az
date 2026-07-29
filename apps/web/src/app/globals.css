@@ -1694,3 +1694,67 @@ footer.note {
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .sky-flag { opacity: 0.4; }
 }
+
+/* ============================================================
+   MOBİL ÜST ÇUBUK — hiyerarşi ve sığma
+   ============================================================ */
+
+/*
+  iOS, yazı boyutu 16px'in ALTINDAKİ bir alana odaklanınca sayfayı
+  kendiliğinden yakınlaştırır. Ölçtük: input'lar 15.2px idi, form her
+  dokunuşta zıplıyordu.
+
+  Çözüm zoom'u kapatmak DEĞİL: `user-scalable=no` bir erişilebilirlik
+  hatasıdır (WCAG 1.4.4 %200 büyütme ister, az gören kullanıcılar buna
+  muhtaçtır) ve iOS onu zaten yok sayar. Tetikleyiciyi kaldırıyoruz —
+  kullanıcı hâlâ parmakla büyütebilir, ama form artık zıplamaz.
+*/
+@media (max-width: 768px) {
+  .field input,
+  .field select,
+  .field textarea,
+  .num-field input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  /*
+    Tema düğmesi bir TERCİHTİR, bir kez ayarlanır — üst çubukta dönüşüm
+    butonuyla yer için yarışmasının anlamı yok. Mobilde footer'a taşınıyor.
+  */
+  .topbar-right > .theme-toggle { display: none; }
+  .topbar-right { gap: 10px; }
+
+  /*
+    İki KUTULU buton yan yana durunca hiyerarşi ölür: göz hangisinin asıl
+    eylem olduğunu seçemez. Birincil dolu kalır, ikincil düz yazıya iner.
+    Bu aynı zamanda "Daxil ol"un iki satıra düşmesini de kökten çözer —
+    çerçeve ve dolgu gittiği için satır kırılacak yer kalmıyor.
+  */
+  .login-btn {
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .login-btn:hover { filter: none; transform: none; color: var(--ink); }
+}
+
+/* Çok dar ekranda birincil eylem kısalır ama görünür kalır */
+@media (max-width: 380px) {
+  .post-btn { padding: 8px 11px; font-size: 0.78rem; }
+  .brand-word { font-size: 1rem; }
+}
+
+/* Tema düğmesinin footer'daki yeri — yalnız mobilde görünür */
+.footer-theme { display: none; }
+@media (max-width: 640px) {
+  .footer-theme {
+    display: flex; align-items: center; justify-content: center;
+    gap: 9px; margin-top: 14px;
+    font-size: 0.8rem; color: var(--faint);
+  }
+}
