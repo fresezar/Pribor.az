@@ -353,7 +353,7 @@ export default function ListingForm(props: {
           </div>
           <div className="field">
             <label htmlFor="lf-phone">Nömrəniz</label>
-            <input id="lf-phone" inputMode="tel" placeholder="+994"
+            <input id="lf-phone" inputMode="tel"
               value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
             <span className="hint">Elanda bu nömrə görünəcək.</span>
           </div>
