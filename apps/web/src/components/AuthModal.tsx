@@ -95,14 +95,14 @@ export default function AuthModal(props: {
             <p className="modal-sub">Email ünvanınıza birdəfəlik kod göndərəcəyik.</p>
 
             <div className="field">
-              <label htmlFor="nm">Ad və Soyad</label>
-              <input id="nm" placeholder="Adınız və soyadınız" autoFocus
+              <label htmlFor="nm">Adınız və soyadınız</label>
+              <input id="nm" autoFocus
                 value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 
             <div className="field" style={{ marginTop: 14 }}>
-              <label htmlFor="em">Email ünvanı</label>
-              <input id="em" type="email" inputMode="email" placeholder="ad@example.com"
+              <label htmlFor="em">Mailiniz</label>
+              <input id="em" type="email" inputMode="email"
                 value={email} onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void sendCode()} />
             </div>
@@ -127,7 +127,7 @@ export default function AuthModal(props: {
             </p>
             <div className="field">
               <label htmlFor="otp">Təsdiq kodu</label>
-              <input id="otp" inputMode="numeric" placeholder="123456" autoFocus maxLength={6}
+              <input id="otp" inputMode="numeric" placeholder="6 rəqəm" autoFocus maxLength={6}
                 value={otp} onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ""))}
                 onKeyDown={(e) => e.key === "Enter" && void verify()} />
             </div>

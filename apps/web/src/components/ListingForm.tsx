@@ -347,13 +347,13 @@ export default function ListingForm(props: {
 
         <div className="grid" style={{ marginTop: 14 }}>
           <div className="field">
-            <label htmlFor="lf-cname">Əlaqə adı</label>
-            <input id="lf-cname" placeholder="Ad / ünvan"
+            <label htmlFor="lf-cname">Adınız</label>
+            <input id="lf-cname"
               value={contactName} onChange={(e) => setContactName(e.target.value)} />
           </div>
           <div className="field">
-            <label htmlFor="lf-phone">Əlaqə nömrəsi</label>
-            <input id="lf-phone" inputMode="tel" placeholder="+994 50 123 45 67"
+            <label htmlFor="lf-phone">Nömrəniz</label>
+            <input id="lf-phone" inputMode="tel" placeholder="+994"
               value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
             <span className="hint">Elanda bu nömrə görünəcək.</span>
           </div>
