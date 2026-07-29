@@ -2,6 +2,8 @@ import SiteHeader from "@/components/SiteHeader";
 import ToolsPanel from "@/components/ToolsPanel";
 import MarketView from "@/components/MarketView";
 import BrandLogo from "@/components/BrandLogo";
+import BakuSkyline from "@/components/BakuSkyline";
+import AzFlag from "@/components/AzFlag";
 import { SupportFab, SupportLine } from "@/components/SupportCorner";
 
 export default function HomePage() {
@@ -10,6 +12,7 @@ export default function HomePage() {
       <SiteHeader />
 
       <section className="hero">
+        <BakuSkyline />
         <span className="hero-badge"><span className="dot" aria-hidden /> Süni intellekt · Bakı bazarı</span>
         <h1>
           Bazar dəyərini <span className="flame">10 saniyədə</span> öyrən
@@ -28,8 +31,9 @@ export default function HomePage() {
       <footer className="note">
         <div className="footer-brand"><BrandLogo size={26} /></div>
         <SupportLine />
-        Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil ·
-        Bakı, 2026
+        Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil
+        {/* Bayraq bir yerdə, mənşə işarəsi kimi — bozulmadan, tək nüsxə */}
+        <span className="origin"><AzFlag height={13} /> Bakı, Azərbaycan · 2026</span>
       </footer>
 
       <SupportFab />

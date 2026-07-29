@@ -244,7 +244,10 @@ button { cursor: pointer; }
 }
 
 /* ---------- hero ---------- */
-.hero { text-align: center; padding: 54px 0 36px; position: relative; }
+/* Alt boşluk silüete AYRILMIŞTIR: daha az olursa qüllələr paragrafın içine
+   girip metni okumayı zorlaştırıyor. Arka plan metinle yarışmamalı. */
+.hero { text-align: center; padding: 54px 0 132px; position: relative; }
+@media (max-width: 640px) { .hero { padding-bottom: 96px; } }
 .hero h1 {
   font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   font-size: clamp(2.1rem, 5.2vw, 3.4rem);
@@ -1633,3 +1636,61 @@ footer.note {
 
 /* alış / aylıq kirayə özeti — sıkışık durmasın */
 .tool-mini { gap: 22px; margin-top: 14px; }
+
+/* ---------- Bakı silüeti — hero'nun alt kenarı ---------- */
+.hero { position: relative; isolation: isolate; }
+.hero > *:not(.skyline) { position: relative; z-index: 1; }
+.skyline {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: -54px; width: 100vw; max-width: 1500px; height: 250px;
+  z-index: 0; pointer-events: none;
+  /* HER İKİ kenar da eriyerek bitmeli. İlk sürümde yalnız üst kenar
+     yumuşatılmıştı; alt kenar hero bölümünün sınırında sert kesiliyor ve
+     silüet şehir değil, sayfaya yapıştırılmış gri bant gibi duruyordu. */
+  -webkit-mask-image: linear-gradient(180deg,
+    transparent 0%, #000 26%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg,
+    transparent 0%, #000 26%, #000 72%, transparent 100%);
+}
+.skyline svg { width: 100%; height: 100%; display: block; }
+
+/* Katman derinliği: uzaktaki soluk, yakındaki keskin.
+   Tek katman ya görünmez ya paneli eziyordu. */
+.sky-back { fill: var(--ink); opacity: 0.035; }
+.sky-mid  { fill: var(--ink); opacity: 0.055; }
+.sky-near {
+  fill: none; stroke: var(--ink); stroke-opacity: 0.2;
+  stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+}
+.sky-cabin { fill: none; stroke: var(--ink); stroke-opacity: 0.16; stroke-width: 1.1; }
+.sky-color { opacity: 0.5; }
+
+/* Açıq tema: alacakaranlık gradyanı beyaz zeminde çamur gibi durur —
+   renkli katman çok kısılır, konturlar bir tık güçlenir, ışıklar sönük kalır. */
+:root[data-theme="light"] .sky-color  { opacity: 0.16; }
+:root[data-theme="light"] .sky-near   { stroke-opacity: 0.26; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .sky-color  { opacity: 0.16; }
+  :root:not([data-theme="dark"]) .sky-near   { stroke-opacity: 0.26; }
+}
+@media (max-width: 640px) { .skyline { height: 168px; bottom: -38px; } }
+
+/* ---------- footer menşe işareti ---------- */
+.origin {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin-top: 8px; width: 100%; justify-content: center;
+}
+.az-flag {
+  border-radius: 2px; flex: 0 0 auto;
+  /* Bayrağın kenarı zemine karışmasın; gölge yok, renk filtresi yok */
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+/* Silüetteki bayrak — silüetin tek renkli noktası, bilinçli olarak.
+   Tam doygunlukta arka planda çığlık atıyordu; atmosfere karışsın diye
+   hafifçe kısıldı ama renkleri değiştirilmedi. */
+.sky-flag { opacity: 0.46; }
+:root[data-theme="light"] .sky-flag { opacity: 0.4; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .sky-flag { opacity: 0.4; }
+}
