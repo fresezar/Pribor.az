@@ -1827,3 +1827,70 @@ footer.note {
   .tool-tabs { overflow-x: visible; }
   .tool-tab { flex: 1 1 0; padding: 11px 6px; font-size: 0.86rem; }
 }
+
+/* ============================================================
+   AÇILIR ALƏT PANOSU — yığılı görünüş
+   Açıqkən panel 857px (mobildə 1115px); bazar elanları 1394px aşağıda
+   başlayırdı. Qayıdan istifadəçi hər dəfə uzun formu keçirdi.
+   ============================================================ */
+
+/* Yığılı halda panel kompakt qalır */
+.tools-panel.is-shut { padding: 18px 20px; }
+
+.tool-launcher { display: flex; flex-direction: column; gap: 12px; }
+.tl-eyebrow {
+  font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--faint);
+}
+.tl-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 620px) { .tl-cards { grid-template-columns: 1fr; } }
+
+/*
+  Yığılı halda da NƏ OLDUĞU bilinir: hər kart alətin sualını daşıyır.
+  Tək bir "Alətləri aç" düyməsi nə var olduğunu gizlədər və istifadəçini
+  iki addıma məcbur edərdi.
+*/
+.tl-card {
+  display: flex; flex-direction: column; gap: 5px; text-align: left;
+  padding: 15px 16px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 13px; color: inherit;
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.tl-card:hover {
+  border-color: var(--teal-line); background: var(--surface-2);
+  transform: translateY(-2px);
+}
+.tl-card:active { transform: translateY(0); }
+.tl-card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+.tl-q { font-size: 1rem; font-weight: 660; letter-spacing: -0.012em; color: var(--ink); }
+.tl-b { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+.tl-go {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 4px;
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em;
+  color: var(--good-text);
+}
+.tl-go svg { transition: transform 0.18s ease; }
+.tl-card:hover .tl-go svg { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-card, .tl-card:hover, .tl-go svg { transition: none; transform: none; }
+}
+
+/* Sekmə çubuğu + yığma düyməsi bir sırada */
+.tool-bar { display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px; }
+.tool-bar .tool-tabs { flex: 1 1 auto; margin-bottom: 0; }
+.tool-shut {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 0 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 11px;
+  color: var(--muted); font-size: 0.76rem; font-weight: 600;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tool-shut:hover { color: var(--ink); border-color: var(--faint); }
+.tool-shut:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+/* Dar ekranda mətn düşür, yalnız ox qalır — sekmələr yer itirməsin */
+@media (max-width: 560px) {
+  .tool-shut span { display: none; }
+  .tool-shut { padding: 0 10px; }
+}
