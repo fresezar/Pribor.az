@@ -3,10 +3,10 @@
 /**
  * ToolsPanel — üç alətin ortak kabuğu.
  *
- *   Qiymətləndirmə · Nə ala bilərəm? · Kirayə gəliri
+ *   Qiymətləndirmə · Nə ala bilərəm?
  *
- * NEDEN TEK PANEL: üçü de aynı soruyu farklı yönlerden soruyor ("bu əmlak nə
- * qədər edər / bu pula nə düşər / bu əmlak nə qazandırar"). Ayrı sayfalara
+ * NEDEN TEK PANEL: ikisi de aynı soruyu farklı yönlerden soruyor ("bu əmlak nə
+ * qədər edər / bu pula nə düşər"). Ayrı sayfalara
  * bölmek kullanıcıyı gezinmeye zorlardı; sekme, aralarında gidip gelmeyi
  * bedavaya indiriyor.
  *
@@ -23,7 +23,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import ValuationApp from "./ValuationApp";
 import AffordabilityTool from "./AffordabilityTool";
-import YieldTool from "./YieldTool";
 
 /**
  * `short` — dar ekranda görünen etiket.
@@ -39,7 +38,6 @@ import YieldTool from "./YieldTool";
 const TOOLS = [
   { key: "valuation", label: "Qiymətləndirmə", short: "Qiymət", hint: "Əmlakınız nə qədər edər?" },
   { key: "afford", label: "Nə ala bilərəm?", short: "Büdcə", hint: "Büdcənizə nə düşür?" },
-  { key: "yield", label: "Kirayə gəliri", short: "Kirayə", hint: "Kirayə versəniz nə qazanarsınız?" },
 ] as const;
 
 type ToolKey = (typeof TOOLS)[number]["key"];
@@ -140,7 +138,6 @@ export default function ToolsPanel() {
           >
             {active === "valuation" && <ValuationApp scrollTargetRef={panelRef} />}
             {active === "afford" && <AffordabilityTool />}
-            {active === "yield" && <YieldTool />}
           </motion.div>
         </AnimatePresence>
       </motion.div>

@@ -3,7 +3,7 @@
  *
  * Üretim : python scripts/build_market_stats.py
  * Kaynak : 2026-07-27 tarixli Bakı taraması (tap.az)
- * Üretildi: 2026-07-28
+ * Üretildi: 2026-07-30
  *
  * Bunlar İLAN DEĞİL, medyan istatistiktir. Toplanan ilanlar üründe hiçbir yerde
  * gösterilmez; bu tablo o veriden damıtılmış toplu değerlerdir.
@@ -19,6 +19,8 @@ export type MarketStat = {
   /** Rayon və ya qəsəbə adı */
   name: string;
   type: "apartment" | "house";
+  /** Yalnız qəsəbə sətirlərində — alət qəsəbələri rayona görə süzsün deyə */
+  district?: string;
   /** Medyan satış qiyməti, ₼/m² */
   sqmSale: number;
   nSale: number;
@@ -52,58 +54,58 @@ export const MARKET_BY_DISTRICT: MarketStat[] = [
 ];
 
 export const MARKET_BY_SETTLEMENT: MarketStat[] = [
-  { name: "Masazır", type: "apartment", sqmSale: 1467, nSale: 1173, sqmRent: 6.8, nRent: 41 },
-  { name: "Bakıxanov", type: "apartment", sqmSale: 2333, nSale: 248, sqmRent: 8.5, nRent: 28 },
-  { name: "Yeni Günəşli", type: "apartment", sqmSale: 2294, nSale: 175, sqmRent: 8.8, nRent: 16 },
-  { name: "Yeni Yasamal", type: "apartment", sqmSale: 2373, nSale: 172, sqmRent: 8.4, nRent: 56 },
-  { name: "Lökbatan", type: "apartment", sqmSale: 1512, nSale: 117 },
-  { name: "Hövsan", type: "apartment", sqmSale: 1900, nSale: 111, sqmRent: 6.0, nRent: 14 },
-  { name: "Badamdar", type: "apartment", sqmSale: 2785, nSale: 92, sqmRent: 10.0, nRent: 12 },
-  { name: "7-ci mikrorayon", type: "apartment", sqmSale: 2587, nSale: 76 },
-  { name: "Bayıl", type: "apartment", sqmSale: 2600, nSale: 75, sqmRent: 8.1, nRent: 13 },
-  { name: "Qaraçuxur", type: "apartment", sqmSale: 2112, nSale: 62 },
-  { name: "Saray", type: "apartment", sqmSale: 1429, nSale: 45 },
-  { name: "Biləcəri", type: "apartment", sqmSale: 2142, nSale: 41 },
-  { name: "Nardaran", type: "apartment", sqmSale: 3594, nSale: 39 },
-  { name: "Əhmədli", type: "apartment", sqmSale: 2275, nSale: 38 },
-  { name: "Məhəmmədi", type: "apartment", sqmSale: 1296, nSale: 38 },
-  { name: "8-ci mikrorayon", type: "apartment", sqmSale: 2728, nSale: 38 },
-  { name: "9-cu mikrorayon", type: "apartment", sqmSale: 2591, nSale: 37 },
-  { name: "Köhnə Günəşli", type: "apartment", sqmSale: 2200, nSale: 33 },
-  { name: "Zığ", type: "apartment", sqmSale: 2126, nSale: 32 },
-  { name: "Binə", type: "house", sqmSale: 660, nSale: 533 },
-  { name: "Mərdəkan", type: "house", sqmSale: 1957, nSale: 396 },
-  { name: "Maştağa", type: "house", sqmSale: 751, nSale: 352 },
-  { name: "Masazır", type: "house", sqmSale: 845, nSale: 323 },
-  { name: "Hövsan", type: "house", sqmSale: 690, nSale: 254 },
-  { name: "Şüvəlan", type: "house", sqmSale: 1629, nSale: 242 },
-  { name: "Binəqədi", type: "house", sqmSale: 750, nSale: 222 },
-  { name: "Buzovna", type: "house", sqmSale: 1139, nSale: 145 },
-  { name: "Novxanı", type: "house", sqmSale: 1086, nSale: 129 },
-  { name: "Mehdiabad", type: "house", sqmSale: 812, nSale: 126 },
-  { name: "Saray", type: "house", sqmSale: 839, nSale: 108 },
-  { name: "Biləcəri", type: "house", sqmSale: 920, nSale: 81 },
-  { name: "Hökməli", type: "house", sqmSale: 560, nSale: 80 },
-  { name: "Zabrat", type: "house", sqmSale: 864, nSale: 78 },
-  { name: "Ramana", type: "house", sqmSale: 696, nSale: 72 },
-  { name: "Məhəmmədi", type: "house", sqmSale: 840, nSale: 69 },
-  { name: "Savalan", type: "house", sqmSale: 808, nSale: 61 },
-  { name: "Qobu", type: "house", sqmSale: 535, nSale: 56 },
-  { name: "Lökbatan", type: "house", sqmSale: 928, nSale: 53 },
-  { name: "Bakıxanov", type: "house", sqmSale: 1410, nSale: 50 },
-  { name: "Badamdar", type: "house", sqmSale: 1660, nSale: 48 },
-  { name: "Yeni Suraxanı", type: "house", sqmSale: 950, nSale: 45 },
-  { name: "Nardaran", type: "house", sqmSale: 1366, nSale: 44 },
-  { name: "Albalılıq", type: "house", sqmSale: 1112, nSale: 41 },
-  { name: "Bilgəh", type: "house", sqmSale: 1579, nSale: 40 },
-  { name: "Bayıl", type: "house", sqmSale: 1188, nSale: 37 },
-  { name: "Qaraçuxur", type: "house", sqmSale: 1250, nSale: 35 },
-  { name: "Türkan", type: "house", sqmSale: 650, nSale: 33 },
-  { name: "Yeni Ramana", type: "house", sqmSale: 907, nSale: 33 },
-  { name: "Sulutəpə", type: "house", sqmSale: 750, nSale: 31 },
-  { name: "Görədil", type: "house", sqmSale: 884, nSale: 28 },
-  { name: "Pirşağı", type: "house", sqmSale: 998, nSale: 26 },
-  { name: "Qala", type: "house", sqmSale: 659, nSale: 26 },
+  { name: "Masazır", district: "Abşeron", type: "apartment", sqmSale: 1467, nSale: 1173, sqmRent: 6.8, nRent: 41 },
+  { name: "Bakıxanov", district: "Sabunçu", type: "apartment", sqmSale: 2333, nSale: 248, sqmRent: 8.5, nRent: 28 },
+  { name: "Yeni Günəşli", district: "Xətai", type: "apartment", sqmSale: 2294, nSale: 175, sqmRent: 8.8, nRent: 16 },
+  { name: "Yeni Yasamal", district: "Yasamal", type: "apartment", sqmSale: 2373, nSale: 172, sqmRent: 8.4, nRent: 56 },
+  { name: "Lökbatan", district: "Qaradağ", type: "apartment", sqmSale: 1512, nSale: 117 },
+  { name: "Hövsan", district: "Suraxanı", type: "apartment", sqmSale: 1900, nSale: 111, sqmRent: 6.0, nRent: 14 },
+  { name: "Badamdar", district: "Səbail", type: "apartment", sqmSale: 2785, nSale: 92, sqmRent: 10.0, nRent: 12 },
+  { name: "7-ci mikrorayon", district: "Binəqədi", type: "apartment", sqmSale: 2587, nSale: 76 },
+  { name: "Bayıl", district: "Səbail", type: "apartment", sqmSale: 2600, nSale: 75, sqmRent: 8.1, nRent: 13 },
+  { name: "Qaraçuxur", district: "Suraxanı", type: "apartment", sqmSale: 2112, nSale: 62 },
+  { name: "Saray", district: "Abşeron", type: "apartment", sqmSale: 1429, nSale: 45 },
+  { name: "Biləcəri", district: "Binəqədi", type: "apartment", sqmSale: 2142, nSale: 41 },
+  { name: "Nardaran", district: "Sabunçu", type: "apartment", sqmSale: 3594, nSale: 39 },
+  { name: "Əhmədli", district: "Xətai", type: "apartment", sqmSale: 2275, nSale: 38 },
+  { name: "Məhəmmədi", district: "Abşeron", type: "apartment", sqmSale: 1296, nSale: 38 },
+  { name: "8-ci mikrorayon", district: "Binəqədi", type: "apartment", sqmSale: 2728, nSale: 38 },
+  { name: "9-cu mikrorayon", district: "Binəqədi", type: "apartment", sqmSale: 2591, nSale: 37 },
+  { name: "Köhnə Günəşli", district: "Xətai", type: "apartment", sqmSale: 2200, nSale: 33 },
+  { name: "Zığ", district: "Suraxanı", type: "apartment", sqmSale: 2126, nSale: 32 },
+  { name: "Binə", district: "Xəzər", type: "house", sqmSale: 660, nSale: 533 },
+  { name: "Mərdəkan", district: "Xəzər", type: "house", sqmSale: 1957, nSale: 396 },
+  { name: "Maştağa", district: "Sabunçu", type: "house", sqmSale: 751, nSale: 352 },
+  { name: "Masazır", district: "Abşeron", type: "house", sqmSale: 845, nSale: 323 },
+  { name: "Hövsan", district: "Suraxanı", type: "house", sqmSale: 690, nSale: 254 },
+  { name: "Şüvəlan", district: "Xəzər", type: "house", sqmSale: 1629, nSale: 242 },
+  { name: "Binəqədi", district: "Binəqədi", type: "house", sqmSale: 750, nSale: 222 },
+  { name: "Buzovna", district: "Xəzər", type: "house", sqmSale: 1139, nSale: 145 },
+  { name: "Novxanı", district: "Abşeron", type: "house", sqmSale: 1086, nSale: 129 },
+  { name: "Mehdiabad", district: "Abşeron", type: "house", sqmSale: 812, nSale: 126 },
+  { name: "Saray", district: "Abşeron", type: "house", sqmSale: 839, nSale: 108 },
+  { name: "Biləcəri", district: "Binəqədi", type: "house", sqmSale: 920, nSale: 81 },
+  { name: "Hökməli", district: "Abşeron", type: "house", sqmSale: 560, nSale: 80 },
+  { name: "Zabrat", district: "Sabunçu", type: "house", sqmSale: 864, nSale: 78 },
+  { name: "Ramana", district: "Sabunçu", type: "house", sqmSale: 696, nSale: 72 },
+  { name: "Məhəmmədi", district: "Abşeron", type: "house", sqmSale: 840, nSale: 69 },
+  { name: "Savalan", district: "Sabunçu", type: "house", sqmSale: 808, nSale: 61 },
+  { name: "Qobu", district: "Abşeron", type: "house", sqmSale: 535, nSale: 56 },
+  { name: "Lökbatan", district: "Qaradağ", type: "house", sqmSale: 928, nSale: 53 },
+  { name: "Bakıxanov", district: "Sabunçu", type: "house", sqmSale: 1410, nSale: 50 },
+  { name: "Badamdar", district: "Səbail", type: "house", sqmSale: 1660, nSale: 48 },
+  { name: "Yeni Suraxanı", district: "Suraxanı", type: "house", sqmSale: 950, nSale: 45 },
+  { name: "Nardaran", district: "Sabunçu", type: "house", sqmSale: 1366, nSale: 44 },
+  { name: "Albalılıq", district: "Abşeron", type: "house", sqmSale: 1112, nSale: 41 },
+  { name: "Bilgəh", district: "Sabunçu", type: "house", sqmSale: 1579, nSale: 40 },
+  { name: "Bayıl", district: "Səbail", type: "house", sqmSale: 1188, nSale: 37 },
+  { name: "Qaraçuxur", district: "Suraxanı", type: "house", sqmSale: 1250, nSale: 35 },
+  { name: "Türkan", district: "Xəzər", type: "house", sqmSale: 650, nSale: 33 },
+  { name: "Yeni Ramana", district: "Sabunçu", type: "house", sqmSale: 907, nSale: 33 },
+  { name: "Sulutəpə", district: "Binəqədi", type: "house", sqmSale: 750, nSale: 31 },
+  { name: "Görədil", district: "Abşeron", type: "house", sqmSale: 884, nSale: 28 },
+  { name: "Pirşağı", district: "Sabunçu", type: "house", sqmSale: 998, nSale: 26 },
+  { name: "Qala", district: "Xəzər", type: "house", sqmSale: 659, nSale: 26 },
 ];
 
 /** İllik kirayə gəlirliliyi, %. Kirayə örnəkləmi yoxdursa null. */

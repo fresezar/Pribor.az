@@ -29,14 +29,42 @@ export default function AffordabilityTool() {
   const [budget, setBudget] = useState(150_000);
   const [kind, setKind] = useState<Kind>("apartment");
   const [scope, setScope] = useState<Scope>("district");
+  const [inDistrict, setInDistrict] = useState("");
+
+  /**
+   * Qəsəbə siyahısı RAYONA GÖRƏ süzülür.
+   *
+   * Əvvəl bütün qəsəbələr bir yığın halında göstərilirdi: istifadəçi 52 sətrin
+   * içində öz rayonunun qəsəbəsini tapa bilmirdi və siyahıda görünməyənlərin
+   * niyə olmadığı da bilinmirdi. İndi əvvəlcə "hansı rayonun qəsəbələri?"
+   * soruşulur; yalnız o rayonunkular, sahəyə görə sıralı gəlir.
+   *
+   * Rayonda kifayət qədər elanı olan qəsəbə yoxdursa siyahı boş qalır və bunu
+   * açıq deyirik — səbəbi gizlətmirik.
+   */
+  const districtsWithSettlements = useMemo(() => {
+    const set = new Set(
+      MARKET_BY_SETTLEMENT.filter((s) => s.type === kind && s.district)
+        .map((s) => s.district as string),
+    );
+    return [...set].sort((a, b) => a.localeCompare(b, "az"));
+  }, [kind]);
+
+  // Növ dəyişəndə seçili rayon o növdə mövcud olmaya bilər
+  const activeDistrict = districtsWithSettlements.includes(inDistrict)
+    ? inDistrict
+    : (districtsWithSettlements[0] ?? "");
 
   const rows = useMemo(() => {
-    const table = scope === "district" ? MARKET_BY_DISTRICT : MARKET_BY_SETTLEMENT;
+    const table =
+      scope === "district"
+        ? MARKET_BY_DISTRICT
+        : MARKET_BY_SETTLEMENT.filter((s) => s.district === activeDistrict);
     return table
       .filter((s) => s.type === kind)
       .map((s) => ({ ...s, area: budget / s.sqmSale }))
       .sort((a, b) => b.area - a.area);
-  }, [budget, kind, scope]);
+  }, [budget, kind, scope, activeDistrict]);
 
   /*
     `.at()` KULLANILMIYOR: Array.prototype.at yalnız Safari 15.4+ və Chrome 92+
@@ -111,13 +139,31 @@ export default function AffordabilityTool() {
             <button type="button" className={scope === "settlement" ? "on" : ""}
               onClick={() => setScope("settlement")}>Qəsəbə</button>
           </div>
+
+          {scope === "settlement" && (
+            <>
+              <label htmlFor="afford-in" style={{ marginTop: 12 }}>
+                Hansı rayonun qəsəbələri?
+              </label>
+              <select id="afford-in" value={activeDistrict}
+                onChange={(e) => setInDistrict(e.target.value)}>
+                {districtsWithSettlements.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       </div>
 
       {!best || !worst ? (
         <NoData>
-          Bu bölgü üçün kifayət qədər elan yoxdur. <b>Qəsəbə</b> əvəzinə{" "}
-          <b>rayon</b> seçin.
+          {scope === "settlement" ? (
+            <><b>{activeDistrict || "Bu rayonda"}</b> üçün kifayət qədər elanı olan
+              qəsəbə yoxdur. Başqa rayon seçin və ya <b>Rayon</b> bölgüsünə keçin.</>
+          ) : (
+            <>Bu bölgü üçün kifayət qədər elan yoxdur.</>
+          )}
         </NoData>
       ) : (
         <>
@@ -138,8 +184,11 @@ export default function AffordabilityTool() {
           <RankList rows={rankRows} tone="gold" />
 
           <p className="tool-foot">
+            {scope === "settlement" && <><b>{activeDistrict}</b> qəsəbələri · </>}
             Medyan elan qiymətlərinə əsaslanır — bazarlıq payı daxil deyil.
-            Hər sətir ən azı {scope === "district" ? 40 : 25} elandan hesablanıb.
+            Hər sətir ən azı {scope === "district" ? 40 : 25} elandan hesablanıb;
+            bundan az elanı olan {scope === "district" ? "rayon" : "qəsəbə"} siyahıya
+            girmir.
           </p>
         </>
       )}

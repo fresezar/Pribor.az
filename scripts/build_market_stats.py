@@ -82,6 +82,10 @@ def collect() -> tuple[dict, dict, dict, dict, str]:
 
     sale_d, rent_d = defaultdict(list), defaultdict(list)
     sale_s, rent_s = defaultdict(list), defaultdict(list)
+    # Qəsəbə → rayon: alət qəsəbələri rayona görə süzə bilsin deyə lazımdır.
+    # Bu xəritə olmadan istifadəçi 52 qəsəbəni bir yığın halında görürdü və
+    # öz rayonunun qəsəbəsini tapa bilmirdi.
+    set_district: dict[str, str] = {}
     for r in rows.values():
         p = r["payload"]
         if p.get("region") != "Bakı":
@@ -101,16 +105,19 @@ def collect() -> tuple[dict, dict, dict, dict, str]:
             rent_d[(d, t)].append(price / a)
             if n.settlement:
                 rent_s[(n.settlement, t)].append(price / a)
+                set_district[n.settlement] = d
         else:
             if not (20_000 <= price <= 5_000_000) or not (20 <= a <= 1000):
                 continue
             sale_d[(d, t)].append(price / a)
             if n.settlement:
                 sale_s[(n.settlement, t)].append(price / a)
-    return sale_d, rent_d, sale_s, rent_s, os.path.basename(latest)
+                set_district[n.settlement] = d
+    return sale_d, rent_d, sale_s, rent_s, set_district, os.path.basename(latest)
 
 
-def rows_for(sale, rent, min_sale, min_rent, label: str) -> list[dict]:
+def rows_for(sale, rent, min_sale, min_rent, label: str,
+             districts: dict[str, str] | None = None) -> list[dict]:
     out = []
     for (name, t), sv in sale.items():
         if len(sv) < min_sale:
@@ -121,6 +128,8 @@ def rows_for(sale, rent, min_sale, min_rent, label: str) -> list[dict]:
             "sqmSale": round(statistics.median(sv)),
             "nSale": len(sv),
         }
+        if districts and name in districts:
+            entry["district"] = districts[name]
         # Kira tarafı ayrı eşikte: satışı yeterli ama kirası az olan yerler
         # tabloda kalır, yalnız gəlirlilik alanı boş gelir.
         if len(rv) >= min_rent:
@@ -141,15 +150,17 @@ def ts_literal(e: dict) -> str:
     parts = [f'name: {json.dumps(e["name"], ensure_ascii=False)}',
              f'type: "{e["type"]}"',
              f'sqmSale: {e["sqmSale"]}', f'nSale: {e["nSale"]}']
+    if "district" in e:
+        parts.insert(1, f'district: {json.dumps(e["district"], ensure_ascii=False)}')
     if "sqmRent" in e:
         parts += [f'sqmRent: {e["sqmRent"]}', f'nRent: {e["nRent"]}']
     return "  { " + ", ".join(parts) + " },"
 
 
 def main() -> None:
-    sale_d, rent_d, sale_s, rent_s, date = collect()
+    sale_d, rent_d, sale_s, rent_s, set_district, date = collect()
     districts = rows_for(sale_d, rent_d, MIN_SALE, MIN_RENT, "rayon")
-    settlements = rows_for(sale_s, rent_s, MIN_SALE_SET, MIN_RENT_SET, "qəsəbə")
+    settlements = rows_for(sale_s, rent_s, MIN_SALE_SET, MIN_RENT_SET, "qəsəbə", set_district)
 
     body = f'''/**
  * Bakı bazar statistikası — OTOMATİK ÜRETİLDİ, elle düzenlemeyin.
@@ -172,6 +183,8 @@ export type MarketStat = {{
   /** Rayon və ya qəsəbə adı */
   name: string;
   type: "apartment" | "house";
+  /** Yalnız qəsəbə sətirlərində — alət qəsəbələri rayona görə süzsün deyə */
+  district?: string;
   /** Medyan satış qiyməti, ₼/m² */
   sqmSale: number;
   nSale: number;
