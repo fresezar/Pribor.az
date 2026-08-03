@@ -19,8 +19,18 @@ const THEME_INIT = `try{var t=localStorage.getItem("pribor.theme");if(t)document
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="az" data-theme="light">
+    /*
+      translate="no" + notranslate meta: BRAUZER TƏRCÜMƏSİ SÖNDÜRÜLÜR.
+      Bakıdan istifadəçilər saytı türkcə görürdülər — mətnlər əslən Azərbaycan
+      dilindədir və lang="az" düzgün qoyulub, amma Chrome az→tr avtomatik
+      tərcümə edirdi (istifadəçi bir dəfə "Tərcümə et" deyəndə brauzer bunu
+      "həmişə" kimi yadda saxlayır).
+      Maşın tərcüməsi əmlak terminlərini korlayır: kupça, qəsəbə, mərtəbə,
+      sot — bunlar türkcədə eyni mənanı vermir və məhsul yad görünür.
+    */
+    <html lang="az" data-theme="light" translate="no">
       <head>
+        <meta name="google" content="notranslate" />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
       <body>
