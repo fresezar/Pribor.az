@@ -27,7 +27,7 @@ import { fileToResizedDataUri } from "./imageResize";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-const MAX_PHOTOS = 5;
+const MAX_PHOTOS = 15;
 
 const DISTRICTS = [
   "Nərimanov", "Nəsimi", "Səbail", "Yasamal", "Xətai", "Nizami",

@@ -98,7 +98,15 @@ export const CreateListingDto = z.object({
   priceAzn: z.number().int().positive().max(1_000_000_000),
   description: z.string().max(4000).optional(),
   /** data URI dizisi (MVP) — en fazla 5. */
-  photos: z.array(z.string().max(3_000_000)).max(5).default([]),
+  /*
+    15 foto. Ölçüldü: istemci yeniden boyutlandırdıqdan sonra (1280px, JPEG %72)
+    bir foto ~168 KB data URI; 15 foto ≈ 2,5 MB — API gövde limiti 16 MB.
+
+    Foto başına tavan 3 MB-dan 1 MB-a ENDİRİLDİ: 15 × 3 MB = 45 MB, gövde
+    limitini aşıb 413 verərdi. 1 MB ölçülən ehtiyacın 6 qatıdır və
+    15 × 1 MB = 15 MB limitin altında qalır.
+  */
+  photos: z.array(z.string().max(1_000_000)).max(15).default([]),
   /** Örtük şəkli — photos dizisindeki kapak fotoğrafının indeksi. */
   coverPhotoIdx: z.number().int().min(0).max(4).default(0),
 
