@@ -1,3 +1,4 @@
+import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import ToolsPanel from "@/components/ToolsPanel";
 import ApiWarmup from "@/components/ApiWarmup";
@@ -36,6 +37,15 @@ export default function HomePage() {
         <div className="footer-brand"><BrandLogo size={26} /></div>
         <SupportLine />
         Qiymətləndirmə statistik modelə əsaslanır və rəsmi ekspertiza deyil
+        {/*
+          Qaydalar açılan pəncərə ilə yox, altbardan verilir. Saytа girən hər
+          kəsə "qəbul edirəm" pəncərəsi göstərmək heç kimin oxumadığı bir
+          maneədir; razılıq öhdəlik anında istənir — elan formunda nömrə üçün,
+          giriş pəncərəsində hesab üçün.
+        */}
+        <span className="footer-legal">
+          <Link href="/qaydalar">Qaydalar və məxfilik</Link>
+        </span>
         {/* Bayraq bir yerdə, mənşə işarəsi kimi — bozulmadan, tək nüsxə */}
         <span className="origin"><AzFlag height={13} /> Bakı, Azərbaycan · 2026</span>
         {/* Tema seçimi mobilde buraya iner — üst çubuqda yer qazanır (bax: globals.css) */}

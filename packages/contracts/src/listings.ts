@@ -116,6 +116,17 @@ export const CreateListingDto = z.object({
   /** İlanda görünecek iletişim numarası (alıcı görür). */
   contactPhone: z.string().min(5).max(20),
   /**
+   * Nömrənin YAYIMLANMASINA açıq razılıq — formdakı işarə qutusu.
+   *
+   * NİYƏ SERVER TƏRƏFİNDƏ MƏCBURİDİR: razılıq şərtlərin dibinə basdırılmış bir
+   * cümlə olsaydı, heç kim oxumadan nömrəsini yayımlamış olardı. Razılıq tam o
+   * anda — nömrəni yazdığı anda — və nə olacağını bilərək verilməlidir. Yalnız
+   * brauzerdə yoxlansaydı bu, gerçək bir hədd deyil, xatırlatma olardı.
+   */
+  phonePublicAck: z.literal(true, {
+    errorMap: () => ({ message: "Nömrənizin elanda görünməsinə razılıq verməlisiniz" }),
+  }),
+  /**
    * Doğrulama girişte yapılır (OTP), bu yüzden formda numara/OTP sorulmaz.
    * Haftalık limit hesabın (oturum) numarasına göre sayılır; sunucu
    * verification_phone'u oturumdan türetir. promoCode admin bypass için
@@ -163,9 +174,16 @@ export const UserListing = z.object({
 export type UserListing = z.infer<typeof UserListing>;
 
 /**
- * İlan detayı (modal). Hem kullanıcı ilanları hem scraped piyasa kayıtları
- * aynı şekle indirgenir. Giriş yapmamış kullanıcı bu uca erişemez —
- * əlaqə nömrəsi yalnızca oturum açmış kullanıcıya döner.
+ * İlan detayı (modal). Herkese açıktır — alıcının ilana bakmak için hesap
+ * açması gereksiz sürtünmedir.
+ *
+ * ƏLAQƏ NÖMRƏSİ BU CAVABDA YOXDUR. `contactPhone` bilerek kaldırıldı:
+ * ölçüldü, liste ucundan bütün ilan kimlikleri alınıp detaylar tek tek
+ * çekilerek dakikada 120 numara toplanabiliyordu. Numara artık ayrı bir uçtan
+ * (`GET /listings/:id/contact`, bkz. ListingContact) ve daha sıkı bir sürət
+ * limiti ilə gəlir — səhifə mənbəyində, JSON-da və axtarış motorunda yoxdur.
+ * `contactName` qalır: kimin elanı olduğunu bilmək zərərsizdir, onunla
+ * heç kimə zəng edilə bilməz.
  */
 export const ListingDetail = z.object({
   id: z.string().uuid(),
@@ -190,7 +208,8 @@ export const ListingDetail = z.object({
   photos: z.array(z.string()),
   coverPhotoIdx: z.number().int().default(0),
   contactName: z.string().nullable(),
-  contactPhone: z.string().nullable(),
+  /** Nömrənin ümumiyyətlə olub-olmadığı — düyməni göstərmək/gizlətmək üçün. */
+  hasContactPhone: z.boolean().default(false),
   createdAt: z.string(),
   sourceSite: z.string().nullable(),
   /** Sahip veya admin mi — sil / satıldı / redaktə aksiyonlarını açar. */
@@ -199,6 +218,29 @@ export const ListingDetail = z.object({
   priceHistory: z.array(PricePoint).default([]),
 });
 export type ListingDetail = z.infer<typeof ListingDetail>;
+
+/**
+ * Əlaqə nömrəsi — AYRI uçtan, "Nömrəni göstər" tıklaması ilə.
+ *
+ * NİYƏ AYRI: nömrə detay cavabının içindəykən, elanları gəzən bir bot heç bir
+ * əlavə iş görmədən hər elanın nömrəsini toplayırdı. İndi nömrəni almaq üçün
+ * ayrıca, niyyətli bir istək lazımdır və o uc dəqiqədə {@link CONTACT_RATE_LIMIT}
+ * istəklə məhdudlaşır.
+ *
+ * BUNUN NƏ OLMADIĞI DA AÇIQ DEYİLMƏLİDİR: bu, nömrəni gizlətmir. Elanı açan
+ * hər kəs bir toxunuşla görə bilir — çünki alıcı zəng edə bilməsə elanın mənası
+ * qalmır. Toplu hasadı çətinləşdirir, mümkünsüz etmir. Nömrənin tamamilə
+ * gizli qalması yalnız sayt daxilində mesajlaşma və ya maskalanmış nömrə ilə
+ * mümkündür — ikisi də bu mərhələdə yoxdur.
+ */
+export const ListingContact = z.object({
+  contactName: z.string().nullable(),
+  contactPhone: z.string().nullable(),
+});
+export type ListingContact = z.infer<typeof ListingContact>;
+
+/** Əlaqə ucunun IP başına dəqiqəlik limiti. */
+export const CONTACT_RATE_LIMIT = 10;
 
 /** İlan limiti aşıldığında dönen hata gövdesi (frontend upgrade modalını açar). */
 export const LISTING_LIMIT_CODE = "LISTING_LIMIT_EXCEEDED" as const;

@@ -78,6 +78,15 @@ export default function ListingForm(props: {
 
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  /*
+    Nömrənin yayımlanmasına AÇIQ razılıq.
+
+    Şərtlərin dibinə basdırılmış bir cümlə razılıq deyil — heç kim oxumur.
+    Razılıq tam nömrənin yazıldığı anda və nə olacağı açıq deyilərək istənir.
+    Server də bunu tələb edir (bax: contracts/listings.ts, phonePublicAck);
+    yalnız brauzerdə yoxlansaydı bu, hədd yox, xatırlatma olardı.
+  */
+  const [phoneAck, setPhoneAck] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +100,22 @@ export default function ListingForm(props: {
   useEffect(() => {
     if (!props.open) return;
     setContactName(editing?.contactName ?? user?.name ?? "");
-    setContactPhone(editing?.contactPhone ?? "");
+    /*
+      Nömrə artıq elan detayında gəlmir (bax: ListingDetailModal.tsx) — ona görə
+      redaktədə ayrıca gətirilir. Gətirilməsə sahə boş qalar və istifadəçi
+      fərqinə varmadan nömrəsini silmiş olardı.
+    */
+    setContactPhone("");
+    if (editing) {
+      void fetch(`${API}/v1/listings/${editing.id}/contact`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((c) => { if (c?.contactPhone) setContactPhone(c.contactPhone as string); })
+        .catch(() => {});
+      // Redaktədə nömrə onsuz da yayımdadır — razılıq bir dəfə verilib
+      setPhoneAck(true);
+    } else {
+      setPhoneAck(false);
+    }
     if (editing) {
       setCategory(typeToCategory(editing.propertyType, editing.buildingType));
       setDealType(editing.dealType);
@@ -160,6 +184,9 @@ export default function ListingForm(props: {
     if (!isEdit) {
       if (contactName.trim().length < 2) return setError("Əlaqə adını daxil edin");
       if (digits(contactPhone).length < 7) return setError("Əlaqə nömrəsini daxil edin");
+      if (!phoneAck) {
+        return setError("Nömrənizin elanda göstərilməsinə razılıq verməlisiniz");
+      }
     }
     setBusy(true);
     setError(null);
@@ -186,6 +213,7 @@ export default function ListingForm(props: {
       coverPhotoIdx: coverIdx,
       contactName: contactName.trim() || user.name,
       contactPhone: contactPhone.trim(),
+      phonePublicAck: true as const,
     };
 
     try {
@@ -220,7 +248,7 @@ export default function ListingForm(props: {
     }
   }, [user, prefill, editing, isEdit, category, cfg, dealType, district, settlement, areaM2,
       landAreaSot, rooms, repairState, titleDeed, price, description, contactName,
-      contactPhone, photos, coverIdx, props]);
+      contactPhone, phoneAck, photos, coverIdx, props]);
 
   if (!props.open) return null;
 
@@ -355,9 +383,30 @@ export default function ListingForm(props: {
             <label htmlFor="lf-phone">Nömrəniz</label>
             <input id="lf-phone" inputMode="tel"
               value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-            <span className="hint">Elanda bu nömrə görünəcək.</span>
           </div>
         </div>
+
+        {/*
+          Razılıq nömrənin YANINDA istənir, şərtlərin dibində yox — istifadəçi
+          nəyə razı olduğunu tam o anda görsün. Mətn nə olacağını yumşaltmadan
+          deyir: nömrə saytda AÇIQ olur, elanı açan hər kəs görə bilir. Nə
+          etdiyimiz də deyilir ki, söz boş qalmasın: nömrə səhifədə hazır
+          durmur, toxunuşla açılır və o uc sürət limitlidir.
+        */}
+        {!isEdit && (
+          <label className="ack-row" style={{ marginTop: 12 }}>
+            <input type="checkbox" checked={phoneAck}
+              onChange={(e) => setPhoneAck(e.target.checked)} />
+            <span>
+              <b>Nömrəm elanda görünsün.</b> Elanı açan hər kəs
+              “Nömrəni göstər” düyməsi ilə nömrəmi görə bilər. Nömrə səhifədə
+              hazır yazılmır və sorğu sayı məhdudlaşdırılır, amma bu, nömrənin
+              gizli qaldığı anlamına gəlmir. Elanı silsəniz nömrə də silinir.
+              {" "}
+              <a href="/qaydalar" target="_blank" rel="noreferrer">Qaydalar</a>
+            </span>
+          </label>
+        )}
 
         <div className="field" style={{ marginTop: 14 }}>
           <label htmlFor="lf-desc">Açıqlama</label>

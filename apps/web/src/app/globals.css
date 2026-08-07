@@ -1105,6 +1105,51 @@ footer.note {
 .ld-phone.muted { color: var(--faint); font-weight: 400; font-size: 0.9rem; }
 .ld-contact-name { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
 
+/*
+  "Nömrəni göstər" — nömrə səhifədə hazır durmur, toxunuşla gəlir (səbəb üçün
+  bax: ListingDetailModal.tsx). Düymə nömrənin özü qədər görünən olmalıdır ki,
+  alıcı "nömrə yoxdur" sanmasın; ona görə açıq fonlu, yumşaq çərçivəli.
+  Hündürlük 42px — barmaqla rahat toxunulan ölçü.
+*/
+.ld-phone-reveal {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 42px; padding: 0 16px; cursor: pointer;
+  font-family: var(--mono); font-size: 0.92rem; font-weight: 700;
+  color: var(--teal); background: var(--surface);
+  border: 1px solid var(--teal-line); border-radius: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.ld-phone-reveal:hover:not(:disabled) {
+  background: var(--surface-2); border-color: var(--teal); transform: translateY(-1px);
+}
+.ld-phone-reveal:active:not(:disabled) { transform: translateY(0); }
+.ld-phone-reveal:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.ld-phone-reveal:disabled { opacity: 0.65; cursor: wait; }
+@media (prefers-reduced-motion: reduce) {
+  .ld-phone-reveal, .ld-phone-reveal:hover:not(:disabled) { transition: none; transform: none; }
+}
+.ld-phone-err { margin-top: 7px; font-size: 0.78rem; color: var(--danger); }
+
+/*
+  Razılıq sətri — nömrə sahəsinin altında. Qutu ilə mətn eyni <label> içindədir,
+  yəni mətnin hər yerinə toxunmaq qutunu işarələyir; telefonda 14px-lik bir
+  qutunu dəqiq tutmağa çalışmaq lazım gəlmir. Fon zəif, çünki bu bir xəbərdarlıq
+  deyil — qorxutmadan, gizlətmədən deyilən bir məlumatdır.
+*/
+.ack-row {
+  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
+  padding: 12px 13px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  font-size: 0.79rem; line-height: 1.55; color: var(--muted);
+}
+.ack-row input[type="checkbox"] {
+  flex: 0 0 auto; width: 17px; height: 17px; margin-top: 2px;
+  accent-color: var(--teal); cursor: pointer;
+}
+.ack-row b { color: var(--ink); font-weight: 640; }
+.ack-row a { color: var(--teal); }
+.ack-row:hover { border-color: var(--teal-line); }
+
 .ld-actions {
   margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
 }
@@ -1694,6 +1739,87 @@ footer.note {
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .sky-flag { opacity: 0.4; }
 }
+
+/* ============================================================
+   QAYDALAR — hüquqi mətn səhifəsi (/qaydalar)
+
+   Hüquqi mətnin oxunmamasının səbəbi çox vaxt uzunluğu deyil, BİÇİMİ olur:
+   kənardan kənara uzanan sətirlər, sıx aralıq, eyni boyda başlıqlar. Ölçü
+   burada məzmun qədər vacibdir — 68ch sətir uzunluğu, 1.75 sətir aralığı,
+   nömrələnmiş başlıqlar. Məqsəd mətni "hüquqi" göstərmək deyil, oxutmaqdır.
+   ============================================================ */
+.legal { max-width: 780px; padding-top: 34px; }
+.legal-head { margin-bottom: 30px; }
+.legal-back {
+  display: inline-block; margin-bottom: 20px;
+  font-size: 0.82rem; color: var(--muted); text-decoration: none;
+}
+.legal-back:hover { color: var(--teal); }
+.legal h1 {
+  margin: 14px 0 10px; font-size: clamp(1.6rem, 4.6vw, 2.1rem);
+  letter-spacing: -0.022em; color: var(--ink);
+}
+.legal-sub { max-width: 62ch; color: var(--muted); line-height: 1.7; font-size: 0.95rem; }
+.legal-date {
+  margin-top: 10px; font-family: var(--mono);
+  font-size: 0.68rem; letter-spacing: 0.08em; color: var(--faint);
+}
+
+/* Ən çox soruşulan sual mətnin dibində yox, başında — vurğulu qutuda. */
+.legal-box {
+  padding: 20px 22px; margin-bottom: 34px; border-radius: 14px;
+  background: var(--teal-soft); border: 1px solid var(--teal-line);
+}
+.legal-box h2 {
+  margin: 0 0 10px; font-size: 1.02rem; font-weight: 680;
+  letter-spacing: -0.012em; color: var(--ink);
+}
+.legal-box p { margin: 0 0 10px; }
+.legal-box p:last-child { margin-bottom: 0; }
+
+.legal-s { margin-bottom: 30px; }
+.legal-s h2 {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 0 0 12px; font-size: 1.02rem; font-weight: 680;
+  letter-spacing: -0.012em; color: var(--ink);
+}
+.legal-n {
+  flex: 0 0 auto; font-family: var(--mono); font-size: 0.72rem;
+  color: var(--teal); letter-spacing: 0.04em;
+}
+.legal p, .legal li {
+  max-width: 68ch; font-size: 0.9rem; line-height: 1.75; color: var(--muted);
+}
+.legal p { margin: 0 0 11px; }
+.legal b { color: var(--ink); font-weight: 640; }
+.legal ul { margin: 0 0 11px; padding-left: 20px; }
+.legal li { margin-bottom: 7px; }
+.legal-data li { list-style: none; }
+.legal-data { padding-left: 0; }
+.legal-data li::before { content: "· "; color: var(--teal); }
+
+/* Vəd edə bilmədiyimiz şey yumşaldılmır — görünən bir çərçivəyə alınır. */
+.legal-warn {
+  padding: 13px 15px; border-radius: 10px;
+  background: var(--warn-soft); border: 1px solid var(--warn-line);
+  max-width: none;
+}
+.legal-contact { margin-top: 14px; }
+.legal-foot { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); }
+.legal-foot a { color: var(--teal); text-decoration: none; font-size: 0.86rem; }
+
+/* Giriş pəncərəsindəki razılıq sətri — düymənin altında, kiçik amma oxunaqlı. */
+.modal-fine {
+  margin-top: 12px; text-align: center;
+  font-size: 0.75rem; line-height: 1.6; color: var(--faint);
+}
+.modal-fine a { color: var(--muted); text-decoration: underline; }
+.modal-fine a:hover { color: var(--teal); }
+
+/* Altbarda qaydalar bağlantısı — hər səhifədən əlçatan. */
+.footer-legal { display: block; margin-top: 8px; font-size: 0.8rem; }
+.footer-legal a { color: var(--muted); text-decoration: none; }
+.footer-legal a:hover { color: var(--teal); text-decoration: underline; }
 
 /* ============================================================
    MOBİL ÜST ÇUBUK — hiyerarşi ve sığma

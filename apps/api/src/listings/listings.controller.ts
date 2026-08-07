@@ -10,7 +10,9 @@ import {
   Query,
   UnauthorizedException,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
+  CONTACT_RATE_LIMIT,
   CreateListingDto,
   ListingQuery,
   parseRefNo,
@@ -90,6 +92,28 @@ export class ListingsController {
     const viewer = await this.optionalUser(userId);
     if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz elan kimliği");
     return this.listings.detail(id, viewer);
+  }
+
+  /**
+   * Əlaqə nömrəsi — "Nömrəni göstər" toxunuşu ilə çağırılır.
+   *
+   * NİYƏ AYRI UC: nömrə detay cavabının içindəykən, liste ucundan bütün elan
+   * kimliklərini alıb detayları bir-bir çəkən bir skript əlavə heç bir iş
+   * görmədən dəqiqədə 120 nömrə yığa bilirdi. Nömrənin ayrı uca çıxarılması
+   * onu səhifə mənbəyindən, JSON-dan və axtarış motorunun gördüyündən çıxarır;
+   * burdakı sıx limit isə yığımı dəqiqədə {@link CONTACT_RATE_LIMIT} nömrəyə
+   * endirir. Adi bir alıcı bir oturumda bu qədər elana zəng etmir; yığan üçün
+   * isə 12 dəfə yavaşlayır.
+   *
+   * Bu, nömrəni GİZLƏTMİR — elanı açan hər kəs bir toxunuşla görür, çünki alıcı
+   * zəng edə bilməsə elanın mənası qalmır. Gerçək gizlilik yalnız sayt daxili
+   * mesajlaşma və ya maskalanmış nömrə ilə olur; hər ikisi hələ yoxdur.
+   */
+  @Throttle({ default: { limit: CONTACT_RATE_LIMIT, ttl: 60_000 } })
+  @Get(":id/contact")
+  async contact(@Param("id") id: string) {
+    if (!UUID_RE.test(id)) throw new BadRequestException("Geçersiz elan kimliği");
+    return this.listings.contact(id);
   }
 
   /** İlanı düzenle (kısmi) — sahip veya admin. Fiyat değişimi tarihçeye düşer. */

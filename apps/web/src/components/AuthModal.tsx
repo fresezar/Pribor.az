@@ -115,6 +115,15 @@ export default function AuthModal(props: {
             <button className="cta" onClick={() => void sendCode()} disabled={busy}>
               {busy ? "Göndərilir…" : "Kod göndər →"}
             </button>
+            {/*
+              Razılıq öhdəlik anında deyilir — hesab açan düymənin altında,
+              saytа girərkən çıxan bir pəncərədə yox. Nömrənin yayımlanmasına
+              razılıq isə ayrıca, elan formunda istənir (bax: ListingForm.tsx).
+            */}
+            <p className="modal-fine">
+              Davam etməklə <a href="/qaydalar" target="_blank" rel="noreferrer">
+              Qaydalar və məxfilik</a> şərtlərini qəbul edirsiniz.
+            </p>
           </>
         ) : (
           <>

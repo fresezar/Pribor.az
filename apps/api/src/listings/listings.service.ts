@@ -9,6 +9,7 @@ import {
   CreateListingDto,
   formatRefNo,
   ListingCard,
+  ListingContact,
   ListingDetail,
   ListingQuery,
   ListingSort,
@@ -378,7 +379,8 @@ export class ListingsService {
         photos: (u.photos as string[]) ?? [],
         coverPhotoIdx: Number(u.cover_photo_idx ?? 0),
         contactName: (u.contact_name as string) ?? null,
-        contactPhone: (u.contact_phone as string) ?? null,
+        // Nömrənin ÖZÜ burada dönmür — yalnız olub-olmadığı. Bax: contact().
+        hasContactPhone: Boolean(u.contact_phone),
         createdAt: new Date(u.created_at as string).toISOString(),
         sourceSite: "pribor",
         canManage: isAdmin || (viewerId != null && u.user_id === viewerId),
@@ -404,6 +406,29 @@ export class ListingsService {
       .limit(1);
     if (!rows[0]) throw new NotFoundException(`№${refNo} nömrəli elan tapılmadı`);
     return this.detail(rows[0].id, viewerId);
+  }
+
+  /**
+   * Əlaqə nömrəsi — yalnız "Nömrəni göstər" toxunuşu ilə.
+   *
+   * Nömrə detay cavabından çıxarıldı, çünki orada olarkən elanları gəzən bir
+   * skript heç bir əlavə addım atmadan hər elanın nömrəsini yığırdı. İndi hər
+   * nömrə üçün ayrıca, niyyətli bir istək lazımdır; bu uc isə controller-də
+   * dəqiqədə {@link CONTACT_RATE_LIMIT} istəklə məhdudlaşdırılıb.
+   *
+   * Yalnız `active` elanlar nömrə qaytarır — satılmış və ya arxivlənmiş elanın
+   * sahibi artıq zəng gözləmir.
+   */
+  async contact(id: string): Promise<ListingContact> {
+    const row = await db.query.listings.findFirst({
+      where: eq(listings.id, id),
+      columns: { contactName: true, contactPhone: true, status: true },
+    });
+    if (!row || row.status !== "active") throw new NotFoundException("Elan tapılmadı");
+    return ListingContact.parse({
+      contactName: row.contactName ?? null,
+      contactPhone: row.contactPhone ?? null,
+    });
   }
 
   // ------------------------------------------------------- yönetim aksiyonları

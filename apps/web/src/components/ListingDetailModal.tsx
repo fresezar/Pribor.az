@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import type { ListingDetail } from "@pribor/contracts";
+import type { ListingContact, ListingDetail } from "@pribor/contracts";
 import { categoryLabel, DEAL_TYPE_LABEL } from "@pribor/contracts";
 import ListingForm from "./ListingForm";
 import Portal from "./Portal";
@@ -41,6 +41,14 @@ export default function ListingDetailModal(props: {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  /*
+    Nömrə detay cavabında GƏLMİR — ayrıca istənir (bax: listings.controller.ts).
+    Beləcə nə səhifə mənbəyində, nə də elanları gəzən bir skriptin gördüyündə
+    olur. `phone` yalnız istifadəçi düyməyə toxunduqdan sonra dolur.
+  */
+  const [phone, setPhone] = useState<string | null>(null);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneErr, setPhoneErr] = useState<string | null>(null);
 
   const open = props.listingId != null || props.preloaded != null;
 
@@ -64,6 +72,9 @@ export default function ListingDetailModal(props: {
   }, [user]);
 
   useEffect(() => {
+    // Modal bağlananda nömrə də unudulur — növbəti elan öz nömrəsini
+    // göstərməmiş açılsın, əvvəlkinin nömrəsi ekranda qalmasın.
+    setPhone(null); setPhoneErr(null);
     if (!open) { setData(null); setError(null); setConfirmDelete(false); setEditOpen(false); return; }
     if (props.preloaded) {
       setData(props.preloaded);
@@ -95,6 +106,30 @@ export default function ListingDetailModal(props: {
       setBusy(false);
     }
   }, [data, user, props]);
+
+  /**
+   * Nömrəni gətir. Uc dəqiqədə 10 istəklə məhdudlaşıb; limit dolarsa server
+   * 429 qaytarır və bunu istifadəçiyə olduğu kimi deyirik — "xəta oldu" deyil,
+   * "çox tez-tez soruşuldu". Səbəbi gizlətmək istifadəçini təkrar-təkrar
+   * cəhdə məcbur edər.
+   */
+  const revealPhone = useCallback(async () => {
+    if (!data || phone || phoneBusy) return;
+    setPhoneBusy(true);
+    setPhoneErr(null);
+    try {
+      const r = await fetch(`${API}/v1/listings/${data.id}/contact`);
+      if (r.status === 429) throw new Error("Çox sayda sorğu — bir dəqiqə sonra yenidən yoxlayın");
+      if (!r.ok) throw new Error("Nömrə alınmadı");
+      const c = (await r.json()) as ListingContact;
+      if (!c.contactPhone) throw new Error("Bu elanda nömrə göstərilməyib");
+      setPhone(c.contactPhone);
+    } catch (e) {
+      setPhoneErr(e instanceof Error ? e.message : "Nömrə alınmadı");
+    } finally {
+      setPhoneBusy(false);
+    }
+  }, [data, phone, phoneBusy]);
 
   const remove = useCallback(async () => {
     if (!data || !user) return;
@@ -221,13 +256,25 @@ export default function ListingDetailModal(props: {
 
             <div className="ld-contact">
               <div className="ld-contact-label">Əlaqə</div>
-              {data.contactPhone ? (
-                <a className="ld-phone" href={`tel:${data.contactPhone.replace(/\s/g, "")}`}>
-                  📞 {data.contactPhone}
+              {/*
+                Nömrə birbaşa yazılmır, TOXUNUŞLA açılır. Bu, elan sahibinin
+                nömrəsini elanları avtomatik gəzən skriptlərdən qoruyur: nömrə
+                səhifə mənbəyində yoxdur, ayrıca istək lazımdır və o istək
+                dəqiqədə 10-la məhdudlaşıb. Alıcı üçün bədəl bir toxunuşdur.
+              */}
+              {!data.hasContactPhone ? (
+                <span className="ld-phone muted">Nömrə göstərilməyib</span>
+              ) : phone ? (
+                <a className="ld-phone" href={`tel:${phone.replace(/\s/g, "")}`}>
+                  📞 {phone}
                 </a>
               ) : (
-                <span className="ld-phone muted">Nömrə göstərilməyib</span>
+                <button type="button" className="ld-phone-reveal"
+                  onClick={() => void revealPhone()} disabled={phoneBusy}>
+                  📞 {phoneBusy ? "Gətirilir…" : "Nömrəni göstər"}
+                </button>
               )}
+              {phoneErr && <div className="ld-phone-err">{phoneErr}</div>}
               {data.contactName && <div className="ld-contact-name">{data.contactName}</div>}
             </div>
 
