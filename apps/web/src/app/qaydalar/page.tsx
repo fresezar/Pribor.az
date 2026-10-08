@@ -50,7 +50,7 @@ export default function QaydalarPage() {
           etdiyimizi izah edir. Sadə dildə yazılmışdır; nəyisə gizlətmək üçün
           uzadılmayıb.
         </p>
-        <p className="legal-date">Son yenilənmə: 7 avqust 2026</p>
+        <p className="legal-date">Son yenilənmə: 7 oktyabr 2026</p>
       </header>
 
       {/*
@@ -86,6 +86,14 @@ export default function QaydalarPage() {
           və ya məhkəmə üçün istifadə edilə bilməz. Model açıq elan qiymətlərindən
           öyrənir; elan qiyməti isə <b>istənilən</b> qiymətdir, satılan qiymət deyil.
           Aralarındakı fərq bazarlıq payıdır və rayondan rayona dəyişir.
+        </p>
+        <p>
+          <b>“Vasitəçisiz elanlar”</b> bölməsi başqa saytlarda (bina.az, tap.az)
+          sahibinin özünün verdiyi elanlara <b>yönləndirmədir</b>. Kartda yalnız
+          qiymət, otaq, sahə, yer və tarix göstərilir; foto, mətn, ad və nömrə
+          götürülmür — elana toxunanda mənbə saytda açılır. Çox elanı olan hesablar,
+          agentliklər və eyni evi təkrar verənlər avtomatik süzülür. Süzgəc səhv
+          edə bilər; elanın vasitəçiyə aid olduğunu görsəniz bizə yazın.
         </p>
       </S>
 

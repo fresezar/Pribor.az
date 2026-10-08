@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import ToolsPanel from "@/components/ToolsPanel";
 import ApiWarmup from "@/components/ApiWarmup";
 import MarketView from "@/components/MarketView";
+import OwnerFeed from "@/components/OwnerFeed";
 import BrandLogo from "@/components/BrandLogo";
 import BakuSkyline from "@/components/BakuSkyline";
 import AzFlag from "@/components/AzFlag";
@@ -32,6 +33,8 @@ export default function HomePage() {
       <ToolsPanel />
 
       <MarketView />
+
+      <OwnerFeed />
 
       <footer className="note">
         <div className="footer-brand"><BrandLogo size={26} /></div>

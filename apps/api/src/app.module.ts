@@ -6,6 +6,7 @@ import { ClientIpThrottlerGuard } from "./common/client-ip.guard";
 import { AuthModule } from "./auth/auth.module";
 import { HealthModule } from "./health/health.module";
 import { ListingsModule } from "./listings/listings.module";
+import { OwnerFeedModule } from "./owner-feed/owner-feed.module";
 import { ValuationsModule } from "./valuations/valuations.module";
 
 /**
@@ -24,6 +25,7 @@ import { ValuationsModule } from "./valuations/valuations.module";
     AuthModule,
     HealthModule,
     ListingsModule,
+    OwnerFeedModule,
     ValuationsModule,
   ],
   /*

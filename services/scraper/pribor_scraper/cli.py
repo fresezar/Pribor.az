@@ -91,6 +91,49 @@ def enrich(
     typer.echo(f"Zenginleştirme bitti: {stats}")
 
 
+@app.command("owner-feed")
+def owner_feed(
+    area: str = typer.Option("bine", help="Bölge (bkz. owner_feed.AREAS)"),
+    days: int = typer.Option(60, help="Son kaç günün ilanları"),
+    sources: str = typer.Option("bina.az,tap.az", help="Kaynaklar (virgüllü)"),
+    types: str = typer.Option("apartment,house", help="Tipler: apartment,house,land"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="DB'ye yazma, JSON'a dök"),
+) -> None:
+    """Mülkiyyətçi lenti: bölgedeki son ilanları okur, sahte mülkiyyətçiyi
+    ayıklar, owner_feed'e yazar (bkz. owner_feed.py)."""
+    import json
+    from datetime import datetime, timezone
+
+    from . import owner_feed as of
+    from .settings import settings
+
+    if area not in of.AREAS:
+        typer.echo(f"Bilinmeyen bölge: {area}. Mevcutlar: {', '.join(of.AREAS)}")
+        raise typer.Exit(1)
+    src = tuple(s.strip() for s in sources.split(",") if s.strip())
+    wanted = tuple(t.strip() for t in types.split(",") if t.strip())
+    bad = [s for s in src if s not in of.SOURCES]
+    bad += [t for t in wanted if t not in of.PROPERTY_TYPES]
+    if bad:
+        typer.echo(f"Bilinmeyen kaynak/tip: {', '.join(bad)}")
+        raise typer.Exit(1)
+
+    started = datetime.now(timezone.utc)
+    items, stats = of.collect(area, days, src, wanted)
+    typer.echo(json.dumps(stats, ensure_ascii=False, indent=1))
+
+    if dry_run:
+        out = settings.raw_local_dir.parent / "owner_feed" / f"{area}-{started:%Y%m%d-%H%M}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(of.to_jsonable(items), ensure_ascii=False, indent=1),
+                       encoding="utf-8")
+        typer.echo(f"Yazılmadı (dry-run) → {out}")
+        return
+    sites_ok = tuple(s for s in src if "error" not in stats.get(s, {}))
+    of.write(items, sites_ok, area, started)
+    typer.echo(f"owner_feed güncellendi: {len(items)} kayıt ({stats['verdicts']})")
+
+
 @app.command()
 def seed(
     n: int = typer.Option(150, help="Üretilecek sentetik ilan sayısı"),
